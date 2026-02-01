@@ -21,6 +21,7 @@
   import NeonBrick from "../routes/NeonBrick.svelte";
   import Stock from "../routes/Stock.svelte";
   import SecretLedger from "../routes/SecretLedger.svelte";
+  import NeonSurvivor from "../routes/NeonSurvivor.svelte";
 
   const location = useLocation();
 
@@ -49,7 +50,8 @@
   $: isGameplayPage =
     $location.pathname.includes("/fruit-pang") ||
     $location.pathname.includes("/neon-blast") ||
-    $location.pathname.includes("/neon-brick");
+    $location.pathname.includes("/neon-brick") ||
+    $location.pathname.includes("/neon-survivor");
 
   // 설치 관련 이벤트
   if (typeof window !== "undefined") {
@@ -94,6 +96,7 @@
       <Route path="neon-brick" component={NeonBrick} />
       <Route path="stock" component={Stock} />
       <Route path="secret-ledger" component={SecretLedger} />
+      <Route path="neon-survivor" component={NeonSurvivor} />
     {/if}
   </main>
 </div>
