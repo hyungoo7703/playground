@@ -360,7 +360,7 @@
   }
 
   function spawnBall(x, y, dx, dy) {
-    const speed = 5 + level * 0.5; // Slower start
+    const speed = 4 + level * 0.4; // Decreased speed
     // Calculate spawn Y to be above the raised paddle
     const defaultY = canvas.height - PADDLE_BOTTOM_MARGIN - PADDLE_HEIGHT - 20;
 
@@ -376,7 +376,7 @@
   }
 
   function spawnMultiBalls(x, y) {
-    const speed = 5 + level * 0.5;
+    const speed = 4 + level * 0.4;
     [-0.5, 0, 0.5].forEach((offset) => {
       balls.push({
         x: x,

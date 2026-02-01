@@ -94,6 +94,7 @@
 
   <!-- D-Day Banner -->
   {#if dDayEvent}
+    {@const [dDayMain, ...dDaySubs] = dDayEvent.title.split("(")}
     <div
       in:fly={{ y: -20, duration: 500 }}
       class="relative bg-gradient-to-r from-pink-500 to-rose-500 rounded-[2rem] p-6 text-white shadow-lg overflow-hidden flex justify-between items-center group cursor-pointer"
@@ -105,7 +106,12 @@
           >Coming Up</span
         >
         <h3 class="font-black text-xl leading-tight text-white">
-          {dDayEvent.title}
+          {dDayMain.trim()}
+          {#if dDaySubs.length > 0}
+            <span class="block text-sm font-bold text-pink-200 mt-1 opacity-90">
+              {dDaySubs.map((s) => s.replace(")", "").trim()).join(" ")}
+            </span>
+          {/if}
         </h3>
         <p class="text-xs text-white/80 mt-1">{dDayEvent.date}</p>
       </div>
@@ -232,6 +238,7 @@
         </div>
       {:else if monthlyEvents.length > 0}
         {#each monthlyEvents as event (event.id)}
+          {@const [mainTitle, ...subTitles] = event.title.split("(")}
           <li
             class="list-none flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-700/30 rounded-2xl"
           >
@@ -254,8 +261,15 @@
               <p
                 class="font-bold text-gray-800 dark:text-gray-200 truncate text-left"
               >
-                {event.title}
+                {mainTitle.trim()}
               </p>
+              {#if subTitles.length > 0}
+                <p
+                  class="text-[11px] font-medium text-gray-500 dark:text-gray-400 truncate mt-0.5"
+                >
+                  {subTitles.map((s) => s.replace(")", "").trim()).join(" ")}
+                </p>
+              {/if}
             </div>
           </li>
         {/each}

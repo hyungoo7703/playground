@@ -70,11 +70,7 @@
       title: "오늘 뭐 먹지?",
       icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.344l-.707-.707M8 12a4 4 0 118 0 4 4 0 01-8 0z" />',
     },
-    {
-      path: "/ramen-timer",
-      title: "라면 타이머",
-      icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />',
-    },
+
     {
       path: "/settings",
       title: "설정",

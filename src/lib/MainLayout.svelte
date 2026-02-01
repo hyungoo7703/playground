@@ -20,7 +20,6 @@
   import NeonBlast from "../routes/NeonBlast.svelte";
   import NeonBrick from "../routes/NeonBrick.svelte";
   import Stock from "../routes/Stock.svelte";
-  import RamenTimer from "../routes/RamenTimer.svelte";
 
   const location = useLocation();
 
@@ -93,7 +92,6 @@
       <Route path="neon-brick" component={NeonBrick} />
       <Route path="neon-brick" component={NeonBrick} />
       <Route path="stock" component={Stock} />
-      <Route path="ramen-timer" component={RamenTimer} />
     {/if}
   </main>
 </div>
