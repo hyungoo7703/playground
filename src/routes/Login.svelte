@@ -1,11 +1,11 @@
 <script>
-  import { navigate } from 'svelte-routing';
-  import { base, isLoggedIn } from '../lib/store.js';
-  import { api } from '../lib/api.js';
+  import { navigate } from "svelte-routing";
+  import { base, isLoggedIn, currentUser } from "../lib/store.js";
+  import { api } from "../lib/api.js";
 
-  let accessCode = '';
+  let accessCode = "";
   let isLoading = false;
-  let errorMessage = '';
+  let errorMessage = "";
 
   async function handleLogin() {
     if (!accessCode) {
@@ -14,20 +14,20 @@
     }
 
     isLoading = true;
-    errorMessage = '';
+    errorMessage = "";
 
     try {
       const result = await api.login(accessCode);
 
-
-
       if (result.success) {
-        localStorage.setItem('accessCode', accessCode);
-        localStorage.setItem('userName', result.userName);
-        localStorage.setItem('role', result.role);
-        
+        localStorage.setItem("accessCode", accessCode);
+        localStorage.setItem("userName", result.userName);
+        localStorage.setItem("currentUser", result.userName); // currentUser도 업데이트
+        localStorage.setItem("role", result.role);
+
+        currentUser.set(result.userName); // 스토어 업데이트
         isLoggedIn.set(true); // 스토어 업데이트 (MainLayout의 {#if}가 즉시 바뀜)
-        navigate(base || '/', { replace: true });
+        navigate(base || "/", { replace: true });
       } else {
         errorMessage = result.message;
       }
@@ -41,7 +41,9 @@
 </script>
 
 <div class="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-  <div class="max-w-md w-full space-y-8 p-10 bg-white rounded-2xl shadow-xl border border-gray-100">
+  <div
+    class="max-w-md w-full space-y-8 p-10 bg-white rounded-2xl shadow-xl border border-gray-100"
+  >
     <div>
       <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
         코드 입력
@@ -59,7 +61,7 @@
             id="access-code"
             type="password"
             bind:value={accessCode}
-            on:keydown={(e) => e.key === 'Enter' && handleLogin()}
+            on:keydown={(e) => e.key === "Enter" && handleLogin()}
             class="appearance-none rounded-lg relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
             placeholder="코드를 입력하세요"
           />
@@ -82,7 +84,8 @@
             <span class="animate-pulse">확인 중...</span>
           {:else}
             입장하기
-          {/if} </button>
+          {/if}
+        </button>
       </div>
     </div>
   </div>

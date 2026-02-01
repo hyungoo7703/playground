@@ -303,8 +303,8 @@
           {/each}
         </div>
 
-        <!-- Secret Admin Logic (Only for Hyungoo) -->
-        {#if $currentUser === "현구"}
+        <!-- Secret Admin Logic (Only for Hyungoo or Admin) -->
+        {#if $currentUser === "현구" || $currentUser === "관리자"}
           <div
             class="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800 opacity-30 hover:opacity-100 transition-opacity"
           >

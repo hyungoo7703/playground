@@ -20,6 +20,7 @@
   import NeonBlast from "../routes/NeonBlast.svelte";
   import NeonBrick from "../routes/NeonBrick.svelte";
   import Stock from "../routes/Stock.svelte";
+  import SecretLedger from "../routes/SecretLedger.svelte";
 
   const location = useLocation();
 
@@ -92,6 +93,7 @@
       <Route path="neon-brick" component={NeonBrick} />
       <Route path="neon-brick" component={NeonBrick} />
       <Route path="stock" component={Stock} />
+      <Route path="secret-ledger" component={SecretLedger} />
     {/if}
   </main>
 </div>
