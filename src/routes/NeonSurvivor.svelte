@@ -312,27 +312,23 @@
         animationId = requestAnimationFrame(gameLoop);
     }
 
-    // --- Update Logic ---
+    // --- Update Logic (물리 및 충돌 로직 복구) ---
     function update(dt) {
         gameTime += dt;
 
-        // --- [추가됨] 보스 등장 시스템 ---
-        // 5분(300,000ms)이 지났고, 아직 보스가 없다면?
+        // 1. 보스 등장 시스템
         if (gameTime > 300000 && !enemies.some((e) => e.isBoss)) {
-            // 경고창 타이머 설정
             if (bossWarningTimer === 0) {
                 showBossWarning = true;
-                bossWarningTimer = 3000; // 3초간 경고
+                bossWarningTimer = 3000;
             }
             if (bossWarningTimer > 0) {
                 bossWarningTimer -= dt;
-                if (bossWarningTimer <= 0) {
-                    spawnBoss(); // 보스 소환!
-                }
+                if (bossWarningTimer <= 0) spawnBoss();
             }
         }
 
-        // 1. 플레이어 이동 (기존 유지)
+        // 2. 플레이어 이동 및 방향
         let dx = 0,
             dy = 0;
         if (keys["ArrowUp"] || keys["w"]) dy = -1;
@@ -347,127 +343,84 @@
 
         if (dx !== 0 || dy !== 0) {
             const length = Math.sqrt(dx * dx + dy * dy);
-            // 정밀 정규화
             player.x += (dx / length) * player.speed;
             player.y += (dy / length) * player.speed;
-
-            // 방향 전환 (4방향)
-            if (Math.abs(dx) > Math.abs(dy)) {
-                player.direction = dx > 0 ? 2 : 1; // 우 : 좌
-            } else {
-                player.direction = dy > 0 ? 0 : 3; // 하 : 상
-            }
         }
 
-        // 카메라 추적
         camera.x = player.x - canvas.width / 2;
         camera.y = player.y - canvas.height / 2;
 
-        // 2. 적 스폰 (보스전 아닐 때만 일반 몹 스폰)
+        // 3. 적 스폰 및 추적
         if (!showBossWarning && !bossSpawned) {
             const spawnRate = Math.max(500, 2000 - gameTime / 100);
             if (Math.random() < dt / spawnRate) spawnEnemy();
         }
 
-        // 3. 적 업데이트 (보스 로직 포함)
         enemies = enemies.filter((e) => {
             const angle = Math.atan2(player.y - e.y, player.x - e.x);
             e.x += Math.cos(angle) * e.speed;
             e.y += Math.sin(angle) * e.speed;
 
-            // 충돌 처리
             if (
                 Math.hypot(e.x - player.x, e.y - player.y) <
-                (e.isBoss ? 80 : 20)
+                (e.isBoss ? 80 : 25)
             ) {
-                takeDamage(e.isBoss ? 20 : 5);
+                takeDamage(e.isBoss ? 0.5 : 0.2); // 프레임당 데미지
             }
 
-            // 사망 처리
             if (e.hp <= 0) {
-                if (e.isBoss) {
-                    gameState = "win"; // 보스 잡으면 승리!
-                } else {
-                    onEnemyDeath(e);
-                }
+                if (e.isBoss) gameState = "win";
+                else onEnemyDeath(e);
                 return false;
             }
             return true;
         });
 
-        // 4. 전투 (자동 발사)
+        // 4. 전투 (총구 위치 보정 발사)
         if (gameTime - player.lastShot > player.fireRate) {
             fireProjectile();
             player.lastShot = gameTime;
         }
 
-        // Projectile Update
-        for (let i = projectiles.length - 1; i >= 0; i--) {
-            const p = projectiles[i];
+        // 5. 투사체 이동 및 충돌
+        projectiles = projectiles.filter((p) => {
             p.x += p.vx;
             p.y += p.vy;
             p.life -= dt;
-
-            // Check collision
             let hit = false;
-            for (let j = enemies.length - 1; j >= 0; j--) {
-                const e = enemies[j];
-                const dist = Math.hypot(p.x - e.x, p.y - e.y);
-                if (dist < e.radius + 10) {
-                    // Hit!
+            enemies.forEach((e) => {
+                if (Math.hypot(e.x - p.x, e.y - p.y) < (e.isBoss ? 60 : 30)) {
+                    e.hp -= 20 + player.level * 2; // 레벨에 따른 데미지 증가
                     hit = true;
-                    e.hp -= 20; // Dmg
-                    playSound("punch", 0.5);
-                    spawnDamageNumber(e.x, e.y, 20);
-
-                    if (e.hp <= 0) {
-                        enemies.splice(j, 1);
-                        onEnemyDeath(e);
-                    }
-                    break;
+                    spawnDamageNumber(
+                        e.x,
+                        e.y,
+                        Math.round(20 + player.level * 2),
+                    );
                 }
-            }
-
-            if (hit || p.life <= 0) {
-                projectiles.splice(i, 1);
-            }
-        }
-
-        // 5. Items (Magnet)
-        items.forEach((item, i) => {
-            const dist = Math.hypot(player.x - item.x, player.y - item.y);
-            if (dist < player.magnetRadius) {
-                // Magnet pull
-                item.x += (player.x - item.x) * 0.1;
-                item.y += (player.y - item.y) * 0.1;
-            }
-
-            if (dist < 20) {
-                // Collect
-                if (item.type === "exp") {
-                    gainExp(item.value);
-                } else {
-                    player.coins += item.value;
-                    playSound("coin", 0.3);
-                }
-                items.splice(i, 1);
-            }
+            });
+            return p.life > 0 && !hit;
         });
 
-        // 6. Particles
-        for (let i = particles.length - 1; i >= 0; i--) {
-            particles[i].life -= dt;
-            particles[i].x += particles[i].vx;
-            particles[i].y += particles[i].vy;
-            if (particles[i].life <= 0) particles.splice(i, 1);
-        }
+        // 6. 아이템 자석 흡수
+        items = items.filter((it) => {
+            const dist = Math.hypot(it.x - player.x, it.y - player.y);
+            if (dist < player.magnetRadius) {
+                it.x += (player.x - it.x) * 0.2;
+                it.y += (player.y - it.y) * 0.2;
+            }
+            if (dist < 20) {
+                if (it.type === "exp") gainExp(10);
+                else player.coins += 5;
+                playSound("coin", 0.3);
+                return false;
+            }
+            return true;
+        });
 
-        // 7. Damage Numbers
-        for (let i = damageNumbers.length - 1; i >= 0; i--) {
-            damageNumbers[i].y -= 0.5;
-            damageNumbers[i].life -= dt;
-            if (damageNumbers[i].life <= 0) damageNumbers.splice(i, 1);
-        }
+        // 7. 파티클 & 데미지 숫자 업데이트
+        particles = particles.filter((p) => (p.life -= dt) > 0);
+        damageNumbers = damageNumbers.filter((dn) => (dn.life -= dt) > 0);
     }
 
     function spawnEnemy() {
@@ -479,7 +432,7 @@
             hp: 30 + player.level * 5,
             speed: 1.5 + Math.random() * 0.5,
             radius: 15,
-            type: Math.random() > 0.9 ? 1 : 0, // 10% separate sprite or variant
+            type: Math.floor(Math.random() * 5), // 0 to 4 (5 types)
         });
     }
 
@@ -489,8 +442,8 @@
         enemies.push({
             x: player.x, // 플레이어 근처(위쪽)에서 등장
             y: player.y - 500,
-            hp: 5000, // 엄청난 체력
-            maxHp: 5000,
+            hp: 25000, // 엄청난 체력 (5배 증가)
+            maxHp: 25000,
             speed: 1.5, // 느리지만 위압적
             radius: 100, // 충돌 범위 큼
             isBoss: true, // 보스 플래그
@@ -499,42 +452,40 @@
         playSound("warning");
     }
 
+    // --- 강력해진 무기 사출 (총구 중심 발사) ---
     function fireProjectile() {
-        // 가장 가까운 적 찾기
         let nearest = null;
         let minDst = Infinity;
-        for (let e of enemies) {
+        enemies.forEach((e) => {
             const d = Math.hypot(e.x - player.x, e.y - player.y);
             if (d < minDst) {
                 minDst = d;
                 nearest = e;
             }
-        }
+        });
 
         if (nearest) {
+            // 총구가 히어로 머리 위(약 -40px)에 있으므로 시작 지점 보정
+            const muzzleY = player.y - 45;
             const baseAngle = Math.atan2(
-                nearest.y - player.y,
+                nearest.y - muzzleY,
                 nearest.x - player.x,
             );
 
-            // --- 수정됨: 멀티샷 (부채꼴 사출) ---
-            // weaponLevel이 1이면 1발, 3이면 3발 부채꼴
             const count = player.weaponLevel;
-            const spread = 0.2; // 탄환 간격 (라디안)
+            const spread = 0.15; // 부채꼴 간격
 
             for (let i = 0; i < count; i++) {
-                // 부채꼴 각도 계산
                 const angleOffset = (i - (count - 1) / 2) * spread;
-
                 projectiles.push({
                     x: player.x,
-                    y: player.y,
-                    vx: Math.cos(baseAngle + angleOffset) * 10, // 속도 8 -> 10 증가
-                    vy: Math.sin(baseAngle + angleOffset) * 10,
-                    life: 2000, // 사거리 증가 (2초)
+                    y: muzzleY, // 보정된 총구 위치
+                    vx: Math.cos(baseAngle + angleOffset) * 12, // 탄속 증가
+                    vy: Math.sin(baseAngle + angleOffset) * 12,
+                    life: 1500,
                 });
             }
-            playSound("zap", 0.1);
+            playSound("zap", 0.2);
         }
     }
 
@@ -582,14 +533,14 @@
 
     function triggerLevelUp() {
         gameState = "levelup";
-        // 4가지 스킬 정의 (이미지 순서: 0:연사, 1:공격(멀티샷), 2:자석, 3:방패/속도)
+        // 5가지 스킬 정의 (이미지 순서: 0:연사, 1:공격(멀티샷), 2:자석, 3:방패/속도, 4:회복)
         const allSkills = [
             {
                 id: 0,
                 name: "Rapid Fire",
-                desc: "공격 속도 +20%",
+                desc: "공격 속도 +10%", // 20% -> 10% 너프
                 icon: "🔫",
-                effect: () => (player.fireRate *= 0.8),
+                effect: () => (player.fireRate *= 0.9), // 0.8 -> 0.9
             },
             {
                 id: 1,
@@ -612,6 +563,13 @@
                 icon: "👟",
                 effect: () => (player.speed *= 1.1),
             },
+            {
+                id: 4,
+                name: "Full Heal",
+                desc: "체력 100% 회복",
+                icon: "❤️",
+                effect: () => (player.hp = player.maxHp),
+            },
         ];
         // 랜덤 3개 노출
         levelUpOptions = allSkills.sort(() => 0.5 - Math.random()).slice(0, 3);
@@ -625,79 +583,77 @@
         gameLoop(lastTime);
     }
 
-    // --- Render ---
+    // --- Render (정밀 렌더링) ---
     function draw() {
         if (!ctx) return;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // 1. 배경 (기존 동일)
+        // 1. 배경 (타일링)
         const bg = assets.images.bg;
-        if (bg && bg.complete) {
+        if (bg?.complete) {
             const bgW = bg.naturalWidth;
             const bgH = bg.naturalHeight;
             const offX = -Math.floor(camera.x) % bgW;
             const offY = -Math.floor(camera.y) % bgH;
             for (let x = offX - bgW; x < canvas.width + bgW; x += bgW) {
-                for (let y = offY - bgH; y < canvas.height + bgH; y += bgH) {
+                for (let y = offY - bgH; y < canvas.height + bgH; y += bgH)
                     ctx.drawImage(bg, x, y, bgW, bgH);
-                }
             }
-        } else {
-            ctx.fillStyle = "#111";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
         ctx.save();
         ctx.translate(-camera.x, -camera.y);
 
-        // --- 수정됨: 네온 블렌딩 모드 (검은 배경 제거) ---
-        ctx.globalCompositeOperation = "screen";
+        // 2. 히어로 (배경 제거가 완료된 PNG이므로 screen 모드 전에 그립니다)
+        const hero = assets.images.hero;
+        if (hero?.complete) {
+            const aspect = hero.naturalWidth / hero.naturalHeight;
+            const drawH = 100; // 좀 더 큼직하게 변경
+            const drawW = drawH * aspect;
+            ctx.drawImage(
+                hero,
+                player.x - drawW / 2,
+                player.y - drawH / 2,
+                drawW,
+                drawH,
+            );
 
-        // 2. 아이템 (보석/코인 위치 보정)
-        items.forEach((item) => {
-            const sheet = assets.images.items;
-            if (sheet && sheet.complete) {
-                // 이미지가 [보석들][코인] 반반 나뉘어 있다고 가정
-                const sw = sheet.naturalWidth / 2;
-                const sh = sheet.naturalHeight;
-                const sx = item.type === "coin" ? sw : 0; // 코인이면 오른쪽 절반
+            // HP 게이지
+            ctx.fillStyle = "#333";
+            ctx.fillRect(player.x - 30, player.y - 65, 60, 6);
+            const hpPercent = Math.max(0, player.hp / player.maxHp);
+            ctx.fillStyle = hpPercent > 0.3 ? "#0f0" : "#f00";
+            ctx.fillRect(player.x - 30, player.y - 65, 60 * hpPercent, 6);
+        }
 
-                ctx.drawImage(
-                    sheet,
-                    sx,
-                    0,
-                    sw,
-                    sh,
-                    item.x - 15,
-                    item.y - 15,
-                    30,
-                    30,
-                );
-            }
+        // 3. 네온 합성 모드 ON (투사체 및 적 발광 효과)
+        // ctx.globalCompositeOperation = "screen";
+
+        // 투사체 (미사일 효과)
+        ctx.fillStyle = "#0ff";
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = "#0ff";
+        projectiles.forEach((p) => {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 5 + player.weaponLevel, 0, Math.PI * 2);
+            ctx.fill();
         });
 
-        // 3. 적 (5종 몹 정밀 슬라이싱)
+        // 적 & 보스
         enemies.forEach((e) => {
             if (e.isBoss) {
                 const bossImg = assets.images.boss;
-                if (bossImg?.complete) {
-                    // 보스는 그냥 통짜로 크게 그림
-                    ctx.drawImage(bossImg, e.x - 100, e.y - 100, 200, 200);
-                }
+                if (bossImg?.complete)
+                    ctx.drawImage(bossImg, e.x - 150, e.y - 150, 300, 300);
             } else {
                 const mobSheet = assets.images.mobs;
                 if (mobSheet?.complete) {
-                    // 3열 2행 (총 6칸) 구조 가정
                     const mw = mobSheet.naturalWidth / 3;
                     const mh = mobSheet.naturalHeight / 2;
-                    // type에 따라 이미지 선택
-                    const col = e.type % 3;
-                    const row = Math.floor(e.type / 3) % 2;
-
                     ctx.drawImage(
                         mobSheet,
-                        col * mw,
-                        row * mh,
+                        (e.type % 3) * mw,
+                        Math.floor(e.type / 3) * mh,
                         mw,
                         mh,
                         e.x - 25,
@@ -709,67 +665,56 @@
             }
         });
 
-        // 4. 플레이어 (정면 고정)
-        const hero = assets.images.hero;
-        if (hero && hero.complete) {
-            // 스프라이트 시트: 가로 4칸, 세로 2칸
-            const hw = hero.naturalWidth / 4;
-            const hh = hero.naturalHeight / 2;
-
-            ctx.drawImage(
-                hero,
-                0,
-                0,
-                hw,
-                hh,
-                player.x - 35,
-                player.y - 35,
-                70,
-                70,
-            );
-
-            // --- Hero HP Gauge ---
-            const hpW = 60;
-            const hpH = 6;
-            const hpX = player.x - hpW / 2;
-            const hpY = player.y - 50; // 머리 위
-
-            // Back
-            ctx.fillStyle = "#333";
-            ctx.fillRect(hpX, hpY, hpW, hpH);
-            // Fill
-            const hpPercent = Math.max(0, player.hp / player.maxHp);
-            ctx.fillStyle = hpPercent > 0.3 ? "#0f0" : "#f00";
-            ctx.fillRect(hpX, hpY, hpW * hpPercent, hpH);
-            // Border
-            ctx.strokeStyle = "black";
-            ctx.lineWidth = 1;
-            ctx.strokeRect(hpX, hpY, hpW, hpH);
-        }
-
-        // 5. 탄환 (네온 효과 강화)
-        ctx.fillStyle = "#0ff";
-        ctx.shadowBlur = 15; // 빛나는 효과
-        ctx.shadowColor = "#0ff";
-        projectiles.forEach((p) => {
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, 6, 0, Math.PI * 2); // 크기 약간 키움
-            ctx.fill();
+        // 아이템
+        items.forEach((item) => {
+            const sheet = assets.images.items;
+            if (sheet?.complete) {
+                const sw = sheet.naturalWidth / 2;
+                ctx.drawImage(
+                    sheet,
+                    item.type === "coin" ? sw : 0,
+                    0,
+                    sw,
+                    sheet.naturalHeight,
+                    item.x - 15,
+                    item.y - 15,
+                    30,
+                    30,
+                );
+            }
         });
-        ctx.shadowBlur = 0; // 초기화
 
-        // 6. 파티클 (기존 동일)
-        particles.forEach((p) => {
-            ctx.globalAlpha = p.life / 500;
-            ctx.fillStyle = p.color;
-            ctx.fillRect(p.x, p.y, 3, 3);
-        });
-        ctx.globalAlpha = 1;
-
-        ctx.restore(); // 블렌딩 모드 해제
-
-        // 7. 데미지 폰트 및 HUD (기존 코드 호출)
+        ctx.restore();
         drawHUD();
+
+        // 8. Boss HP Bar (Screen Space Overlay)
+        const boss = enemies.find((e) => e.isBoss);
+        if (boss) {
+            const barW = canvas.width * 0.6;
+            const barH = 20;
+            const barX = (canvas.width - barW) / 2;
+            const barY = 80; // Top area
+
+            // Frame
+            ctx.fillStyle = "rgba(0,0,0,0.5)";
+            ctx.fillRect(barX - 2, barY - 2, barW + 4, barH + 4);
+
+            // HP Fill
+            const percent = Math.max(0, boss.hp / boss.maxHp);
+            ctx.fillStyle = "#f00"; // Red for boss
+            ctx.fillRect(barX, barY, barW * percent, barH);
+
+            // Text
+            ctx.font = "bold 16px Arial";
+            ctx.fillStyle = "white";
+            ctx.textAlign = "center";
+            ctx.fillText(
+                `BOSS HP: ${Math.ceil(boss.hp)} / ${boss.maxHp}`,
+                canvas.width / 2,
+                barY + 16,
+            );
+            ctx.textAlign = "left"; // Reset
+        }
     }
 
     function drawHUD() {
