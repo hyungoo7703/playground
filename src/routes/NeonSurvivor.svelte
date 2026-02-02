@@ -250,6 +250,7 @@
             // 무기 스탯 강화
             fireRate: 800,
             weaponLevel: 1, // 탄환 개수 (멀티샷)
+            projectileSize: 0, // 탄환 크기 추가
         };
 
         enemies = [];
@@ -352,7 +353,14 @@
 
         // 3. 적 스폰 및 추적
         if (!showBossWarning && !bossSpawned) {
-            const spawnRate = Math.max(500, 2000 - gameTime / 100);
+            let spawnRate = Math.max(500, 2000 - gameTime / 100);
+
+            // --- Horde Mode (4분~5분사이) ---
+            // 240,000ms = 4분, 300,000ms = 5분
+            if (gameTime > 240000 && gameTime < 300000) {
+                spawnRate = 100; // 엄청난 웨이브 (0.1초마다 스폰)
+            }
+
             if (Math.random() < dt / spawnRate) spawnEnemy();
         }
 
@@ -360,6 +368,29 @@
             const angle = Math.atan2(player.y - e.y, player.x - e.x);
             e.x += Math.cos(angle) * e.speed;
             e.y += Math.sin(angle) * e.speed;
+
+            // --- Boss Attack Logic ---
+            if (e.isBoss) {
+                if (!e.attackTimer) e.attackTimer = 0;
+                e.attackTimer -= dt;
+                if (e.attackTimer <= 0) {
+                    e.attackTimer = 2000; // 2초마다 발사
+                    // Fire 8-way projectiles
+                    for (let i = 0; i < 8; i++) {
+                        const ang = (Math.PI * 2 * i) / 8;
+                        projectiles.push({
+                            x: e.x,
+                            y: e.y,
+                            vx: Math.cos(ang) * 5,
+                            vy: Math.sin(ang) * 5,
+                            life: 3000,
+                            isEnemy: true, // 적 투사체 플래그
+                            color: "#f00", // 빨간색
+                        });
+                    }
+                    playSound("zap", 0.5); // Use zap sound for now
+                }
+            }
 
             if (
                 Math.hypot(e.x - player.x, e.y - player.y) <
@@ -387,9 +418,25 @@
             p.x += p.vx;
             p.y += p.vy;
             p.life -= dt;
+
+            // 적 투사체 처리 (플레이어 피격)
+            if (p.isEnemy) {
+                const dist = Math.hypot(player.x - p.x, player.y - p.y);
+                if (dist < 20) {
+                    // 히어로 충돌 범위
+                    takeDamage(20); // 꽤 아픔
+                    return false; // 투사체 소멸
+                }
+                return p.life > 0;
+            }
+
+            // 아군 투사체 처리 (적 피격)
             let hit = false;
             enemies.forEach((e) => {
-                if (Math.hypot(e.x - p.x, e.y - p.y) < (e.isBoss ? 60 : 30)) {
+                const pRadius = 5 + player.projectileSize;
+                const hitDist = (e.isBoss ? 60 : 30) + pRadius;
+
+                if (Math.hypot(e.x - p.x, e.y - p.y) < hitDist) {
                     e.hp -= 20 + player.level * 2; // 레벨에 따른 데미지 증가
                     hit = true;
                     spawnDamageNumber(
@@ -432,7 +479,7 @@
             hp: 30 + player.level * 5,
             speed: 1.5 + Math.random() * 0.5,
             radius: 15,
-            type: Math.floor(Math.random() * 5), // 0 to 4 (5 types)
+            type: Math.floor(Math.random() * 3), // 0 to 2 (Top 3 types only)
         });
     }
 
@@ -570,6 +617,13 @@
                 icon: "❤️",
                 effect: () => (player.hp = player.maxHp),
             },
+            {
+                id: 5,
+                name: "Giant Strike",
+                desc: "탄환 크기 증가",
+                icon: "☄️",
+                effect: () => (player.projectileSize += 3),
+            },
         ];
         // 랜덤 3개 노출
         levelUpOptions = allSkills.sort(() => 0.5 - Math.random()).slice(0, 3);
@@ -630,16 +684,23 @@
         // ctx.globalCompositeOperation = "screen";
 
         // 투사체 (미사일 효과)
-        ctx.fillStyle = "#0ff";
         ctx.shadowBlur = 15;
-        ctx.shadowColor = "#0ff";
         projectiles.forEach((p) => {
+            ctx.fillStyle = p.isEnemy ? "#f00" : "#0ff"; // 적 투사체는 빨강
+            ctx.shadowColor = p.isEnemy ? "#f00" : "#0ff";
+
             ctx.beginPath();
-            ctx.arc(p.x, p.y, 5 + player.weaponLevel, 0, Math.PI * 2);
+            ctx.arc(
+                p.x,
+                p.y,
+                p.isEnemy ? 8 : 5 + player.projectileSize,
+                0,
+                Math.PI * 2,
+            );
             ctx.fill();
         });
 
-        // 적 & 보스
+        // 3. 적 & 보스 (일반 모드 - 발광 제거)
         enemies.forEach((e) => {
             if (e.isBoss) {
                 const bossImg = assets.images.boss;
@@ -648,12 +709,16 @@
             } else {
                 const mobSheet = assets.images.mobs;
                 if (mobSheet?.complete) {
+                    // 3 columns x 1 rows
                     const mw = mobSheet.naturalWidth / 3;
                     const mh = mobSheet.naturalHeight / 2;
+                    const col = e.type % 3;
+                    const row = Math.floor(e.type / 3); // 0 or 1
+
                     ctx.drawImage(
                         mobSheet,
-                        (e.type % 3) * mw,
-                        Math.floor(e.type / 3) * mh,
+                        col * mw,
+                        row * mh,
                         mw,
                         mh,
                         e.x - 25,
