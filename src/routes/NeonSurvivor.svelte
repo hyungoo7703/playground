@@ -252,7 +252,7 @@
             fireRate: 800,
             weaponLevel: 1, // 탄환 개수 (멀티샷)
             projectileSize: 0, // 탄환 크기 추가
-            piercing: 0, // 관통 횟수 (기본 0 = 1명 타격 후 소멸)
+            piercing: 2, // 관통 횟수 (기본 2 = 3명 타격: 1명 + 2관통)
         };
 
         enemies = [];
@@ -355,13 +355,13 @@
 
         // 3. 적 스폰 및 추적
         if (!showBossWarning && !bossSpawned) {
-            // Difficulty UP: Spawn rate 2x (Base 1000->500, Min 250->125)
-            let spawnRate = Math.max(125, 500 - gameTime / 100);
+            // Difficulty Balance: Spawn rate ~1.5x (Base 1000->650, Min 250->160)
+            let spawnRate = Math.max(160, 650 - gameTime / 100);
 
             // --- Horde Mode (4분~5분사이) ---
             // 240,000ms = 4분, 300,000ms = 5분
             if (gameTime > 240000 && gameTime < 300000) {
-                spawnRate = 50; // Horde mode also 2x faster (was 100)
+                spawnRate = 75; // Horde mode slightly relaxed (was 50)
             }
 
             if (Math.random() < dt / spawnRate) spawnEnemy();
@@ -501,9 +501,10 @@
                 const hitDist = (e.isBoss ? 60 : 30) + pRadius;
 
                 if (Math.hypot(e.x - p.x, e.y - p.y) < hitDist) {
-                    // Balance: Base 12 + Shop Upgrade (*2) + Level (*2)
+                    // Balance: Base 12 + Shop Upgrade (*2) + Level (*1)
+                    // Reduced level scaling from *2 to *1
                     const baseDmg = 12 + (savedData.upgrades?.damage || 0) * 2;
-                    const damage = baseDmg + player.level * 2;
+                    const damage = baseDmg + player.level * 1;
                     e.hp -= damage;
                     spawnDamageNumber(e.x, e.y, Math.round(damage));
 

@@ -517,9 +517,9 @@ Manager: Great plan. Let's keep the momentum going. Meeting adjourned.`,
         <div
             class="flex flex-col-reverse lg:flex-row gap-4 flex-1 overflow-hidden"
         >
-            <!-- Sidebar: Script List -->
+            <!-- Sidebar: Script List (Reduced height for more content space) -->
             <div
-                class="w-full lg:w-1/3 flex flex-col gap-2 h-auto max-h-[35vh] lg:h-auto overflow-y-auto pr-2 custom-scrollbar shrink-0 border-t pt-2 lg:pt-0 lg:border-t-0 lg:border-r border-gray-100 dark:border-gray-800"
+                class="w-full lg:w-1/3 flex flex-col gap-2 h-auto max-h-[25vh] lg:h-auto overflow-y-auto pr-2 custom-scrollbar shrink-0 border-t pt-2 lg:pt-0 lg:border-t-0 lg:border-r border-gray-100 dark:border-gray-800"
             >
                 {#each scripts as script, i}
                     <button
@@ -567,7 +567,7 @@ Manager: Great plan. Let's keep the momentum going. Meeting adjourned.`,
                     {#each parsedLines as line, i}
                         <div
                             id="line-{i}"
-                            class="mb-8 text-3xl md:text-4xl leading-relaxed font-medium transition-colors duration-300 flex flex-col
+                            class="mb-6 text-lg md:text-xl leading-relaxed font-medium transition-colors duration-300 flex flex-col justify-center
                             {currentLineIndex === i
                                 ? 'bg-indigo-50 dark:bg-indigo-900/40 p-6 rounded-2xl border-l-8 border-indigo-500 shadow-lg transform scale-[1.02] origin-left'
                                 : 'p-4'}"
