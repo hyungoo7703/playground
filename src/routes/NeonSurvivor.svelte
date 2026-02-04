@@ -58,11 +58,19 @@
         { id: "damage", name: "기본 공격력", cost: 500, icon: "⚔️" },
     ];
 
+    function getUpgradeCost(id, baseCost) {
+        const level = savedData.upgrades[id] || 0;
+        // Inflation: Cost increases by 40% per level (1.4^level)
+        return Math.floor(baseCost * Math.pow(1.4, level));
+    }
+
     function buyUpgrade(item) {
         if (!savedData.upgrades[item.id]) savedData.upgrades[item.id] = 0;
 
-        if (savedData.coins >= item.cost) {
-            savedData.coins -= item.cost;
+        const currentCost = getUpgradeCost(item.id, item.cost);
+
+        if (savedData.coins >= currentCost) {
+            savedData.coins -= currentCost;
             savedData.upgrades[item.id]++;
             saveGame();
             // Force Reactivity
@@ -262,6 +270,8 @@
         damageNumbers = [];
         gameTime = 0;
         bossSpawned = false; // 보스 상태 초기화
+        showBossWarning = false; // 경고 상태 초기화
+        bossWarningTimer = 0; // 타이머 초기화 (중요 Check)
 
         resizeCanvas();
         window.addEventListener("resize", resizeCanvas);
@@ -286,7 +296,8 @@
     function startGame() {
         gameState = "playing";
         playBGM();
-        gameLoop(0);
+        lastTime = performance.now();
+        animationId = requestAnimationFrame(gameLoop);
     }
 
     function handleGameOver() {
@@ -306,6 +317,9 @@
     function gameLoop(timestamp) {
         if (gameState !== "playing") return;
 
+        // Prevent huge dt jump on resume
+        if (!lastTime) lastTime = timestamp;
+
         const dt = timestamp - lastTime;
         lastTime = timestamp;
 
@@ -319,8 +333,8 @@
     function update(dt) {
         gameTime += dt;
 
-        // 1. 보스 등장 시스템 (수정: 5분 -> 1분으로 단축하여 테스트 및 빠른 진행 유도)
-        if (gameTime > 60000 && !enemies.some((e) => e.isBoss)) {
+        // 1. 보스 등장 시스템 (수정: 5분 원복)
+        if (gameTime > 300000 && !enemies.some((e) => e.isBoss)) {
             if (bossWarningTimer === 0) {
                 showBossWarning = true;
                 bossWarningTimer = 3000;
@@ -1095,7 +1109,7 @@
                                 </div>
                             </div>
                             <div class="text-yellow-500 font-black">
-                                {item.cost} CP
+                                {getUpgradeCost(item.id, item.cost)} CP
                             </div>
                         </button>
                     {/each}
