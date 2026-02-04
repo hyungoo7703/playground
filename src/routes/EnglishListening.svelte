@@ -282,41 +282,56 @@ Manager: Great plan. Let's keep the momentum going. Meeting adjourned.`,
     });
 
     function loadVoices() {
-        voices = synth.getVoices();
+        const allVoices = synth.getVoices();
 
-        // Strategy:
-        // Try to find distinct voices.
-        // 1. Look for explicit "Male" or "Female" in names (common in Microsoft voices)
-        // 2. Look for "Google" vs "Microsoft" vs "Apple"
-        // 3. Fallback to just different indices
+        // Filter for English voices (broadly)
+        const enVoices = allVoices.filter((v) => v.lang.startsWith("en"));
 
-        // Try to find a "Male" voice
-        const maleVoice =
-            voices.find(
-                (v) =>
-                    v.name.includes("Male") ||
-                    v.name.includes("David") ||
-                    v.name.includes("Mark"),
-            ) || voices.find((v) => v.name.includes("Google US English"));
+        // 1. Try to find explicit Female voice
+        // Common names: Zira (Win), Google UK English Female, Samantha (Mac), Susan, Cortana
+        const femaleParams = [
+            "Female",
+            "Zira",
+            "Susan",
+            "Samantha",
+            "Google UK",
+        ];
+        let female = enVoices.find((v) =>
+            femaleParams.some((p) => v.name.includes(p)),
+        );
 
-        // Try to find a "Female" voice
-        const femaleVoice =
-            voices.find(
-                (v) =>
-                    v.name.includes("Female") ||
-                    v.name.includes("Zira") ||
-                    v.name.includes("Susan") ||
-                    v.name.includes("Google UK English Female"),
-            ) || voices.find((v) => v.name.includes("Google UK"));
+        // 2. Try to find explicit Male voice
+        // Common names: David (Win), Mark (Win), Google US English, Daniel (Mac)
+        const maleParams = ["Male", "David", "Mark", "Google US", "Daniel"];
+        let male = enVoices.find((v) =>
+            maleParams.some((p) => v.name.includes(p)),
+        );
 
-        // Assign
-        voice1 = maleVoice || voices[0];
-        voice2 = femaleVoice || voices.find((v) => v !== voice1) || voice1;
+        // 3. Fallbacks logic
+        // If we found a female but no male, find any other voice to be the male
+        if (female && !male) {
+            male = enVoices.find((v) => v !== female);
+        }
+        // If we found a male but no female, find any other voice to be the female
+        if (male && !female) {
+            female = enVoices.find((v) => v !== male);
+        }
 
-        console.log("Voices loaded:", {
-            voice1: voice1?.name,
-            voice2: voice2?.name,
-        });
+        // If neither found specifically, just pick the first two available English voices
+        if (!male && !female && enVoices.length >= 2) {
+            male = enVoices[0];
+            female = enVoices[1];
+        }
+
+        // Final Assignment
+        // If absolutely no English voices, fallback to whatever is available
+        voice1 = male || allVoices[0];
+        voice2 = female || allVoices.find((v) => v !== voice1) || voice1;
+
+        // Ensure they are not the same if we have options
+        if (voice1 === voice2 && enVoices.length > 1) {
+            voice2 = enVoices.find((v) => v !== voice1) || voice2;
+        }
     }
 
     function playScript() {
