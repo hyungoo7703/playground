@@ -283,19 +283,40 @@ Manager: Great plan. Let's keep the momentum going. Meeting adjourned.`,
 
     function loadVoices() {
         voices = synth.getVoices();
-        voice1 =
+
+        // Strategy:
+        // Try to find distinct voices.
+        // 1. Look for explicit "Male" or "Female" in names (common in Microsoft voices)
+        // 2. Look for "Google" vs "Microsoft" vs "Apple"
+        // 3. Fallback to just different indices
+
+        // Try to find a "Male" voice
+        const maleVoice =
             voices.find(
                 (v) =>
-                    v.name.includes("Google US English") || v.lang === "en-US",
-            ) || voices[0];
-        voice2 =
+                    v.name.includes("Male") ||
+                    v.name.includes("David") ||
+                    v.name.includes("Mark"),
+            ) || voices.find((v) => v.name.includes("Google US English"));
+
+        // Try to find a "Female" voice
+        const femaleVoice =
             voices.find(
                 (v) =>
-                    v !== voice1 &&
-                    (v.name.includes("Female") || v.name.includes("Google UK")),
-            ) ||
-            voices.find((v) => v !== voice1) ||
-            voice1;
+                    v.name.includes("Female") ||
+                    v.name.includes("Zira") ||
+                    v.name.includes("Susan") ||
+                    v.name.includes("Google UK English Female"),
+            ) || voices.find((v) => v.name.includes("Google UK"));
+
+        // Assign
+        voice1 = maleVoice || voices[0];
+        voice2 = femaleVoice || voices.find((v) => v !== voice1) || voice1;
+
+        console.log("Voices loaded:", {
+            voice1: voice1?.name,
+            voice2: voice2?.name,
+        });
     }
 
     function playScript() {
@@ -328,15 +349,27 @@ Manager: Great plan. Let's keep the momentum going. Meeting adjourned.`,
         utterance.lang = "en-US";
         utterance.rate = speechRate;
 
+        // Voice Assignment Logic
         const speakers = [
             ...new Set(parsedLines.map((l) => l.speaker).filter((s) => s)),
         ];
         const speakerIndex = speakers.indexOf(line.speaker);
+        let selectedVoice = voice1;
 
         if (speakerIndex !== -1) {
-            utterance.voice = speakerIndex % 2 === 0 ? voice1 : voice2;
+            selectedVoice = speakerIndex % 2 === 0 ? voice1 : voice2;
+        }
+
+        utterance.voice = selectedVoice;
+
+        // Fallback: If voices are identical (or only 1 voice exists), use Pitch to distinguish
+        if (voice1 === voice2) {
+            // Even speaker (0, 2...) = Normal pitch
+            // Odd speaker (1, 3...) = Higher pitch (or lower)
+            utterance.pitch = speakerIndex % 2 === 0 ? 1.0 : 1.2;
         } else {
-            utterance.voice = voice1;
+            // Slight variety anyway can be nice
+            utterance.pitch = 1.0;
         }
 
         utterance.onend = () => {
