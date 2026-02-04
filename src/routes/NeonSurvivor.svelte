@@ -16,6 +16,7 @@
         // skills: `${ASSET_PATH}/skill-icons.png`, // Removed as per user request
         main: `${ASSET_PATH}/main.png`,
         bg: `${ASSET_PATH}/background.png`,
+        special: `${ASSET_PATH}/special_ability_icon.png`, // New Ultimate Icon
     };
 
     const SOUNDS = {
@@ -1027,29 +1028,45 @@
             ctx.save();
             ctx.translate(btn.x, btn.y);
 
-            // Glow
-            if (!hasUsedUltimate) {
-                const pulse = Math.sin(gameTime / 200) * 5;
-                ctx.shadowColor = "#0ff";
-                ctx.shadowBlur = 20 + pulse;
+            const icon = assets.images.special;
+
+            if (icon && icon.complete) {
+                // 1. Draw Glow (Only when ready)
+                if (!hasUsedUltimate) {
+                    const pulse = 20 + Math.sin(gameTime / 150) * 10;
+                    ctx.shadowColor = "#00ffff"; // Cyan Neon
+                    ctx.shadowBlur = pulse;
+                } else {
+                    ctx.shadowBlur = 0;
+                    ctx.filter = "grayscale(100%) brightness(50%)"; // Dimmed when used
+                }
+
+                // 2. Draw Icon
+                const size = btn.r * 2.5; // Make it pop
+                ctx.drawImage(icon, -size / 2, -size / 2, size, size);
+
+                // Reset filter for other draws
+                ctx.filter = "none";
+            } else {
+                // Fallback: Circle button
+                if (!hasUsedUltimate) {
+                    const pulse = Math.sin(gameTime / 200) * 5;
+                    ctx.shadowColor = "#0ff";
+                    ctx.shadowBlur = 20 + pulse;
+                }
+                ctx.beginPath();
+                ctx.arc(0, 0, btn.r, 0, Math.PI * 2);
+                ctx.fillStyle = hasUsedUltimate ? "#333" : "#00bcd4";
+                ctx.fill();
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = "white";
+                ctx.stroke();
+                ctx.fillStyle = "white";
+                ctx.font = "30px Arial";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(hasUsedUltimate ? "" : "💣", 0, 2);
             }
-
-            // Button Circle
-            ctx.beginPath();
-            ctx.arc(0, 0, btn.r, 0, Math.PI * 2);
-            ctx.fillStyle = hasUsedUltimate ? "#333" : "#00bcd4"; // Cyan if ready, Grey if used
-            ctx.fill();
-            ctx.lineWidth = 4;
-            ctx.strokeStyle = "white";
-            ctx.stroke();
-
-            // Icon (Skull or Star)
-            ctx.fillStyle = "white";
-            ctx.font = "30px Arial";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.shadowBlur = 0;
-            ctx.fillText(hasUsedUltimate ? "EMPTY" : "💣", 0, 2); // Bomb icon
 
             ctx.restore();
         }
