@@ -58,8 +58,7 @@
         { id: "damage", name: "기본 공격력", cost: 500, icon: "⚔️" },
     ];
 
-    function getUpgradeCost(id, baseCost) {
-        const level = savedData.upgrades[id] || 0;
+    function getUpgradeCost(baseCost, level) {
         // Inflation: Cost increases by 20% per level (1.2^level) - REBALANCED
         return Math.floor(baseCost * Math.pow(1.2, level));
     }
@@ -67,7 +66,8 @@
     function buyUpgrade(item) {
         if (!savedData.upgrades[item.id]) savedData.upgrades[item.id] = 0;
 
-        const currentCost = getUpgradeCost(item.id, item.cost);
+        const level = savedData.upgrades[item.id];
+        const currentCost = getUpgradeCost(item.cost, level);
 
         if (savedData.coins >= currentCost) {
             savedData.coins -= currentCost;
@@ -134,6 +134,11 @@
     let keys = {};
     let touchStart = null;
     let joystickVector = { x: 0, y: 0 };
+
+    // Ultimate Skill State
+    let hasUsedUltimate = false;
+    let shockwave = { active: false, radius: 0, maxRadius: 0, alpha: 0 };
+    const ULTIMATE_BUTTON = { x: 0, y: 0, r: 40 }; // Will be set in resize
 
     // Skill Selection
     let levelUpOptions = [];
@@ -298,6 +303,10 @@
         showBossWarning = false; // 경고 상태 초기화
         bossWarningTimer = 0; // 타이머 초기화 (중요 Check)
 
+        // Reset Ultimate
+        hasUsedUltimate = false;
+        shockwave = { active: false, radius: 0, maxRadius: 0, alpha: 0 };
+
         resizeCanvas();
         window.addEventListener("resize", resizeCanvas);
     }
@@ -306,6 +315,12 @@
         if (canvas) {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
+
+            // Re-position Ultimate Button (Bottom Right)
+            ULTIMATE_BUTTON.x = canvas.width - 80;
+            ULTIMATE_BUTTON.y = canvas.height - 80;
+            ULTIMATE_BUTTON.r = 50; // Bigger button
+
             ctx = canvas.getContext("2d");
             ctx.imageSmoothingEnabled = false; // Pixel art style or True explicitly requested?
             // User guide said "High" quality for neon effect is optional ("선택").
@@ -366,6 +381,28 @@
         animationId = requestAnimationFrame(gameLoop);
     }
 
+    // --- Ultimate Skill Logic ---
+    function activateUltimate() {
+        if (hasUsedUltimate || gameState !== "playing") return;
+
+        hasUsedUltimate = true;
+        playSound("explosion", 0.8); // Epic explosion sound
+
+        // Visual
+        shockwave.active = true;
+        shockwave.radius = 0;
+        shockwave.maxRadius = Math.max(canvas.width, canvas.height) * 1.5;
+        shockwave.alpha = 1;
+
+        // Effect: Massive Damage to ALL enemies
+        enemies.forEach((e) => {
+            e.hp -= 1000; // Instakill most mobs, heavy chunk to boss
+            spawnDamageNumber(e.x, e.y, 1000);
+        });
+
+        // Screenshake effect (optional, maybe later)
+    }
+
     // --- Update Logic (물리 및 충돌 로직 복구) ---
     function update(dt) {
         gameTime += dt;
@@ -379,6 +416,15 @@
             if (bossWarningTimer > 0) {
                 bossWarningTimer -= dt;
                 if (bossWarningTimer <= 0) spawnBoss();
+            }
+        }
+
+        // 1.5. Ultimate Shockwave Update
+        if (shockwave.active) {
+            shockwave.radius += dt * 2; // Speed of expansion
+            shockwave.alpha -= dt * 0.001;
+            if (shockwave.alpha <= 0) {
+                shockwave.active = false;
             }
         }
 
@@ -894,6 +940,22 @@
         });
 
         ctx.restore();
+
+        // Draw Shockwave (World Space or Screen Space? Let's do Screen Space relative to player center? No, Center of Screen is better for "Bomb")
+        // Or player centered? Player centered makes sense for a "Blast" from hero.
+        if (shockwave.active) {
+            ctx.save();
+            ctx.translate(-camera.x, -camera.y); // To World Space
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, shockwave.radius, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(0, 255, 255, ${shockwave.alpha * 0.5})`; // Cyan filler
+            ctx.fill();
+            ctx.lineWidth = 20;
+            ctx.strokeStyle = `rgba(0, 255, 255, ${shockwave.alpha})`;
+            ctx.stroke();
+            ctx.restore();
+        }
+
         drawHUD();
 
         // 8. Boss HP Bar (Screen Space Overlay)
@@ -959,6 +1021,39 @@
         ctx.fillStyle = "gold";
         ctx.fillText(`Coins:${player.coins}`, 10, 85);
 
+        // Ultimate Button (Mobile & Visual Indicator)
+        if (gameState === "playing") {
+            const btn = ULTIMATE_BUTTON;
+            ctx.save();
+            ctx.translate(btn.x, btn.y);
+
+            // Glow
+            if (!hasUsedUltimate) {
+                const pulse = Math.sin(gameTime / 200) * 5;
+                ctx.shadowColor = "#0ff";
+                ctx.shadowBlur = 20 + pulse;
+            }
+
+            // Button Circle
+            ctx.beginPath();
+            ctx.arc(0, 0, btn.r, 0, Math.PI * 2);
+            ctx.fillStyle = hasUsedUltimate ? "#333" : "#00bcd4"; // Cyan if ready, Grey if used
+            ctx.fill();
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = "white";
+            ctx.stroke();
+
+            // Icon (Skull or Star)
+            ctx.fillStyle = "white";
+            ctx.font = "30px Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.shadowBlur = 0;
+            ctx.fillText(hasUsedUltimate ? "EMPTY" : "💣", 0, 2); // Bomb icon
+
+            ctx.restore();
+        }
+
         // Joystick UI (Mobile)
         if (touchStart) {
             ctx.strokeStyle = "rgba(255,255,255,0.3)";
@@ -987,6 +1082,7 @@
     // --- Input ---
     function handleKeyDown(e) {
         keys[e.key] = true;
+        if (e.code === "Space") activateUltimate(); // PC Shortcut
     }
     function handleKeyUp(e) {
         keys[e.key] = false;
@@ -995,8 +1091,23 @@
     // Touch Joystick
     function handleTouchStart(e) {
         e.preventDefault();
-        const t = e.touches[0];
-        touchStart = { x: t.clientX, y: t.clientY };
+        // Check all touches
+        for (let i = 0; i < e.touches.length; i++) {
+            const t = e.touches[i];
+
+            // Check Ultimate Button Press
+            const dx = t.clientX - ULTIMATE_BUTTON.x;
+            const dy = t.clientY - ULTIMATE_BUTTON.y;
+            if (Math.hypot(dx, dy) < ULTIMATE_BUTTON.r + 20) {
+                activateUltimate();
+                return; // Don't process as joystick if button pressed
+            }
+
+            // Joystick Logic (Only if not button)
+            if (!touchStart) {
+                touchStart = { x: t.clientX, y: t.clientY };
+            }
+        }
     }
     function handleTouchMove(e) {
         if (!touchStart) return;
@@ -1146,7 +1257,10 @@
                                 </div>
                             </div>
                             <div class="text-yellow-500 font-black">
-                                {getUpgradeCost(item.id, item.cost)} CP
+                                {getUpgradeCost(
+                                    item.cost,
+                                    savedData.upgrades[item.id] || 0,
+                                )} CP
                             </div>
                         </button>
                     {/each}
