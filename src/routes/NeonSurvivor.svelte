@@ -319,8 +319,8 @@
     function update(dt) {
         gameTime += dt;
 
-        // 1. 보스 등장 시스템
-        if (gameTime > 300000 && !enemies.some((e) => e.isBoss)) {
+        // 1. 보스 등장 시스템 (수정: 5분 -> 1분으로 단축하여 테스트 및 빠른 진행 유도)
+        if (gameTime > 60000 && !enemies.some((e) => e.isBoss)) {
             if (bossWarningTimer === 0) {
                 showBossWarning = true;
                 bossWarningTimer = 3000;
