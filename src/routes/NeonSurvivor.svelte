@@ -549,6 +549,7 @@
                     vx: Math.cos(baseAngle + angleOffset) * 12, // 탄속 증가
                     vy: Math.sin(baseAngle + angleOffset) * 12,
                     life: 1500,
+                    pierce: player.piercing, // 관통 속성 적용
                 });
             }
             playSound("zap", 0.2);

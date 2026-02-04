@@ -400,39 +400,60 @@ Manager: Great plan. Let's keep the momentum going. Meeting adjourned.`,
             🎧 English Listening
         </h1>
 
-        <div class="flex gap-4">
+        <div class="flex gap-3">
             <!-- Subtitle Toggle -->
             <button
                 on:click={toggleSubtitle}
-                class="px-4 py-2 rounded-xl font-bold transition-colors shadow-sm
+                class="px-4 py-2 rounded-xl font-bold transition-colors shadow-sm text-sm md:text-base
                 {showSubtitle
                     ? 'bg-indigo-600 text-white hover:bg-indigo-700'
                     : 'bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300'}"
             >
-                {showSubtitle ? "한글자막 ON" : "한글자막 OFF"}
+                {showSubtitle ? "한글 ON" : "한글 OFF"}
             </button>
 
-            <!-- Speed Control -->
-            <div
-                class="flex items-center gap-4 bg-gray-100 dark:bg-gray-800 px-4 py-2 rounded-xl"
-            >
-                <span class="text-xs font-bold text-gray-500 dark:text-gray-400"
-                    >SPEED</span
+            <!-- Play/Stop Button (Moved to Header) -->
+            {#if isPlaying}
+                <button
+                    on:click={stopScript}
+                    class="px-5 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold flex items-center gap-2 transition shadow-sm animate-pulse"
                 >
-                <input
-                    type="range"
-                    min="0.5"
-                    max="2.0"
-                    step="0.1"
-                    bind:value={speechRate}
-                    on:input={updateRate}
-                    class="w-24 md:w-32 h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 accent-indigo-600"
-                />
-                <span
-                    class="text-md font-mono font-bold w-10 text-center dark:text-white"
-                    >{speechRate.toFixed(1)}x</span
+                    <svg
+                        class="w-5 h-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="3"
+                            d="M6 18L18 6M6 6l12 12"
+                        />
+                    </svg>
+                    <span>STOP</span>
+                </button>
+            {:else}
+                <button
+                    on:click={playScript}
+                    class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold flex items-center gap-2 transition shadow-sm"
                 >
-            </div>
+                    <svg
+                        class="w-5 h-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="3"
+                            d="M5 3l14 9-14 9V3z"
+                        />
+                    </svg>
+                    <span>PLAY</span>
+                </button>
+            {/if}
         </div>
     </div>
 
@@ -486,13 +507,13 @@ Manager: Great plan. Let's keep the momentum going. Meeting adjourned.`,
                 {/each}
             </div>
 
-            <!-- Main Content: Display & Controls -->
+            <!-- Main Content: Display Only (Controls removed) -->
             <div
                 class="w-full lg:w-2/3 flex flex-col bg-gray-50 dark:bg-gray-800 rounded-3xl p-4 md:p-8 relative border border-gray-100 dark:border-gray-700 overflow-hidden"
             >
-                <!-- Script Content -->
+                <!-- Script Content: Removed massive bottom padding -->
                 <div
-                    class="flex-1 overflow-y-auto pb-24 pr-2 custom-scrollbar scroll-smooth"
+                    class="flex-1 overflow-y-auto pb-4 pr-2 custom-scrollbar scroll-smooth"
                 >
                     {#each parsedLines as line, i}
                         <div
@@ -526,51 +547,6 @@ Manager: Great plan. Let's keep the momentum going. Meeting adjourned.`,
                             {/if}
                         </div>
                     {/each}
-                </div>
-
-                <!-- Floating Controls -->
-                <div
-                    class="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white dark:bg-gray-900 p-2 md:p-3 rounded-full shadow-2xl flex items-center gap-4 border border-gray-200 dark:border-gray-600 z-10"
-                >
-                    {#if isPlaying}
-                        <button
-                            on:click={stopScript}
-                            class="w-14 h-14 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition shadow-lg hover:scale-110"
-                        >
-                            <svg
-                                class="w-6 h-6"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                            >
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="3"
-                                    d="M6 18L18 6M6 6l12 12"
-                                />
-                            </svg>
-                        </button>
-                    {:else}
-                        <button
-                            on:click={playScript}
-                            class="w-14 h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full flex items-center justify-center transition shadow-lg hover:scale-110 pl-1"
-                        >
-                            <svg
-                                class="w-6 h-6"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                            >
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="3"
-                                    d="M5 3l14 9-14 9V3z"
-                                />
-                            </svg>
-                        </button>
-                    {/if}
                 </div>
             </div>
         </div>
