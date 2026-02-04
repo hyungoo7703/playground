@@ -55,6 +55,7 @@
         { id: "hp", name: "최대 체력", cost: 200, icon: "❤️" },
         { id: "speed", name: "이동 속도", cost: 300, icon: "⚡" },
         { id: "magnet", name: "자석 범위", cost: 250, icon: "🧲" },
+        { id: "damage", name: "기본 공격력", cost: 500, icon: "⚔️" },
     ];
 
     function buyUpgrade(item) {
@@ -354,13 +355,13 @@
 
         // 3. 적 스폰 및 추적
         if (!showBossWarning && !bossSpawned) {
-            // 리젠률 2배 증가 (기존: 2000 -> 500, 변경: 1000 -> 250)
-            let spawnRate = Math.max(250, 1000 - gameTime / 100);
+            // Difficulty UP: Spawn rate 2x (Base 1000->500, Min 250->125)
+            let spawnRate = Math.max(125, 500 - gameTime / 100);
 
             // --- Horde Mode (4분~5분사이) ---
             // 240,000ms = 4분, 300,000ms = 5분
             if (gameTime > 240000 && gameTime < 300000) {
-                spawnRate = 100; // 엄청난 웨이브 (0.1초마다 스폰)
+                spawnRate = 50; // Horde mode also 2x faster (was 100)
             }
 
             if (Math.random() < dt / spawnRate) spawnEnemy();
@@ -371,28 +372,83 @@
             e.x += Math.cos(angle) * e.speed;
             e.y += Math.sin(angle) * e.speed;
 
-            // --- Boss Attack Logic ---
+            // --- Boss Attack Logic (Varied Patterns) ---
             if (e.isBoss) {
                 if (!e.attackTimer) e.attackTimer = 0;
                 e.attackTimer -= dt;
+
                 if (e.attackTimer <= 0) {
-                    e.attackTimer = 2000; // 2초마다 발사
-                    // Fire 8-way projectiles
-                    for (let i = 0; i < 8; i++) {
-                        const ang = (Math.PI * 2 * i) / 8;
-                        projectiles.push({
-                            x: e.x,
-                            y: e.y,
-                            vx: Math.cos(ang) * 5,
-                            vy: Math.sin(ang) * 5,
-                            life: 3000,
-                            isEnemy: true, // 적 투사체 플래그
-                            color: "#f00", // 빨간색
-                            pierce: 0, // 보스 투사체는 관통 없음
-                            hitIds: new Set(),
-                        });
+                    // Randomly choose pattern: 0=Spread, 1=Rapid Stream, 2=Spiral
+                    const pattern = Math.floor(Math.random() * 3);
+
+                    if (pattern === 0) {
+                        // Pattern 0: 8-way Spread (Classic)
+                        e.attackTimer = 1500; // Reset timer
+                        for (let i = 0; i < 12; i++) {
+                            // Increased to 12-way
+                            const ang = (Math.PI * 2 * i) / 12;
+                            projectiles.push({
+                                x: e.x,
+                                y: e.y,
+                                vx: Math.cos(ang) * 6,
+                                vy: Math.sin(ang) * 6,
+                                life: 3000,
+                                isEnemy: true,
+                                color: "#f00",
+                                pierce: 0,
+                                hitIds: new Set(),
+                            });
+                        }
+                        playSound("zap", 0.5);
+                    } else if (pattern === 1) {
+                        // Pattern 1: Rapid Stream (3 bursts)
+                        e.attackTimer = 2000;
+                        const angleToPlayer = Math.atan2(
+                            player.y - e.y,
+                            player.x - e.x,
+                        );
+                        for (let i = 0; i < 3; i++) {
+                            setTimeout(() => {
+                                // Recalculate slightly for tracking
+                                const ang =
+                                    Math.atan2(player.y - e.y, player.x - e.x) +
+                                    (Math.random() - 0.5) * 0.2;
+                                projectiles.push({
+                                    x: e.x,
+                                    y: e.y,
+                                    vx: Math.cos(ang) * 9,
+                                    vy: Math.sin(ang) * 9, // Fast
+                                    life: 3000,
+                                    isEnemy: true,
+                                    color: "#ff0",
+                                    pierce: 0,
+                                    hitIds: new Set(),
+                                });
+                                playSound("zap", 0.3);
+                            }, i * 150);
+                        }
+                    } else {
+                        // Pattern 2: Spiral (Nova)
+                        e.attackTimer = 2000;
+                        for (let i = 0; i < 16; i++) {
+                            setTimeout(() => {
+                                const ang =
+                                    (Math.PI * 2 * i) / 16 + gameTime / 1000; // Rotating offset
+                                projectiles.push({
+                                    x: e.x,
+                                    y: e.y,
+                                    vx: Math.cos(ang) * 7,
+                                    vy: Math.sin(ang) * 7,
+                                    life: 3000,
+                                    isEnemy: true,
+                                    color: "#f0f",
+                                    pierce: 0,
+                                    hitIds: new Set(),
+                                });
+                            }, i * 50); // Ripple effect
+                        }
+                        playSound("zap", 0.5);
                     }
-                    playSound("zap", 0.5); // Use zap sound for now
                 }
             }
 
@@ -445,12 +501,11 @@
                 const hitDist = (e.isBoss ? 60 : 30) + pRadius;
 
                 if (Math.hypot(e.x - p.x, e.y - p.y) < hitDist) {
-                    e.hp -= 20 + player.level * 2; // 레벨에 따른 데미지 증가
-                    spawnDamageNumber(
-                        e.x,
-                        e.y,
-                        Math.round(20 + player.level * 2),
-                    );
+                    // Balance: Base 12 + Shop Upgrade (*2) + Level (*2)
+                    const baseDmg = 12 + (savedData.upgrades?.damage || 0) * 2;
+                    const damage = baseDmg + player.level * 2;
+                    e.hp -= damage;
+                    spawnDamageNumber(e.x, e.y, Math.round(damage));
 
                     // 히트 처리
                     if (!p.hitIds) p.hitIds = new Set();
@@ -492,10 +547,15 @@
     function spawnEnemy() {
         const angle = Math.random() * Math.PI * 2;
         const dist = Math.max(canvas.width, canvas.height) / 2 + 100;
+
+        // Difficulty Scaling: Increase HP over time
+        // Increase HP by 20% every minute (60000ms)
+        const timeFactor = 1 + (gameTime / 60000) * 0.2;
+
         enemies.push({
             x: player.x + Math.cos(angle) * dist,
             y: player.y + Math.sin(angle) * dist,
-            hp: 30 + player.level * 5,
+            hp: (30 + player.level * 5) * timeFactor, // Apply scaling
             speed: 1.5 + Math.random() * 0.5,
             radius: 15,
             type: Math.floor(Math.random() * 3), // 0 to 2 (Top 3 types only)
@@ -508,9 +568,9 @@
         enemies.push({
             x: player.x, // 플레이어 근처(위쪽)에서 등장
             y: player.y - 500,
-            hp: 25000, // 엄청난 체력 (5배 증가)
-            maxHp: 25000,
-            speed: 1.5, // 느리지만 위압적
+            hp: 50000, // Massive HP (Double previous 25k)
+            maxHp: 50000,
+            speed: 1.8, // Slightly faster
             radius: 100, // 충돌 범위 큼
             isBoss: true, // 보스 플래그
             type: 0, // 이미지 타입
@@ -592,7 +652,7 @@
         if (player.exp >= player.maxExp) {
             player.level++;
             player.exp -= player.maxExp;
-            player.maxExp = Math.floor(player.maxExp * 1.2);
+            player.maxExp = Math.floor(player.maxExp * 1.5); // XP Nerf: 1.2 -> 1.5 (Slower leveling)
             playSound("levelup");
             triggerLevelUp();
         }

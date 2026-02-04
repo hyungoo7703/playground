@@ -377,14 +377,15 @@ Manager: Great plan. Let's keep the momentum going. Meeting adjourned.`,
 
         utterance.voice = selectedVoice;
 
-        // Fallback: If voices are identical (or only 1 voice exists), use Pitch to distinguish
-        if (voice1 === voice2) {
-            // Even speaker (0, 2...) = Normal pitch
-            // Odd speaker (1, 3...) = Higher pitch (or lower)
-            utterance.pitch = speakerIndex % 2 === 0 ? 1.0 : 1.2;
+        // Fallback/Enhancement: Force Tone Difference
+        // Even if they are different voices, a slight pitch shift helps distinctiveness.
+        // Voice 1 (Male-ish) -> 0.9 (Lower)
+        // Voice 2 (Female-ish) -> 1.1 (Higher)
+        // If the user has just one voice, this creates a fake duet.
+        if (speakerIndex % 2 === 0) {
+            utterance.pitch = 0.9;
         } else {
-            // Slight variety anyway can be nice
-            utterance.pitch = 1.0;
+            utterance.pitch = 1.1;
         }
 
         utterance.onend = () => {
@@ -566,10 +567,10 @@ Manager: Great plan. Let's keep the momentum going. Meeting adjourned.`,
                     {#each parsedLines as line, i}
                         <div
                             id="line-{i}"
-                            class="mb-4 text-base md:text-xl leading-relaxed font-medium transition-colors duration-300 flex flex-col
+                            class="mb-8 text-3xl md:text-4xl leading-relaxed font-medium transition-colors duration-300 flex flex-col
                             {currentLineIndex === i
-                                ? 'bg-indigo-50 dark:bg-indigo-900/40 p-3 rounded-lg border-l-4 border-indigo-500 shadow-sm'
-                                : 'p-2'}"
+                                ? 'bg-indigo-50 dark:bg-indigo-900/40 p-6 rounded-2xl border-l-8 border-indigo-500 shadow-lg transform scale-[1.02] origin-left'
+                                : 'p-4'}"
                         >
                             {#if line.speaker}
                                 <span
@@ -581,7 +582,8 @@ Manager: Great plan. Let's keep the momentum going. Meeting adjourned.`,
                                     {line.speaker}
                                 </span>
                             {/if}
-                            <span class="text-gray-800 dark:text-gray-100"
+                            <span
+                                class="text-gray-900 dark:text-gray-50 font-semibold"
                                 >{line.text}</span
                             >
 
