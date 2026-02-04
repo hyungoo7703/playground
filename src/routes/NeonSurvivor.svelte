@@ -551,7 +551,12 @@
 
         // Difficulty Scaling: Increase HP over time
         // Increase HP by 20% every minute (60000ms)
-        const timeFactor = 1 + (gameTime / 60000) * 0.2;
+        let timeFactor = 1 + (gameTime / 60000) * 0.2;
+
+        // Early Game Nerf: First 1 minute, mobs have 50% HP (Easier start)
+        if (gameTime < 60000) {
+            timeFactor *= 0.5;
+        }
 
         enemies.push({
             x: player.x + Math.cos(angle) * dist,
