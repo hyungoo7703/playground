@@ -60,8 +60,8 @@
 
     function getUpgradeCost(id, baseCost) {
         const level = savedData.upgrades[id] || 0;
-        // Inflation: Cost increases by 40% per level (1.4^level)
-        return Math.floor(baseCost * Math.pow(1.4, level));
+        // Inflation: Cost increases by 20% per level (1.2^level) - REBALANCED
+        return Math.floor(baseCost * Math.pow(1.2, level));
     }
 
     function buyUpgrade(item) {
@@ -76,6 +76,31 @@
             // Force Reactivity
             savedData = { ...savedData };
         }
+    }
+
+    function refundUpgrades() {
+        if (
+            !confirm(
+                "모든 업그레이드를 초기화하시겠습니까?\n\n⚠️ 주의: 환불 코인은 '등급 × 기본 가격'으로 계산됩니다.\n(물가 상승으로 추가 지불한 코인은 돌려받지 못합니다!)",
+            )
+        )
+            return;
+
+        let totalRefund = 0;
+        SHOP_ITEMS.forEach((item) => {
+            const lvl = savedData.upgrades[item.id] || 0;
+            if (lvl > 0) {
+                // Refund Policy: Base Cost * Level only (Inflation tax is lost)
+                totalRefund += item.cost * lvl;
+                savedData.upgrades[item.id] = 0;
+            }
+        });
+
+        savedData.coins += totalRefund;
+        saveGame();
+        playSound("coin");
+        alert("초기화 완료! 게임을 재시작합니다.");
+        window.location.reload();
     }
 
     // Runtime State
@@ -312,6 +337,18 @@
         localStorage.setItem("neon_survivors_data", JSON.stringify(savedData));
     }
 
+    function handleGameWin() {
+        gameState = "win";
+        stopBGM();
+        playSound("levelup"); // Happy sound
+
+        // Save persistence
+        savedData.coins += player.coins;
+        if (player.level > savedData.highLevel)
+            savedData.highLevel = player.level;
+        localStorage.setItem("neon_survivors_data", JSON.stringify(savedData));
+    }
+
     // --- Core Loop ---
     let lastTime = 0;
     function gameLoop(timestamp) {
@@ -474,7 +511,7 @@
             }
 
             if (e.hp <= 0) {
-                if (e.isBoss) gameState = "win";
+                if (e.isBoss) handleGameWin();
                 else onEnemyDeath(e);
                 return false;
             }
@@ -1126,6 +1163,11 @@
                     class="w-full mt-6 py-4 bg-white text-black font-black rounded-xl hover:bg-gray-200 transition"
                     >BACK TO LOBBY</button
                 >
+                <button
+                    on:click={refundUpgrades}
+                    class="w-full mt-4 py-3 border-2 border-red-500 text-red-500 font-bold rounded-xl hover:bg-red-500 hover:text-white transition text-sm"
+                    >RESET UPGRADES (REFUND)
+                </button>
             </div>
         </div>
     {:else if gameState === "levelup"}
