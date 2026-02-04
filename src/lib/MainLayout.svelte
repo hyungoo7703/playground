@@ -22,6 +22,7 @@
   import Stock from "../routes/Stock.svelte";
   import SecretLedger from "../routes/SecretLedger.svelte";
   import NeonSurvivor from "../routes/NeonSurvivor.svelte";
+  import EnglishListening from "../routes/EnglishListening.svelte";
 
   const location = useLocation();
 
@@ -93,10 +94,10 @@
       <Route path="fruit-pang" component={FruitPang} />
       <Route path="neon-blast" component={NeonBlast} />
       <Route path="neon-brick" component={NeonBrick} />
-      <Route path="neon-brick" component={NeonBrick} />
       <Route path="stock" component={Stock} />
       <Route path="secret-ledger" component={SecretLedger} />
       <Route path="neon-survivor" component={NeonSurvivor} />
+      <Route path="english-listening" component={EnglishListening} />
     {/if}
   </main>
 </div>

@@ -251,6 +251,7 @@
             fireRate: 800,
             weaponLevel: 1, // 탄환 개수 (멀티샷)
             projectileSize: 0, // 탄환 크기 추가
+            piercing: 0, // 관통 횟수 (기본 0 = 1명 타격 후 소멸)
         };
 
         enemies = [];
@@ -353,7 +354,8 @@
 
         // 3. 적 스폰 및 추적
         if (!showBossWarning && !bossSpawned) {
-            let spawnRate = Math.max(500, 2000 - gameTime / 100);
+            // 리젠률 2배 증가 (기존: 2000 -> 500, 변경: 1000 -> 250)
+            let spawnRate = Math.max(250, 1000 - gameTime / 100);
 
             // --- Horde Mode (4분~5분사이) ---
             // 240,000ms = 4분, 300,000ms = 5분
@@ -386,6 +388,8 @@
                             life: 3000,
                             isEnemy: true, // 적 투사체 플래그
                             color: "#f00", // 빨간색
+                            pierce: 0, // 보스 투사체는 관통 없음
+                            hitIds: new Set(),
                         });
                     }
                     playSound("zap", 0.5); // Use zap sound for now
@@ -431,22 +435,37 @@
             }
 
             // 아군 투사체 처리 (적 피격)
-            let hit = false;
+            let currentHit = false; // 이번 프레임에 히트가 발생했는지
+
             enemies.forEach((e) => {
+                // 이미 맞은 적은 패스 (다단히트 방지)
+                if (p.hitIds && p.hitIds.has(e)) return;
+
                 const pRadius = 5 + player.projectileSize;
                 const hitDist = (e.isBoss ? 60 : 30) + pRadius;
 
                 if (Math.hypot(e.x - p.x, e.y - p.y) < hitDist) {
                     e.hp -= 20 + player.level * 2; // 레벨에 따른 데미지 증가
-                    hit = true;
                     spawnDamageNumber(
                         e.x,
                         e.y,
                         Math.round(20 + player.level * 2),
                     );
+
+                    // 히트 처리
+                    if (!p.hitIds) p.hitIds = new Set();
+                    p.hitIds.add(e);
+
+                    p.pierce--; // 관통 횟수 차감
+                    currentHit = true;
                 }
             });
-            return p.life > 0 && !hit;
+
+            // 관통 횟수가 다 떨어졌으면 소멸 (0보다 작아지면 소멸)
+            // pierce가 0이면 1명 맞추고 -1이 되어 소멸.
+            if (p.pierce < 0) return false;
+
+            return p.life > 0;
         });
 
         // 6. 아이템 자석 흡수
@@ -623,6 +642,13 @@
                 desc: "탄환 크기 증가",
                 icon: "☄️",
                 effect: () => (player.projectileSize += 3),
+            },
+            {
+                id: 6,
+                name: "Piercing Rounds",
+                desc: "관통 횟수 +1",
+                icon: "🏹",
+                effect: () => player.piercing++,
             },
         ];
         // 랜덤 3개 노출
@@ -1083,6 +1109,10 @@
             <button
                 class="px-8 py-3 bg-white text-black font-bold rounded-full hover:scale-105 transition"
                 on:click={() => {
+                    // 저장 로직 추가
+                    savedData.coins += player.coins;
+                    saveGame();
+
                     gameState = "start";
                     initGame();
                 }}

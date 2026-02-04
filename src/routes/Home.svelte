@@ -185,6 +185,36 @@
     </button>
   </section>
 
+  <section in:fly={{ x: -20, delay: 100 }} class="relative">
+    <button
+      on:click={() => navigateTo("english-listening")}
+      class="w-full flex items-center justify-between p-5 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-[2rem] text-white shadow-lg active:scale-[0.98] transition-all overflow-hidden"
+    >
+      <div class="relative z-10 text-left">
+        <h3 class="font-black text-lg">영어 듣기 공부 🎧</h3>
+        <p class="text-xs opacity-80">실전 같은 대화로 귀를 뚫어보세요!</p>
+      </div>
+      <div class="relative z-10 bg-white/20 p-2 rounded-xl backdrop-blur-md">
+        <svg
+          class="w-6 h-6"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="3"
+            d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+          ></path>
+        </svg>
+      </div>
+      <div
+        class="absolute -right-4 -bottom-4 w-20 h-20 bg-white/10 rounded-full blur-xl"
+      ></div>
+    </button>
+  </section>
+
   <section in:fly={{ x: -20, delay: 200 }} class="relative">
     <button
       on:click={() => navigateTo("food-spinner")}
