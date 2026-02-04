@@ -599,6 +599,45 @@ Manager: Great plan. Let's keep the momentum going. Meeting adjourned.`,
             </div>
         </div>
     {/if}
+
+    <!-- Voice Debug Info (Visible for troubleshooting) -->
+    <div
+        class="mt-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-2xl text-xs text-gray-500 overflow-x-auto"
+    >
+        <p class="font-bold mb-2">🎤 Voice Debug Info:</p>
+        <p>
+            Selected Voice 1 (Male?): <span class="text-indigo-600 font-bold"
+                >{voice1?.name}</span
+            >
+            ({voice1?.lang})
+        </p>
+        <p>
+            Selected Voice 2 (Female?): <span class="text-pink-600 font-bold"
+                >{voice2?.name}</span
+            >
+            ({voice2?.lang})
+        </p>
+        <details class="mt-2">
+            <summary class="cursor-pointer hover:text-indigo-500"
+                >View All Available Voices ({voices.length})</summary
+            >
+            <ul class="mt-2 space-y-1 max-h-32 overflow-y-auto">
+                {#each voices as v}
+                    <li
+                        class="{v === voice1
+                            ? 'text-indigo-600 font-bold'
+                            : ''} {v === voice2
+                            ? 'text-pink-600 font-bold'
+                            : ''}"
+                    >
+                        {v.name} ({v.lang})
+                        {#if v === voice1}[Voice 1]{/if}
+                        {#if v === voice2}[Voice 2]{/if}
+                    </li>
+                {/each}
+            </ul>
+        </details>
+    </div>
 </div>
 
 <style>
