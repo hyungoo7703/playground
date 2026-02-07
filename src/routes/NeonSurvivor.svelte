@@ -360,6 +360,22 @@
         localStorage.setItem("neon_survivors_data", JSON.stringify(savedData));
     }
 
+    function handleBossDefeat(boss) {
+        playSound("levelup"); // 승리음 비슷한거
+
+        // 보상: 대량의 경험치와 코인
+        gainExp(5000);
+        player.coins += 1000;
+
+        // 화면 흔들림 효과
+        screenShake = 20;
+
+        // 보스 상태 리셋 (보스 2 등장을 위해)
+        bossSpawned = true; // 보스 1 처치됨 표시 (실제 state 관리가 필요함)
+        // 여기서는 bossSpawned 변수를 '보스 1이 이미 등장했었음'을 의미하도록 유지
+        // 보스 2 로직을 위해서 '현재 보스가 없음'은 enemies.some(isBoss)로 체크하므로 OK
+    }
+
     function handleGameWin() {
         gameState = "win";
         stopBGM();
@@ -430,8 +446,8 @@
             gameTime > 600000 &&
             !boss2Spawned &&
             !showBoss2Warning &&
-            bossSpawned &&
-            !enemies.some((e) => e.isBoss)
+            bossSpawned && // 보스 1은 이미 잡았어야 함 (또는 이미 스폰되었어야 함)
+            !enemies.some((e) => e.isBoss) // 현재 필드에 보스가 없어야 함
         ) {
             showBoss2Warning = true;
             boss2WarningTimer = 3000;
@@ -581,8 +597,10 @@
             }
 
             if (e.hp <= 0) {
-                if (e.isBoss) handleGameWin();
-                else onEnemyDeath(e);
+                if (e.isBoss) {
+                    if (e.bossType === 2) handleGameWin();
+                    else handleBossDefeat(e);
+                } else onEnemyDeath(e);
                 return false;
             }
             return true;
@@ -594,11 +612,16 @@
             player.lastShot = gameTime;
         }
 
-        // 5. 투사체 이동 및 충돌
+        // 5. 투사체 이동 (회전 로직 추가)
         projectiles = projectiles.filter((p) => {
+            p.life -= dt;
             p.x += p.vx;
             p.y += p.vy;
-            p.life -= dt;
+
+            // 칼날 회전
+            if (p.isBlade) {
+                p.rotation += dt * 0.01; // 회전 속도
+            }
 
             // 적 투사체 처리 (플레이어 피격)
             if (p.isEnemy) {
@@ -847,6 +870,104 @@
         }
     }
 
+    function processBossAttack(boss) {
+        if (!boss) return;
+
+        // --- Boss 1 Patterns ---
+        if (boss.bossType === 1) {
+            if (Math.random() < 0.5) {
+                // Pattern 1: Triple Shot (Guided)
+                boss.attackTimer = 2000;
+                for (let i = 0; i < 3; i++) {
+                    setTimeout(() => {
+                        const ang =
+                            Math.atan2(player.y - boss.y, player.x - boss.x) +
+                            (Math.random() - 0.5) * 0.2;
+                        projectiles.push({
+                            x: boss.x,
+                            y: boss.y,
+                            vx: Math.cos(ang) * 9,
+                            vy: Math.sin(ang) * 9,
+                            life: 3000,
+                            isEnemy: true,
+                            color: "#ff0",
+                            pierce: 0,
+                            hitIds: new Set(),
+                        });
+                        playSound("zap", 0.3);
+                    }, i * 150);
+                }
+            } else {
+                // Pattern 2: Spiral (Nova)
+                boss.attackTimer = 2000;
+                for (let i = 0; i < 16; i++) {
+                    setTimeout(() => {
+                        const ang = (Math.PI * 2 * i) / 16 + gameTime / 1000;
+                        projectiles.push({
+                            x: boss.x,
+                            y: boss.y,
+                            vx: Math.cos(ang) * 7,
+                            vy: Math.sin(ang) * 7,
+                            life: 3000,
+                            isEnemy: true,
+                            color: "#f0f",
+                            pierce: 0,
+                            hitIds: new Set(),
+                        });
+                    }, i * 50);
+                }
+                playSound("zap", 0.5);
+            }
+        }
+
+        // --- Boss 2 Patterns ---
+        else if (boss.bossType === 2) {
+            if (Math.random() < 0.5) {
+                // Pattern A: Spinning Blades (New!)
+                boss.attackTimer = 3000; // 좀 더 긴 쿨타임
+                const count = 12;
+                for (let i = 0; i < count; i++) {
+                    const angle = (Math.PI * 2 * i) / count;
+                    projectiles.push({
+                        x: boss.x,
+                        y: boss.y,
+                        vx: Math.cos(angle) * 6,
+                        vy: Math.sin(angle) * 6,
+                        life: 4000, // 오래 지속
+                        isEnemy: true,
+                        isBlade: true, // 회전 칼날
+                        rotation: 0,
+                        pierce: 999,
+                        hitIds: new Set(),
+                    });
+                }
+                playSound("zap", 0.6);
+            } else {
+                // Pattern B: Fast Homing Missiles (New!)
+                boss.attackTimer = 2500;
+                for (let i = 0; i < 5; i++) {
+                    setTimeout(() => {
+                        const ang =
+                            Math.atan2(player.y - boss.y, player.x - boss.x) +
+                            (Math.random() - 0.5) * 0.5;
+                        projectiles.push({
+                            x: boss.x,
+                            y: boss.y,
+                            vx: Math.cos(ang) * 10, // Very Fast
+                            vy: Math.sin(ang) * 10,
+                            life: 2000,
+                            isEnemy: true,
+                            color: "#f00", // Red
+                            pierce: 0,
+                            hitIds: new Set(),
+                        });
+                        playSound("zap", 0.4);
+                    }, i * 100);
+                }
+            }
+        }
+    }
+
     function gainExp(amount) {
         player.exp += amount;
         if (player.exp >= player.maxExp) {
@@ -973,18 +1094,47 @@
         // 투사체 (미사일 효과)
         ctx.shadowBlur = 15;
         projectiles.forEach((p) => {
-            ctx.fillStyle = p.isEnemy ? "#f00" : "#0ff"; // 적 투사체는 빨강
+            ctx.fillStyle = p.isEnemy ? "#f00" : "#0ff";
             ctx.shadowColor = p.isEnemy ? "#f00" : "#0ff";
 
-            ctx.beginPath();
-            ctx.arc(
-                p.x,
-                p.y,
-                p.isEnemy ? 8 : 5 + player.projectileSize,
-                0,
-                Math.PI * 2,
-            );
-            ctx.fill();
+            // 회전 칼날 렌더링
+            if (p.isBlade) {
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rotation);
+
+                // 칼날 그리기 (마름모 2개 겹침)
+                ctx.fillStyle = "#ffaa00"; // 주황색
+                ctx.shadowColor = "#ff4400";
+
+                ctx.beginPath();
+                ctx.moveTo(0, -15);
+                ctx.lineTo(10, 0);
+                ctx.lineTo(0, 15);
+                ctx.lineTo(-10, 0);
+                ctx.fill();
+
+                ctx.rotate(Math.PI / 2);
+                ctx.beginPath();
+                ctx.moveTo(0, -15);
+                ctx.lineTo(10, 0);
+                ctx.lineTo(0, 15);
+                ctx.lineTo(-10, 0);
+                ctx.fill();
+
+                ctx.restore();
+            } else {
+                // 일반 투사체
+                ctx.beginPath();
+                ctx.arc(
+                    p.x,
+                    p.y,
+                    p.isEnemy ? 8 : 5 + player.projectileSize,
+                    0,
+                    Math.PI * 2,
+                );
+                ctx.fill();
+            }
         });
 
         // 3. 적 & 보스 (보스1, 보스2 구분 렌더링)
@@ -997,18 +1147,31 @@
             } else {
                 const mobSheet = assets.images.mobs;
                 if (mobSheet?.complete) {
-                    // 3 columns x 1 rows
-                    const mw = mobSheet.naturalWidth / 3;
-                    const mh = mobSheet.naturalHeight / 2;
-                    const col = e.type % 3;
-                    const row = Math.floor(e.type / 3); // 0 or 1
+                    // 상단 3개 (type 0,1,2): 3열
+                    // 하단 2개 (type 3,4): 2열, 다른 위치
+                    const topRowH = mobSheet.naturalHeight / 2;
+                    let sx, sy, sw, sh;
+
+                    if (e.type < 3) {
+                        // 상단 3마리
+                        sw = mobSheet.naturalWidth / 3;
+                        sh = topRowH;
+                        sx = e.type * sw;
+                        sy = 0;
+                    } else {
+                        // 하단 2마리 (가운데 정렬, 2열)
+                        sw = mobSheet.naturalWidth / 3;
+                        sh = topRowH;
+                        sx = (e.type - 3) * sw + sw * 0.5; // 약간 오프셋
+                        sy = topRowH;
+                    }
 
                     ctx.drawImage(
                         mobSheet,
-                        col * mw,
-                        row * mh,
-                        mw,
-                        mh,
+                        sx,
+                        sy,
+                        sw,
+                        sh,
                         e.x - 25,
                         e.y - 25,
                         50,
