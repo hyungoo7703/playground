@@ -8,21 +8,24 @@
 
   import Home from "../routes/Home.svelte";
   import EventList from "../routes/EventList.svelte";
-  import Settings from "../routes/Settings.svelte";
-  import PensionCalculator from "../routes/PensionCalculator.svelte";
-  import Calculator15 from "../routes/Calculator15.svelte";
-  import FoodSpinner from "../routes/FoodSpinner.svelte";
-  import Login from "../routes/Login.svelte";
   import BulletinBoard from "../routes/BulletinBoard.svelte";
   import Ledger from "../routes/Ledger.svelte";
+  import Calculator15 from "../routes/Calculator15.svelte";
+  import PensionCalculator from "../routes/PensionCalculator.svelte";
+  import Stock from "../routes/Stock.svelte";
+  import EnglishListening from "../routes/EnglishListening.svelte";
+
+  // Games
   import Game from "../routes/Game.svelte";
   import FruitPang from "../routes/FruitPang.svelte";
   import NeonBlast from "../routes/NeonBlast.svelte";
   import NeonBrick from "../routes/NeonBrick.svelte";
-  import Stock from "../routes/Stock.svelte";
-  import SecretLedger from "../routes/SecretLedger.svelte";
   import NeonSurvivor from "../routes/NeonSurvivor.svelte";
-  import EnglishListening from "../routes/EnglishListening.svelte";
+
+  import FoodSpinner from "../routes/FoodSpinner.svelte";
+  import Settings from "../routes/Settings.svelte";
+  import SecretLedger from "../routes/SecretLedger.svelte";
+  import Login from "../routes/Login.svelte";
 
   const location = useLocation();
 
@@ -84,20 +87,23 @@
     {:else}
       <Route path="/" component={Home} />
       <Route path="events" component={EventList} />
-      <Route path="pension-calculator" component={PensionCalculator} />
-      <Route path="calculator-15" component={Calculator15} />
-      <Route path="food-spinner" component={FoodSpinner} />
-      <Route path="settings" component={Settings} />
       <Route path="bulletin-board" component={BulletinBoard} />
       <Route path="ledger" component={Ledger} />
+      <Route path="calculator-15" component={Calculator15} />
+      <Route path="pension-calculator" component={PensionCalculator} />
+      <Route path="stock" component={Stock} />
+      <Route path="english-listening" component={EnglishListening} />
+
+      <!-- Games -->
       <Route path="game" component={Game} />
       <Route path="fruit-pang" component={FruitPang} />
       <Route path="neon-blast" component={NeonBlast} />
       <Route path="neon-brick" component={NeonBrick} />
-      <Route path="stock" component={Stock} />
-      <Route path="secret-ledger" component={SecretLedger} />
       <Route path="neon-survivor" component={NeonSurvivor} />
-      <Route path="english-listening" component={EnglishListening} />
+
+      <Route path="food-spinner" component={FoodSpinner} />
+      <Route path="settings" component={Settings} />
+      <Route path="secret-ledger" component={SecretLedger} />
     {/if}
   </main>
 </div>

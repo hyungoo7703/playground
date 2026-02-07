@@ -12,11 +12,11 @@
         hero: `${ASSET_PATH}/hero.png`,
         mobs: `${ASSET_PATH}/mobs.png`,
         boss: `${ASSET_PATH}/boss.png`,
+        boss2: `${ASSET_PATH}/boss2.png`,
         items: `${ASSET_PATH}/EXPgems-and-coin.png`,
-        // skills: `${ASSET_PATH}/skill-icons.png`, // Removed as per user request
         main: `${ASSET_PATH}/main.png`,
         bg: `${ASSET_PATH}/background.png`,
-        special: `${ASSET_PATH}/special_ability_icon.png`, // New Ultimate Icon
+        special: `${ASSET_PATH}/special_ability_icon.png`,
     };
 
     const SOUNDS = {
@@ -37,8 +37,11 @@
     let assets = { images: {}, sounds: {} };
     let loadProgress = 0;
     let bossSpawned = false;
+    let boss2Spawned = false;
     let showBossWarning = false;
     let bossWarningTimer = 0;
+    let showBoss2Warning = false;
+    let boss2WarningTimer = 0;
 
     // --- 2. 영구 데이터 (Persistence) ---
     // User provided: "coins", "upgrades": { "hp":0, "speed":0, "magnet":0 }
@@ -136,10 +139,11 @@
     let touchStart = null;
     let joystickVector = { x: 0, y: 0 };
 
-    // Ultimate Skill State
-    let hasUsedUltimate = false;
+    // Ultimate Skill State (게이지 충전 방식)
+    let ultimateGauge = 0; // 0~100
+    const ULTIMATE_MAX = 100;
     let shockwave = { active: false, radius: 0, maxRadius: 0, alpha: 0 };
-    const ULTIMATE_BUTTON = { x: 0, y: 0, r: 40 }; // Will be set in resize
+    const ULTIMATE_BUTTON = { x: 0, y: 0, r: 40 };
 
     // Skill Selection
     let levelUpOptions = [];
@@ -300,12 +304,15 @@
         particles = [];
         damageNumbers = [];
         gameTime = 0;
-        bossSpawned = false; // 보스 상태 초기화
-        showBossWarning = false; // 경고 상태 초기화
-        bossWarningTimer = 0; // 타이머 초기화 (중요 Check)
+        bossSpawned = false;
+        boss2Spawned = false;
+        showBossWarning = false;
+        showBoss2Warning = false;
+        bossWarningTimer = 0;
+        boss2WarningTimer = 0;
 
         // Reset Ultimate
-        hasUsedUltimate = false;
+        ultimateGauge = 0;
         shockwave = { active: false, radius: 0, maxRadius: 0, alpha: 0 };
 
         resizeCanvas();
@@ -382,42 +389,56 @@
         animationId = requestAnimationFrame(gameLoop);
     }
 
-    // --- Ultimate Skill Logic ---
+    // --- Ultimate Skill Logic (게이지 충전 방식) ---
     function activateUltimate() {
-        if (hasUsedUltimate || gameState !== "playing") return;
+        if (ultimateGauge < ULTIMATE_MAX || gameState !== "playing") return;
 
-        hasUsedUltimate = true;
-        playSound("explosion", 0.8); // Epic explosion sound
+        ultimateGauge = 0; // 사용 후 리셋
+        playSound("explosion", 0.8);
 
-        // Visual
         shockwave.active = true;
         shockwave.radius = 0;
         shockwave.maxRadius = Math.max(canvas.width, canvas.height) * 1.5;
         shockwave.alpha = 1;
 
-        // Effect: Massive Damage to ALL enemies
         enemies.forEach((e) => {
-            e.hp -= 1000; // Instakill most mobs, heavy chunk to boss
-            spawnDamageNumber(e.x, e.y, 1000);
+            e.hp -= 1000;
+            spawnDamageNumber(e.x, e.y, 1000, true); // 크리티컬 표시
         });
+    }
 
-        // Screenshake effect (optional, maybe later)
+    function chargeUltimate(amount) {
+        ultimateGauge = Math.min(ULTIMATE_MAX, ultimateGauge + amount);
     }
 
     // --- Update Logic (물리 및 충돌 로직 복구) ---
     function update(dt) {
         gameTime += dt;
 
-        // 1. 보스 등장 시스템 (수정: 5분 원복)
-        if (gameTime > 300000 && !enemies.some((e) => e.isBoss)) {
-            if (bossWarningTimer === 0) {
-                showBossWarning = true;
-                bossWarningTimer = 3000;
-            }
-            if (bossWarningTimer > 0) {
-                bossWarningTimer -= dt;
-                if (bossWarningTimer <= 0) spawnBoss();
-            }
+        // 1. 보스 등장 시스템 (5분 = 보스1, 10분 = 보스2)
+        if (gameTime > 300000 && !bossSpawned && !showBossWarning) {
+            showBossWarning = true;
+            bossWarningTimer = 3000;
+        }
+        if (showBossWarning && bossWarningTimer > 0) {
+            bossWarningTimer -= dt;
+            if (bossWarningTimer <= 0) spawnBoss(1);
+        }
+
+        // 보스2 등장 (10분)
+        if (
+            gameTime > 600000 &&
+            !boss2Spawned &&
+            !showBoss2Warning &&
+            bossSpawned &&
+            !enemies.some((e) => e.isBoss)
+        ) {
+            showBoss2Warning = true;
+            boss2WarningTimer = 3000;
+        }
+        if (showBoss2Warning && boss2WarningTimer > 0) {
+            boss2WarningTimer -= dt;
+            if (boss2WarningTimer <= 0) spawnBoss(2);
         }
 
         // 1.5. Ultimate Shockwave Update
@@ -451,15 +472,17 @@
         camera.x = player.x - canvas.width / 2;
         camera.y = player.y - canvas.height / 2;
 
-        // 3. 적 스폰 및 추적
-        if (!showBossWarning && !bossSpawned) {
-            // Difficulty Balance: Spawn rate ~1.5x (Base 1000->650, Min 250->160)
+        // 3. 적 스폰 및 추적 (보스 전투 중에도 잡몹 스폰)
+        if (!showBossWarning && !showBoss2Warning) {
             let spawnRate = Math.max(160, 650 - gameTime / 100);
 
-            // --- Horde Mode (4분~5분사이) ---
-            // 240,000ms = 4분, 300,000ms = 5분
+            // Horde Mode (4분~5분)
             if (gameTime > 240000 && gameTime < 300000) {
-                spawnRate = 75; // Horde mode slightly relaxed (was 50)
+                spawnRate = 75;
+            }
+            // 9분~10분 2차 Horde
+            if (gameTime > 540000 && gameTime < 600000) {
+                spawnRate = 60;
             }
 
             if (Math.random() < dt / spawnRate) spawnEnemy();
@@ -599,12 +622,15 @@
                 const hitDist = (e.isBoss ? 60 : 30) + pRadius;
 
                 if (Math.hypot(e.x - p.x, e.y - p.y) < hitDist) {
-                    // Balance: Base 12 + Shop Upgrade (*2) + Level (*1)
-                    // Reduced level scaling from *2 to *1
                     const baseDmg = 12 + (savedData.upgrades?.damage || 0) * 2;
-                    const damage = baseDmg + player.level * 1;
+                    let damage = baseDmg + player.level * 1;
+
+                    // 크리티컬 시스템 (20% 확률, 1.5배 데미지)
+                    const isCrit = Math.random() < 0.2;
+                    if (isCrit) damage = Math.floor(damage * 1.5);
+
                     e.hp -= damage;
-                    spawnDamageNumber(e.x, e.y, Math.round(damage));
+                    spawnDamageNumber(e.x, e.y, Math.round(damage), isCrit);
 
                     // 히트 처리
                     if (!p.hitIds) p.hitIds = new Set();
@@ -638,9 +664,13 @@
             return true;
         });
 
-        // 7. 파티클 & 데미지 숫자 업데이트
+        // 7. 파티클 & 데미지 숫자 업데이트 (애니메이션)
         particles = particles.filter((p) => (p.life -= dt) > 0);
-        damageNumbers = damageNumbers.filter((dn) => (dn.life -= dt) > 0);
+        damageNumbers = damageNumbers.filter((dn) => {
+            dn.life -= dt;
+            dn.y -= 1; // 위로 떠오르는 애니메이션
+            return dn.life > 0;
+        });
     }
 
     function spawnEnemy() {
@@ -656,29 +686,66 @@
             timeFactor *= 0.5;
         }
 
+        // 일반 몹 (type 0,1,2) 또는 특수 몹 (3분 이후 type 3,4 추가)
+        let mobType = Math.floor(Math.random() * 3); // 기본 0~2
+        let mobSpeed = 1.5 + Math.random() * 0.5;
+        let mobHp = (30 + player.level * 5) * timeFactor;
+        let isSpecial = false;
+
+        // 3분 이후 특수 몹 등장 (30% 확률)
+        if (gameTime > 180000 && Math.random() < 0.3) {
+            mobType = Math.random() < 0.5 ? 3 : 4; // 가시공 or 다이아
+            isSpecial = true;
+            if (mobType === 3) {
+                // 폭발형: 느리지만 강함
+                mobSpeed = 1.2;
+                mobHp *= 1.5;
+            } else {
+                // 빠른형: 빠르지만 약함
+                mobSpeed = 3.0;
+                mobHp *= 0.6;
+            }
+        }
+
         enemies.push({
             x: player.x + Math.cos(angle) * dist,
             y: player.y + Math.sin(angle) * dist,
-            hp: (30 + player.level * 5) * timeFactor, // Apply scaling
-            speed: 1.5 + Math.random() * 0.5,
+            hp: mobHp,
+            speed: mobSpeed,
             radius: 15,
-            type: Math.floor(Math.random() * 3), // 0 to 2 (Top 3 types only)
+            type: mobType,
+            isSpecial,
         });
     }
 
-    function spawnBoss() {
-        showBossWarning = false; // 경고 끄기
-        bossSpawned = true; // 보스 상태 ON
-        enemies.push({
-            x: player.x, // 플레이어 근처(위쪽)에서 등장
-            y: player.y - 500,
-            hp: 50000, // Massive HP (Double previous 25k)
-            maxHp: 50000,
-            speed: 1.8, // Slightly faster
-            radius: 100, // 충돌 범위 큼
-            isBoss: true, // 보스 플래그
-            type: 0, // 이미지 타입
-        });
+    function spawnBoss(bossNum = 1) {
+        if (bossNum === 1) {
+            showBossWarning = false;
+            bossSpawned = true;
+            enemies.push({
+                x: player.x,
+                y: player.y - 500,
+                hp: 50000,
+                maxHp: 50000,
+                speed: 1.8,
+                radius: 100,
+                isBoss: true,
+                bossType: 1,
+            });
+        } else {
+            showBoss2Warning = false;
+            boss2Spawned = true;
+            enemies.push({
+                x: player.x,
+                y: player.y - 500,
+                hp: 100000,
+                maxHp: 100000,
+                speed: 2.0,
+                radius: 120,
+                isBoss: true,
+                bossType: 2,
+            });
+        }
         playSound("warning");
     }
 
@@ -731,14 +798,41 @@
 
     function onEnemyDeath(enemy) {
         playSound("punch", 0.2);
-        // Spawn Drop
+
+        // 궁극기 게이지 충전
+        chargeUltimate(enemy.isSpecial ? 8 : 5);
+
+        // 폭발형 몹: 사망 시 주변 데미지
+        if (enemy.type === 3 && enemy.isSpecial) {
+            const explosionRadius = 80;
+            // 플레이어에게 데미지
+            if (
+                Math.hypot(enemy.x - player.x, enemy.y - player.y) <
+                explosionRadius
+            ) {
+                takeDamage(15);
+            }
+            // 폭발 파티클
+            for (let i = 0; i < 10; i++) {
+                particles.push({
+                    x: enemy.x,
+                    y: enemy.y,
+                    vx: (Math.random() - 0.5) * 8,
+                    vy: (Math.random() - 0.5) * 8,
+                    life: 600,
+                    color: "#f80",
+                });
+            }
+        }
+
+        // 아이템 드롭
         items.push({
             x: enemy.x,
             y: enemy.y,
-            type: Math.random() > 0.8 ? "coin" : "exp", // 20% coin
+            type: Math.random() > 0.8 ? "coin" : "exp",
             value: 10,
         });
-        // Spawn particles
+        // 일반 파티클
         for (let i = 0; i < 5; i++) {
             particles.push({
                 x: enemy.x,
@@ -891,10 +985,11 @@
             ctx.fill();
         });
 
-        // 3. 적 & 보스 (일반 모드 - 발광 제거)
+        // 3. 적 & 보스 (보스1, 보스2 구분 렌더링)
         enemies.forEach((e) => {
             if (e.isBoss) {
-                const bossImg = assets.images.boss;
+                const bossImg =
+                    e.bossType === 2 ? assets.images.boss2 : assets.images.boss;
                 if (bossImg?.complete)
                     ctx.drawImage(bossImg, e.x - 150, e.y - 150, 300, 300);
             } else {
@@ -998,11 +1093,19 @@
         // Let's keep them in World Space but handled here to be on top.
 
         ctx.translate(-camera.x, -camera.y);
-        ctx.font = "bold 14px Arial"; // Slightly bigger
-        ctx.fillStyle = "white";
-        ctx.shadowBlur = 2;
-        ctx.shadowColor = "black";
         damageNumbers.forEach((dn) => {
+            // 크리티컬: 노란색, 큰 폰트
+            if (dn.isCrit) {
+                ctx.font = "bold 20px Arial";
+                ctx.fillStyle = "#ffff00";
+                ctx.shadowColor = "#ff8800";
+                ctx.shadowBlur = 10;
+            } else {
+                ctx.font = "bold 14px Arial";
+                ctx.fillStyle = "white";
+                ctx.shadowColor = "black";
+                ctx.shadowBlur = 2;
+            }
             ctx.fillText(dn.val, dn.x, dn.y);
         });
         ctx.shadowBlur = 0;
@@ -1022,41 +1125,39 @@
         ctx.fillStyle = "gold";
         ctx.fillText(`Coins:${player.coins}`, 10, 85);
 
-        // Ultimate Button (Mobile & Visual Indicator)
+        // Ultimate Button (게이지 방식 UI)
         if (gameState === "playing") {
             const btn = ULTIMATE_BUTTON;
             ctx.save();
             ctx.translate(btn.x, btn.y);
 
             const icon = assets.images.special;
+            const isReady = ultimateGauge >= ULTIMATE_MAX;
 
             if (icon && icon.complete) {
-                // 1. Draw Glow (Only when ready)
-                if (!hasUsedUltimate) {
+                // 발광 효과 (준비되면 강한 발광)
+                if (isReady) {
                     const pulse = 20 + Math.sin(gameTime / 150) * 10;
-                    ctx.shadowColor = "#00ffff"; // Cyan Neon
+                    ctx.shadowColor = "#00ffff";
                     ctx.shadowBlur = pulse;
                 } else {
                     ctx.shadowBlur = 0;
-                    ctx.filter = "grayscale(100%) brightness(50%)"; // Dimmed when used
+                    ctx.filter = `brightness(${50 + (ultimateGauge / ULTIMATE_MAX) * 50}%)`;
                 }
 
-                // 2. Draw Icon
-                const size = btn.r * 2.5; // Make it pop
+                const size = btn.r * 2.5;
                 ctx.drawImage(icon, -size / 2, -size / 2, size, size);
-
-                // Reset filter for other draws
                 ctx.filter = "none";
             } else {
-                // Fallback: Circle button
-                if (!hasUsedUltimate) {
+                // Fallback: 원형 버튼
+                if (isReady) {
                     const pulse = Math.sin(gameTime / 200) * 5;
                     ctx.shadowColor = "#0ff";
                     ctx.shadowBlur = 20 + pulse;
                 }
                 ctx.beginPath();
                 ctx.arc(0, 0, btn.r, 0, Math.PI * 2);
-                ctx.fillStyle = hasUsedUltimate ? "#333" : "#00bcd4";
+                ctx.fillStyle = isReady ? "#00bcd4" : "#333";
                 ctx.fill();
                 ctx.lineWidth = 4;
                 ctx.strokeStyle = "white";
@@ -1065,8 +1166,25 @@
                 ctx.font = "30px Arial";
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
-                ctx.fillText(hasUsedUltimate ? "" : "💣", 0, 2);
+                ctx.fillText(
+                    isReady ? "💣" : `${Math.floor(ultimateGauge)}%`,
+                    0,
+                    2,
+                );
             }
+
+            // 게이지 바 (Ultimate 버튼 아래)
+            const gaugeW = btn.r * 2;
+            const gaugeH = 6;
+            ctx.fillStyle = "#333";
+            ctx.fillRect(-gaugeW / 2, btn.r + 8, gaugeW, gaugeH);
+            ctx.fillStyle = isReady ? "#0ff" : "#0a0";
+            ctx.fillRect(
+                -gaugeW / 2,
+                btn.r + 8,
+                gaugeW * (ultimateGauge / ULTIMATE_MAX),
+                gaugeH,
+            );
 
             ctx.restore();
         }
@@ -1092,17 +1210,30 @@
         }
     }
 
-    function spawnDamageNumber(x, y, val) {
-        damageNumbers.push({ x, y, val, life: 500 });
+    function spawnDamageNumber(x, y, val, isCrit = false) {
+        damageNumbers.push({ x, y: y - 20, val, life: 600, isCrit });
     }
 
     // --- Input ---
     function handleKeyDown(e) {
         keys[e.key] = true;
-        if (e.code === "Space") activateUltimate(); // PC Shortcut
+        if (e.code === "Space") activateUltimate();
+        if (e.code === "Escape") togglePause();
     }
     function handleKeyUp(e) {
         keys[e.key] = false;
+    }
+
+    function togglePause() {
+        if (gameState === "playing") {
+            gameState = "paused";
+            cancelAnimationFrame(animationId);
+            animationId = null;
+        } else if (gameState === "paused") {
+            gameState = "playing";
+            lastTime = performance.now();
+            gameLoop(lastTime);
+        }
     }
 
     // Touch Joystick
@@ -1182,6 +1313,22 @@
         </div>
     {/if}
 
+    <!-- Boss 2 Warning Overlay -->
+    {#if showBoss2Warning}
+        <div
+            class="absolute inset-0 flex flex-col items-center justify-center bg-purple-900/30 animate-pulse z-40 pointer-events-none"
+        >
+            <h2
+                class="text-8xl font-black text-purple-400 tracking-tighter drop-shadow-2xl"
+            >
+                DANGER
+            </h2>
+            <p class="text-2xl text-white font-bold mt-4">
+                FINAL BOSS INCOMING!
+            </p>
+        </div>
+    {/if}
+
     <!-- UI Overlays -->
     {#if gameState === "loading"}
         <div
@@ -1205,6 +1352,14 @@
                 </p>
             </div>
         </div>
+    {:else if gameState === "playing" || gameState === "paused"}
+        <!-- Pause Button (Game HUD) -->
+        <button
+            on:click={togglePause}
+            class="absolute top-3 right-3 z-30 w-12 h-12 bg-black/50 rounded-full flex items-center justify-center text-white text-2xl hover:bg-black/70 transition"
+        >
+            {gameState === "paused" ? "▶" : "⏸"}
+        </button>
     {:else if gameState === "start"}
         <div
             class="absolute inset-0 flex flex-col items-center justify-center z-50 bg-black/60 backdrop-blur-md"
@@ -1301,6 +1456,35 @@
                 </button>
             </div>
         </div>
+    {:else if gameState === "paused"}
+        <div
+            class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md"
+        >
+            <h2 class="text-5xl font-black text-cyan-400 mb-8">PAUSED</h2>
+            <div class="flex flex-col gap-4">
+                <button
+                    on:click={togglePause}
+                    class="px-12 py-4 bg-cyan-500 text-black font-black text-xl rounded-full hover:scale-105 transition shadow-[0_0_20px_#0ff]"
+                >
+                    RESUME
+                </button>
+                <button
+                    on:click={() => {
+                        // 현재 코인 저장하고 로비로
+                        savedData.coins += player.coins;
+                        saveGame();
+                        gameState = "start";
+                        initGame();
+                    }}
+                    class="px-12 py-4 border-2 border-red-500 text-red-500 font-black text-xl rounded-full hover:bg-red-500 hover:text-white transition"
+                >
+                    EXIT TO LOBBY
+                </button>
+            </div>
+            <p class="mt-8 text-gray-400 text-sm">
+                Level {player.level} • Coins: {player.coins}
+            </p>
+        </div>
     {:else if gameState === "levelup"}
         <div
             class="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md"
@@ -1363,10 +1547,7 @@
             <button
                 class="px-8 py-3 bg-white text-black font-bold rounded-full hover:scale-105 transition"
                 on:click={() => {
-                    // 저장 로직 추가
-                    savedData.coins += player.coins;
-                    saveGame();
-
+                    // 코인은 handleGameOver/handleGameWin에서 이미 저장됨 - 중복 제거
                     gameState = "start";
                     initGame();
                 }}

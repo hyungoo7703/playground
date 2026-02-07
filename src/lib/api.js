@@ -1,6 +1,22 @@
 
 import { GAS_URL } from './store.js';
 
+// ==========================================
+// 시간 기반 토큰 생성 (TOTP 방식)
+// ==========================================
+const APP_SECRET = "my_super_secret_key_2026";
+
+function generateAppToken() {
+    const timeSlice = Math.floor(Date.now() / 60000); // 1분 단위
+    const raw = APP_SECRET + timeSlice;
+    let hash = 0;
+    for (let i = 0; i < raw.length; i++) {
+        hash = ((hash << 5) - hash) + raw.charCodeAt(i);
+        hash |= 0;
+    }
+    return hash.toString(16);
+}
+
 async function fetchFromGAS(action, payload = {}) {
     try {
         const response = await fetch(GAS_URL, {
@@ -9,7 +25,11 @@ async function fetchFromGAS(action, payload = {}) {
             headers: {
                 "Content-Type": "text/plain;charset=utf-8",
             },
-            body: JSON.stringify({ action, ...payload }),
+            body: JSON.stringify({
+                action,
+                app_token: generateAppToken(),  // 모든 요청에 토큰 포함
+                ...payload
+            }),
         });
         const result = await response.json();
         return result;
@@ -62,4 +82,8 @@ export const api = {
     addStock: (data) => fetchFromGAS('addStock', data),
     batchAddStock: (items) => fetchFromGAS('batchAddStock', { items }),
     deleteStock: (id) => fetchFromGAS('deleteStock', { id }),
+
+    // Management (Roulette 등)
+    getManagement: (section) => fetchFromGAS('getManagement', { section }),
+    addManagement: (section, value) => fetchFromGAS('addManagement', { section, value }),
 };

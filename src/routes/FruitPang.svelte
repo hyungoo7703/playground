@@ -22,7 +22,6 @@
   let isMuted = false;
   let isProcessing = false;
   let isShaking = false;
-  let particles = [];
 
   let isHardMode = false;
   let energy = 100;
@@ -38,19 +37,16 @@
     if (isMuted) return;
 
     let soundPath = popSoundPath;
-    let volume = 0.8; // Increased from 0.4
-    let startTime = 0.1;
-    let duration = 150;
+    let volume = 0.7;
+    let duration = 300;
 
     if (type === "bomb") {
       soundPath = bombSoundPath;
-      volume = 0.35; // Decreased from 0.6
-      startTime = 0; // 폭탄은 처음부터 재생
-      duration = 500; // 폭탄은 조금 더 길게
+      volume = 0.25; // 폭탄 볼륨 더 낮춤
+      duration = 400;
     }
 
     const s = new Audio(soundPath);
-    s.currentTime = startTime;
     s.volume = volume;
     s.play().catch(() => {});
 
@@ -95,7 +91,7 @@
     isNewRecord = false;
     isProcessing = false;
     gameOver = false;
-    particles = [];
+
     if (isHardMode) startEnergyDrain();
     else {
       stopEnergyDrain();
@@ -128,7 +124,6 @@
     if (group.length >= 2) {
       isProcessing = true;
       playPop("normal"); // 한 그룹 터질 때 딱 한 번 재생
-      createParticles(r, c, target);
 
       score += group.length * 10;
       if (isHardMode) energy = Math.min(100, energy + group.length * 1.5);
@@ -185,19 +180,6 @@
     }, 200);
   }
 
-  function createParticles(r, c, emoji) {
-    const newItems = Array.from({ length: 6 }, (_, i) => ({
-      id: Math.random(),
-      angle: i * 60 * (Math.PI / 180),
-      emoji,
-      dist: 40,
-    }));
-    particles = [...particles, { r, c, items: newItems }];
-    setTimeout(() => {
-      particles = particles.filter((p) => p.items !== newItems);
-    }, 600);
-  }
-
   function getConnectedGroup(r, c, target, visited = new Set()) {
     const key = `${r},${c}`;
     if (
@@ -228,7 +210,6 @@
     for (let i = r - 1; i <= r + 1; i++) {
       for (let j = c - 1; j <= c + 1; j++) {
         if (i >= 0 && i < ROWS && j >= 0 && j < COLS) {
-          if (grid[i][j]) createParticles(i, j, grid[i][j]);
           grid[i][j] = null;
           score += 20;
         }
@@ -377,26 +358,6 @@
         </button>
       </div>
     {/if}
-
-    <div class="absolute inset-0 pointer-events-none">
-      {#each particles as group}
-        {#each group.items as p}
-          <div
-            class="absolute text-xl"
-            style="left: {group.c * 14.3 + 7}%; top: {group.r * 12.5 + 6}%;"
-            in:fly={{
-              x: Math.cos(p.angle) * p.dist,
-              y: Math.sin(p.angle) * p.dist,
-              duration: 500,
-              easing: quintOut,
-            }}
-            out:fade
-          >
-            {p.emoji}
-          </div>
-        {/each}
-      {/each}
-    </div>
   </div>
 
   <!-- Footer removed -->

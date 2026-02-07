@@ -1,7 +1,8 @@
 <script>
   import { onMount } from "svelte";
   import { fade, scale, slide } from "svelte/transition";
-  import { GAS_URL, currentUser } from "../lib/store.js"; // Import currentUser
+  import { currentUser } from "../lib/store.js";
+  import { api } from "../lib/api.js";
 
   // --- 상태 관리 변수 ---
   let foodList = []; // 구글 시트에서 가져온 메뉴 리스트
@@ -25,13 +26,7 @@
   async function fetchMenu() {
     isLoading = true;
     try {
-      const response = await fetch(GAS_URL, {
-        method: "POST",
-        mode: "cors",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ action: "getManagement", section: "roulette" }),
-      });
-      const data = await response.json();
+      const data = await api.getManagement("roulette");
       if (data.success) {
         foodList = data.data.map((item) => item.value);
       }
@@ -48,19 +43,7 @@
     isAdding = true;
 
     try {
-      const response = await fetch(GAS_URL, {
-        method: "POST",
-        mode: "cors",
-        headers: {
-          "Content-Type": "text/plain;charset=utf-8",
-        },
-        body: JSON.stringify({
-          action: "addManagement",
-          section: "roulette",
-          value: newItem,
-        }),
-      });
-      const data = await response.json();
+      const data = await api.addManagement("roulette", newItem);
       if (data.success) {
         newItem = "";
         if (spinMode === "menu") await fetchMenu();

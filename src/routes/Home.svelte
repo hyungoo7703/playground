@@ -2,7 +2,8 @@
   import { onMount } from "svelte";
   import { fade, fly } from "svelte/transition";
   import { navigate } from "svelte-routing";
-  import { base, GAS_URL } from "../lib/store.js";
+  import { base } from "../lib/store.js";
+  import { api } from "../lib/api.js";
 
   let monthlyEvents = [];
   let isLoading = true;
@@ -33,15 +34,7 @@
     }
 
     try {
-      const response = await fetch(GAS_URL, {
-        method: "POST",
-        mode: "cors",
-        headers: {
-          "Content-Type": "text/plain;charset=utf-8",
-        },
-        body: JSON.stringify({ action: "getEvents" }),
-      });
-      const result = await response.json();
+      const result = await api.getEvents();
 
       if (result.success) {
         const today = new Date();
