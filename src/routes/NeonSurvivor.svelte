@@ -799,8 +799,10 @@
     function onEnemyDeath(enemy) {
         playSound("punch", 0.2);
 
-        // 궁극기 게이지 충전
-        chargeUltimate(enemy.isSpecial ? 8 : 5);
+        // 궁극기 게이지 충전 (충격파 활성화 중엔 충전 안 됨)
+        if (!shockwave.active) {
+            chargeUltimate(enemy.isSpecial ? 8 : 5);
+        }
 
         // 폭발형 몹: 사망 시 주변 데미지
         if (enemy.type === 3 && enemy.isSpecial) {
@@ -1352,14 +1354,6 @@
                 </p>
             </div>
         </div>
-    {:else if gameState === "playing" || gameState === "paused"}
-        <!-- Pause Button (Game HUD) -->
-        <button
-            on:click={togglePause}
-            class="absolute top-3 right-3 z-30 w-12 h-12 bg-black/50 rounded-full flex items-center justify-center text-white text-2xl hover:bg-black/70 transition"
-        >
-            {gameState === "paused" ? "▶" : "⏸"}
-        </button>
     {:else if gameState === "start"}
         <div
             class="absolute inset-0 flex flex-col items-center justify-center z-50 bg-black/60 backdrop-blur-md"
