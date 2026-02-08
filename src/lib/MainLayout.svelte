@@ -23,6 +23,7 @@
   import NeonSurvivor from "../routes/NeonSurvivor.svelte";
 
   import FoodSpinner from "../routes/FoodSpinner.svelte";
+  import CardPick from "../routes/CardPick.svelte";
   import Settings from "../routes/Settings.svelte";
   import SecretLedger from "../routes/SecretLedger.svelte";
   import Login from "../routes/Login.svelte";
@@ -102,6 +103,7 @@
       <Route path="neon-survivor" component={NeonSurvivor} />
 
       <Route path="food-spinner" component={FoodSpinner} />
+      <Route path="card-pick" component={CardPick} />
       <Route path="settings" component={Settings} />
       <Route path="secret-ledger" component={SecretLedger} />
     {/if}

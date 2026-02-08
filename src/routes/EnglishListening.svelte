@@ -378,14 +378,15 @@ Manager: Great plan. Let's keep the momentum going. Meeting adjourned.`,
         utterance.voice = selectedVoice;
 
         // Fallback/Enhancement: Force Tone Difference
-        // Even if they are different voices, a slight pitch shift helps distinctiveness.
-        // Voice 1 (Male-ish) -> 0.9 (Lower)
-        // Voice 2 (Female-ish) -> 1.1 (Higher)
-        // If the user has just one voice, this creates a fake duet.
+        // 목소리 구분을 위해 pitch와 rate 차이를 크게 설정
+        // Voice 1 (Male-ish) -> Low pitch, slightly slower
+        // Voice 2 (Female-ish) -> High pitch, slightly faster
         if (speakerIndex % 2 === 0) {
-            utterance.pitch = 0.9;
+            utterance.pitch = 0.7;
+            utterance.rate = speechRate * 0.95;
         } else {
-            utterance.pitch = 1.1;
+            utterance.pitch = 1.3;
+            utterance.rate = speechRate * 1.05;
         }
 
         utterance.onend = () => {
@@ -395,7 +396,10 @@ Manager: Great plan. Let's keep the momentum going. Meeting adjourned.`,
         };
 
         utterance.onerror = (e) => {
-            console.error("Speech error", e);
+            // 'interrupted'는 synth.cancel() 호출 시 발생하는 정상 동작
+            if (e.error !== "interrupted") {
+                console.error("Speech error", e);
+            }
             isPlaying = false;
         };
 
@@ -437,7 +441,7 @@ Manager: Great plan. Let's keep the momentum going. Meeting adjourned.`,
 </script>
 
 <div
-    class="max-w-6xl mx-auto p-4 md:p-6 bg-white dark:bg-gray-900 rounded-3xl shadow-2xl h-[calc(100dvh-100px)] flex flex-col"
+    class="max-w-6xl mx-auto p-3 md:p-6 bg-white dark:bg-gray-900 rounded-3xl shadow-2xl h-[calc(100dvh-60px)] md:h-[calc(100dvh-100px)] flex flex-col"
 >
     <!-- Header -->
     <div
@@ -514,23 +518,21 @@ Manager: Great plan. Let's keep the momentum going. Meeting adjourned.`,
             Chrome, Edge, or Safari.
         </div>
     {:else}
-        <div
-            class="flex flex-col-reverse lg:flex-row gap-4 flex-1 overflow-hidden"
-        >
-            <!-- Sidebar: Script List (Reduced height for more content space) -->
+        <div class="flex flex-col lg:flex-row gap-3 flex-1 overflow-hidden">
+            <!-- Sidebar: Script List (모바일에서 가로 스크롤, 데스크톱에서 세로) -->
             <div
-                class="w-full lg:w-1/3 flex flex-col gap-2 h-auto max-h-[25vh] lg:h-auto overflow-y-auto pr-2 custom-scrollbar shrink-0 border-t pt-2 lg:pt-0 lg:border-t-0 lg:border-r border-gray-100 dark:border-gray-800"
+                class="w-full lg:w-1/4 flex lg:flex-col gap-2 overflow-x-auto lg:overflow-y-auto lg:overflow-x-hidden pb-2 lg:pb-0 lg:pr-2 custom-scrollbar shrink-0 border-b lg:border-b-0 lg:border-r border-gray-100 dark:border-gray-800"
             >
                 {#each scripts as script, i}
                     <button
                         on:click={() => changeScript(i)}
-                        class="text-left p-3 rounded-xl border-2 transition-all duration-200 group relative overflow-hidden shrink-0
+                        class="text-left p-2 lg:p-3 rounded-xl border-2 transition-all duration-200 group relative overflow-hidden shrink-0 min-w-[120px] lg:min-w-0
                         {currentScriptIndex === i
                             ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 shadow-md'
                             : 'border-transparent bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'}"
                     >
                         <div
-                            class="font-bold text-sm md:text-lg mb-1 whitespace-normal break-words leading-snug {currentScriptIndex ===
+                            class="font-bold text-xs lg:text-base whitespace-nowrap lg:whitespace-normal lg:break-words leading-snug {currentScriptIndex ===
                             i
                                 ? 'text-indigo-700 dark:text-indigo-300'
                                 : 'text-gray-700 dark:text-gray-200'}"
@@ -556,25 +558,25 @@ Manager: Great plan. Let's keep the momentum going. Meeting adjourned.`,
                 {/each}
             </div>
 
-            <!-- Main Content: Display Only (Controls removed) -->
+            <!-- Main Content: 스크립트 영역 (모바일에서 더 크게) -->
             <div
-                class="w-full lg:w-2/3 flex flex-col bg-gray-50 dark:bg-gray-800 rounded-3xl p-4 md:p-8 relative border border-gray-100 dark:border-gray-700 overflow-hidden"
+                class="w-full lg:w-3/4 flex flex-col bg-gray-50 dark:bg-gray-800 rounded-2xl lg:rounded-3xl p-3 md:p-6 relative border border-gray-100 dark:border-gray-700 overflow-hidden flex-1"
             >
-                <!-- Script Content: Removed massive bottom padding -->
+                <!-- Script Content -->
                 <div
-                    class="flex-1 overflow-y-auto pb-4 pr-2 custom-scrollbar scroll-smooth"
+                    class="flex-1 overflow-y-auto pb-2 pr-1 md:pr-2 custom-scrollbar scroll-smooth"
                 >
                     {#each parsedLines as line, i}
                         <div
                             id="line-{i}"
-                            class="mb-6 text-lg md:text-xl leading-relaxed font-medium transition-colors duration-300 flex flex-col justify-center
+                            class="mb-4 md:mb-6 text-base md:text-xl lg:text-2xl leading-relaxed font-medium transition-colors duration-300 flex flex-col justify-center
                             {currentLineIndex === i
-                                ? 'bg-indigo-50 dark:bg-indigo-900/40 p-6 rounded-2xl border-l-8 border-indigo-500 shadow-lg transform scale-[1.02] origin-left'
-                                : 'p-4'}"
+                                ? 'bg-indigo-50 dark:bg-indigo-900/40 p-4 md:p-6 rounded-xl md:rounded-2xl border-l-4 md:border-l-8 border-indigo-500 shadow-lg'
+                                : 'p-2 md:p-4'}"
                         >
                             {#if line.speaker}
                                 <span
-                                    class="font-bold text-sm uppercase tracking-wider block mb-1 {currentLineIndex ===
+                                    class="font-bold text-xs md:text-sm uppercase tracking-wider block mb-1 {currentLineIndex ===
                                     i
                                         ? 'text-indigo-600 dark:text-indigo-400'
                                         : 'text-gray-400 dark:text-gray-500'}"
@@ -583,14 +585,14 @@ Manager: Great plan. Let's keep the momentum going. Meeting adjourned.`,
                                 </span>
                             {/if}
                             <span
-                                class="text-gray-900 dark:text-gray-50 font-semibold"
+                                class="text-gray-900 dark:text-gray-50 font-semibold leading-snug"
                                 >{line.text}</span
                             >
 
                             <!-- Korean Subtitle -->
                             {#if showSubtitle && line.textKo}
                                 <span
-                                    class="text-sm md:text-base text-gray-500 dark:text-gray-400 mt-1 font-normal break-keep"
+                                    class="text-sm md:text-base text-gray-500 dark:text-gray-400 mt-2 font-normal break-keep leading-relaxed"
                                 >
                                     {line.textKo}
                                 </span>
@@ -602,24 +604,27 @@ Manager: Great plan. Let's keep the momentum going. Meeting adjourned.`,
         </div>
     {/if}
 
-    <!-- Voice Debug Info (Visible for troubleshooting) -->
-    <div
-        class="mt-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-2xl text-xs text-gray-500 overflow-x-auto"
-    >
-        <p class="font-bold mb-2">🎤 Voice Debug Info:</p>
-        <p>
-            Selected Voice 1 (Male?): <span class="text-indigo-600 font-bold"
-                >{voice1?.name}</span
-            >
-            ({voice1?.lang})
-        </p>
-        <p>
-            Selected Voice 2 (Female?): <span class="text-pink-600 font-bold"
-                >{voice2?.name}</span
-            >
-            ({voice2?.lang})
-        </p>
-    </div>
+    <!-- Voice Debug Info (축소, 접을 수 있음) -->
+    <details class="mt-2 shrink-0">
+        <summary
+            class="text-xs text-gray-400 cursor-pointer hover:text-gray-600"
+            >🎤 Voice Info</summary
+        >
+        <div
+            class="p-2 bg-gray-100 dark:bg-gray-800 rounded-lg text-xs text-gray-500 mt-1"
+        >
+            <p>
+                Voice 1: <span class="text-indigo-600 font-bold"
+                    >{voice1?.name}</span
+                >
+            </p>
+            <p>
+                Voice 2: <span class="text-pink-600 font-bold"
+                    >{voice2?.name}</span
+                >
+            </p>
+        </div>
+    </details>
 </div>
 
 <style>

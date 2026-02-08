@@ -42,6 +42,8 @@
     let bossWarningTimer = 0;
     let showBoss2Warning = false;
     let boss2WarningTimer = 0;
+    let bossFightActive = false; // 보스전 중 시간 정지용
+    let boss1DefeatedTime = 0; // 보스1 처치 시점 기록
 
     // --- 2. 영구 데이터 (Persistence) ---
     // User provided: "coins", "upgrades": { "hp":0, "speed":0, "magnet":0 }
@@ -310,6 +312,8 @@
         showBoss2Warning = false;
         bossWarningTimer = 0;
         boss2WarningTimer = 0;
+        bossFightActive = false;
+        boss1DefeatedTime = 0;
 
         // Reset Ultimate
         ultimateGauge = 0;
@@ -370,10 +374,12 @@
         // 화면 흔들림 효과
         screenShake = 20;
 
+        // 보스전 종료 - 시간 재개
+        bossFightActive = false;
+        boss1DefeatedTime = gameTime; // 보스1 처치 시점 기록
+
         // 보스 상태 리셋 (보스 2 등장을 위해)
-        bossSpawned = true; // 보스 1 처치됨 표시 (실제 state 관리가 필요함)
-        // 여기서는 bossSpawned 변수를 '보스 1이 이미 등장했었음'을 의미하도록 유지
-        // 보스 2 로직을 위해서 '현재 보스가 없음'은 enemies.some(isBoss)로 체크하므로 OK
+        bossSpawned = true; // 보스 1 처치됨 표시
     }
 
     function handleGameWin() {
@@ -429,9 +435,12 @@
 
     // --- Update Logic (물리 및 충돌 로직 복구) ---
     function update(dt) {
-        gameTime += dt;
+        // 보스전 중에는 시간 정지 (경고 타이머만 진행)
+        if (!bossFightActive) {
+            gameTime += dt;
+        }
 
-        // 1. 보스 등장 시스템 (5분 = 보스1, 10분 = 보스2)
+        // 1. 보스 등장 시스템 (5분 = 보스1)
         if (gameTime > 300000 && !bossSpawned && !showBossWarning) {
             showBossWarning = true;
             bossWarningTimer = 3000;
@@ -441,12 +450,12 @@
             if (bossWarningTimer <= 0) spawnBoss(1);
         }
 
-        // 보스2 등장 (10분)
+        // 보스2 등장 (보스1 처치 후 5분 = 300000ms)
         if (
-            gameTime > 600000 &&
+            boss1DefeatedTime > 0 && // 보스1을 처치했어야 함
+            gameTime > boss1DefeatedTime + 300000 && // 처치 후 5분 경과
             !boss2Spawned &&
             !showBoss2Warning &&
-            bossSpawned && // 보스 1은 이미 잡았어야 함 (또는 이미 스폰되었어야 함)
             !enemies.some((e) => e.isBoss) // 현재 필드에 보스가 없어야 함
         ) {
             showBoss2Warning = true;
@@ -488,17 +497,20 @@
         camera.x = player.x - canvas.width / 2;
         camera.y = player.y - canvas.height / 2;
 
-        // 3. 적 스폰 및 추적 (보스 전투 중에도 잡몹 스폰)
-        if (!showBossWarning && !showBoss2Warning) {
+        // 3. 적 스폰 및 추적 (보스 전투 중에는 잡몹 스폰 중단)
+        if (!showBossWarning && !showBoss2Warning && !bossFightActive) {
             let spawnRate = Math.max(160, 650 - gameTime / 100);
 
             // Horde Mode (4분~5분)
             if (gameTime > 240000 && gameTime < 300000) {
                 spawnRate = 75;
             }
-            // 9분~10분 2차 Horde
-            if (gameTime > 540000 && gameTime < 600000) {
-                spawnRate = 60;
+            // 보스1 처치 후 4분~5분: 2차 Horde (보스2 등장 직전)
+            if (boss1DefeatedTime > 0) {
+                const timeSinceBoss1 = gameTime - boss1DefeatedTime;
+                if (timeSinceBoss1 > 240000 && timeSinceBoss1 < 300000) {
+                    spawnRate = 60;
+                }
             }
 
             if (Math.random() < dt / spawnRate) spawnEnemy();
@@ -742,6 +754,8 @@
     }
 
     function spawnBoss(bossNum = 1) {
+        bossFightActive = true; // 보스전 시작 - 시간 정지
+
         if (bossNum === 1) {
             showBossWarning = false;
             bossSpawned = true;
@@ -824,7 +838,7 @@
 
         // 궁극기 게이지 충전 (충격파 활성화 중엔 충전 안 됨)
         if (!shockwave.active) {
-            chargeUltimate(enemy.isSpecial ? 8 : 5);
+            chargeUltimate(enemy.isSpecial ? 6 : 3);
         }
 
         // 폭발형 몹: 사망 시 주변 데미지
@@ -1695,6 +1709,19 @@
                 <p class="text-white text-xl mb-8">
                     You have defeated the Boss!
                 </p>
+
+                <!-- 보상받기 버튼 (1회만 표시) -->
+                {#if !localStorage.getItem("neon_reward_claimed")}
+                    <button
+                        class="px-8 py-4 bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-black text-xl rounded-full hover:scale-105 transition shadow-lg shadow-yellow-500/30 mb-4 animate-pulse"
+                        on:click={() => {
+                            localStorage.setItem("neon_reward_claimed", "true");
+                            navigate(`${base}/card-pick`);
+                        }}
+                    >
+                        🎁 보상 받기
+                    </button>
+                {/if}
             {:else}
                 <p class="text-white text-xl mb-8">
                     You survived until Level {player.level}
