@@ -136,6 +136,7 @@
     let floatingTexts = [];
 
     let gameTime = 0;
+    let realTime = 0; // 보스전 중에도 항상 증가하는 실제 시간 (발사 쿨다운용)
     let camera = { x: 0, y: 0 };
     let keys = {};
     let touchStart = null;
@@ -435,7 +436,10 @@
 
     // --- Update Logic (물리 및 충돌 로직 복구) ---
     function update(dt) {
-        // 보스전 중에는 시간 정지 (경고 타이머만 진행)
+        // realTime은 항상 증가 (발사 쿨다운 등에 사용)
+        realTime += dt;
+
+        // 보스전 중에는 게임 시간 정지 (경고 타이머만 진행)
         if (!bossFightActive) {
             gameTime += dt;
         }
@@ -618,10 +622,10 @@
             return true;
         });
 
-        // 4. 전투 (총구 위치 보정 발사)
-        if (gameTime - player.lastShot > player.fireRate) {
+        // 4. 전투 (총구 위치 보정 발사) - realTime 사용으로 보스전 중에도 발사 가능
+        if (realTime - player.lastShot > player.fireRate) {
             fireProjectile();
-            player.lastShot = gameTime;
+            player.lastShot = realTime;
         }
 
         // 5. 투사체 이동 (회전 로직 추가)
