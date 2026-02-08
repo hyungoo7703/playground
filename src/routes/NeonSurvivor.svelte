@@ -772,8 +772,8 @@
             enemies.push({
                 x: player.x,
                 y: player.y - 500,
-                hp: 50000,
-                maxHp: 50000,
+                hp: 20000,
+                maxHp: 20000,
                 speed: 1.8,
                 radius: 100,
                 isBoss: true,
@@ -785,8 +785,8 @@
             enemies.push({
                 x: player.x,
                 y: player.y - 500,
-                hp: 100000,
-                maxHp: 100000,
+                hp: 50000,
+                maxHp: 50000,
                 speed: 2.0,
                 radius: 120,
                 isBoss: true,
