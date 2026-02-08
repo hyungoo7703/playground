@@ -138,6 +138,7 @@
     let gameTime = 0;
     let realTime = 0; // 보스전 중에도 항상 증가하는 실제 시간 (발사 쿨다운용)
     let camera = { x: 0, y: 0 };
+    let screenShake = 0;
     let keys = {};
     let touchStart = null;
     let joystickVector = { x: 0, y: 0 };
@@ -710,6 +711,11 @@
             dn.y -= 1; // 위로 떠오르는 애니메이션
             return dn.life > 0;
         });
+
+        // 8. Screen Shake Decay
+        if (screenShake > 0) {
+            screenShake = Math.max(0, screenShake - dt * 0.05);
+        }
     }
 
     function spawnEnemy() {
@@ -1082,7 +1088,13 @@
         }
 
         ctx.save();
-        ctx.translate(-camera.x, -camera.y);
+        let shakeX = 0,
+            shakeY = 0;
+        if (screenShake > 0) {
+            shakeX = (Math.random() - 0.5) * screenShake;
+            shakeY = (Math.random() - 0.5) * screenShake;
+        }
+        ctx.translate(-camera.x + shakeX, -camera.y + shakeY);
 
         // 2. 히어로 (배경 제거가 완료된 PNG이므로 screen 모드 전에 그립니다)
         const hero = assets.images.hero;

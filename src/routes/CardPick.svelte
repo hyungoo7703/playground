@@ -74,7 +74,8 @@
         cards = amounts.map((amount, i) => ({
             id: i,
             amount,
-            color: CARD_COLORS[i % CARD_COLORS.length],
+            // 모든 카드 뒷면 색상 통일 (예측 불가하도록)
+            color: "from-indigo-500 to-purple-600",
             flipped: false,
             x: 0,
             y: 0,
