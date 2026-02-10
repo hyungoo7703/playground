@@ -55,10 +55,10 @@
       description="물리 법칙으로 핀을 터뜨리는 짜릿한 손맛! <br /> 지금 바로 새로운 스테이지에 도전하세요."
       badge="PHYSICS ARCADE"
       onClick={() => goTo("neon-blast")}
-      className="border-2 border-cyan-500/30 shadow-[0_0_20px_rgba(34,211,238,0.3)]"
-      badgeClass="text-cyan-400 bg-cyan-900/50 border border-cyan-500/30 shadow-[0_0_12px_rgba(34,211,238,0.3)]"
-      titleClass="text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]"
-      descClass="text-gray-300 opacity-90"
+      className="border-2 border-cyan-500/30 shadow-[0_0_20px_rgba(34,211,238,0.3)] bg-white dark:bg-gray-800"
+      badgeClass="text-cyan-600 bg-cyan-100 dark:text-cyan-400 dark:bg-cyan-900/50 border border-cyan-500/30 dark:shadow-[0_0_12px_rgba(34,211,238,0.3)]"
+      titleClass="text-gray-900 dark:text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]"
+      descClass="text-gray-600 dark:text-gray-300 opacity-90"
       actionBtnClass="bg-gradient-to-tr from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/40"
     >
       <div slot="background">
@@ -109,10 +109,10 @@
       description="화려한 네온 빛깔의 벽돌 깨기! <br /> 무한히 생성되는 스테이지에 도전하세요."
       badge="RETRO ARCADE"
       onClick={() => goTo("neon-brick")}
-      className="border-2 border-purple-500/30 shadow-[0_0_20px_rgba(168,85,247,0.3)]"
-      badgeClass="text-purple-300 bg-purple-900/50 border border-purple-500/30 shadow-[0_0_10px_rgba(192,132,252,0.4)]"
-      titleClass="text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]"
-      descClass="text-gray-300 opacity-90"
+      className="border-2 border-purple-500/30 shadow-[0_0_20px_rgba(168,85,247,0.3)] bg-white dark:bg-gray-800"
+      badgeClass="text-purple-600 bg-purple-100 dark:text-purple-300 dark:bg-purple-900/50 border border-purple-500/30 dark:shadow-[0_0_10px_rgba(192,132,252,0.4)]"
+      titleClass="text-gray-900 dark:text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]"
+      descClass="text-gray-600 dark:text-gray-300 opacity-90"
       actionBtnClass="bg-gradient-to-tr from-purple-500 to-pink-600 text-white shadow-lg shadow-purple-500/40"
     >
       <div slot="background">
@@ -140,10 +140,10 @@
       description="몰려오는 적들을 막아내고 성장하세요! <br /> 로그라이크와 네온 액션의 만남."
       badge="SURVIVAL RPG"
       onClick={() => goTo("neon-survivor")}
-      className="border-2 border-green-500/30 shadow-[0_0_20px_rgba(34,197,94,0.3)]"
-      badgeClass="text-green-300 bg-green-900/50 border border-green-500/30 shadow-[0_0_10px_rgba(74,222,128,0.4)]"
-      titleClass="text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]"
-      descClass="text-gray-300 opacity-90"
+      className="border-2 border-green-500/30 shadow-[0_0_20px_rgba(34,197,94,0.3)] bg-white dark:bg-gray-800"
+      badgeClass="text-green-600 bg-green-100 dark:text-green-300 dark:bg-green-900/50 border border-green-500/30 dark:shadow-[0_0_10px_rgba(74,222,128,0.4)]"
+      titleClass="text-gray-900 dark:text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]"
+      descClass="text-gray-600 dark:text-gray-300 opacity-90"
       actionBtnClass="bg-gradient-to-tr from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/40"
     >
       <div slot="background">
@@ -152,13 +152,7 @@
           class="absolute -right-8 -top-8 w-40 h-40 bg-green-500/30 blur-[50px] group-hover:bg-emerald-500/30 transition-all"
         ></div>
       </div>
-      <div slot="badge-extra">
-        <span
-          class="neon-badge-label text-[10px] font-black px-2 py-0.5 rounded italic tracking-widest text-white border-2 border-green-500"
-        >
-          NEW
-        </span>
-      </div>
+      <div slot="badge-extra"></div>
       <div slot="decoration" class="flex gap-1 animate-pulse">
         <div
           class="w-3 h-3 bg-green-400 rounded-sm shadow-[0_0_8px_#4ade80]"

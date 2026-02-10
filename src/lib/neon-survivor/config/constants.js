@@ -31,16 +31,19 @@ export const WEAPONS = [
     { id: "blaster_green", name: "에메랄드 샷", rarity: "common", color: "#00ff00", shape: "circle", weight: 80, stats: { damage: 10, speed: 1.2 } },
 
     // --- Rare (15%) ---
-    { id: "plasma_rect", name: "플라즈마 커터", rarity: "rare", color: "#cyan", shape: "rect", weight: 15, stats: { damage: 15, pierce: 1 } },
+    { id: "plasma_rect", name: "플라즈마 커터", rarity: "rare", color: "#00ffff", shape: "rect", weight: 15, stats: { damage: 15, pierce: 1 } },
     { id: "gold_bullet", name: "황금 탄환", rarity: "rare", color: "#ffd700", shape: "circle", style: "outline", weight: 15, stats: { damage: 20 } },
 
-    // --- Epic (4.8%) ---
-    { id: "shuriken", name: "닌자 수리검", rarity: "epic", color: "#cccccc", shape: "star", weight: 4.8, stats: { damage: 25, pierce: 2, size: 1.5 } },
-    { id: "fireball", name: "화염구", rarity: "epic", color: "#ff4500", shape: "fireball", weight: 4.8, stats: { damage: 30, size: 2.0 } },
+    // --- Epic (4.79%) ---
+    { id: "shuriken", name: "닌자 수리검", rarity: "epic", color: "#cccccc", shape: "star", weight: 4.79, stats: { damage: 25, pierce: 2, size: 1.5 } },
+    { id: "fireball", name: "화염구", rarity: "epic", color: "#ff4500", shape: "fireball", weight: 4.79, stats: { damage: 30, size: 2.0 } },
 
     // --- Legendary (0.2%) ---
     { id: "moonblade", name: "달빛 검기", rarity: "legendary", color: "#e0e0ff", shape: "moon", weight: 0.2, stats: { damage: 50, pierce: 3, size: 2.5 } },
     { id: "void_orb", name: "공허의 구체", rarity: "legendary", color: "#8a2be2", shape: "void", weight: 0.2, stats: { damage: 40, pierce: 5, size: 1.5, speed: 0.5 } },
+
+    // --- Mythic (0.01%) ---
+    { id: "cosmic_nova", name: "코스믹 노바", rarity: "mythic", color: "#ff00ff", shape: "nova", weight: 0.01, stats: { damage: 999, pierce: 99, size: 3.0, speed: 0.4 } },
 ];
 
 export const SHOP_ITEMS = [
@@ -58,7 +61,7 @@ export const IN_GAME_UPGRADES = [
     { id: "pierce", name: "관통", description: "발사체가 적을 1명 더 관통합니다.", icon: "🎯", type: "weapon" },
     { id: "fireRate", name: "연사력", description: "공격 속도가 15% 빨라집니다.", icon: "⚡", type: "weapon" },
     { id: "magnet", name: "자석", description: "아이템 획득 범위가 증가합니다.", icon: "🧲", type: "stat" },
-    { id: "heal", name: "응급 처치", description: "체력을 30 회복합니다.", icon: "❤️", type: "heal" },
+    { id: "heal", name: "응급 처치", description: "체력을 50% 회복합니다.", icon: "❤️", type: "heal" },
 ];
 
 export const EXP_GEMS = [

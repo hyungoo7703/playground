@@ -188,6 +188,7 @@
     // --- Gacha Animation State ---
     let gachaState = "idle"; // idle, shaking, revealed
     let gachaResult = null;
+    let gachaTimer = null;
     let toastMessage = "";
     let toastTimer = null;
 
@@ -201,6 +202,10 @@
 
     function drawWeapon() {
         if (!engine) return; // Keep the engine check
+
+        // Clear any existing timer to prevent race conditions from spamming
+        if (gachaTimer) clearTimeout(gachaTimer);
+
         const result = engine.upgradeSystem.gachaWeapon();
         if (result.success) {
             gachaResult = result;
@@ -208,7 +213,10 @@
             engine.assetManager.playSound("click"); // Replace with shaking sound if available
 
             // Animation Sequence
-            setTimeout(() => {
+            gachaTimer = setTimeout(() => {
+                // Guard clause: If user closed gacha or state changed, don't proceed
+                if (gachaState !== "shaking") return;
+
                 gachaState = "revealed";
                 engine.assetManager.playSound(
                     result.weapon.rarity === "legendary" ? "levelup" : "coin",
@@ -220,6 +228,7 @@
     }
 
     function closeGacha() {
+        if (gachaTimer) clearTimeout(gachaTimer);
         gachaState = "idle";
         gachaResult = null;
         if (engine) {
@@ -336,7 +345,8 @@
     {#if (gameState === "playing" || gameState === "paused" || gameState === "levelup") && !showShop}
         <!-- HUD -->
         <div
-            class="absolute top-0 left-0 w-full p-4 pt-24 pointer-events-none sticky-hud"
+            class="absolute top-0 left-0 w-full pointer-events-none sticky-hud z-[90]"
+            style="padding-top: max(6rem, env(safe-area-inset-top) + 1rem); padding-left: max(1rem, env(safe-area-inset-left)); padding-right: max(1rem, env(safe-area-inset-right));"
         >
             <div class="flex justify-between items-start">
                 <div class="flex flex-col gap-2">
@@ -536,25 +546,49 @@
                                     class="w-[500px] h-[500px] bg-gradient-conic from-transparent via-purple-500 to-transparent -translate-x-1/2 -translate-y-1/2"
                                 ></div>
                             </div>
+                        {:else if gachaResult.weapon.rarity === "mythic"}
+                            <!-- COSMIC EFFECT for Mythic -->
+                            <div
+                                class="absolute inset-0 animate-spin-slow opacity-90 z-0"
+                            >
+                                <div
+                                    class="w-[600px] h-[600px] bg-gradient-conic from-red-500 via-green-500 to-blue-500 blur-xl opacity-50"
+                                ></div>
+                            </div>
+                            <div class="absolute inset-0 animate-pulse z-0">
+                                <div
+                                    class="w-full h-full bg-white/20 blur-3xl"
+                                ></div>
+                            </div>
                         {/if}
 
                         <div
                             class="w-32 h-32 rounded-2xl flex items-center justify-center border-4 border-white shadow-[0_0_50px_rgba(255,255,255,0.5)] relative z-10 bg-gray-900"
-                            style="border-color: {gachaResult.weapon.color}"
+                            style="border-color: {gachaResult.weapon
+                                .color}; box-shadow: 0 0 {gachaResult.weapon
+                                .rarity === 'mythic'
+                                ? '100px'
+                                : '50px'} {gachaResult.weapon.color};"
                         >
                             <div
-                                class="w-20 h-20 rounded-full"
+                                class="w-20 h-20 rounded-full flex items-center justify-center text-4xl"
                                 style="background-color: {gachaResult.weapon
-                                    .color}"
+                                    .color}; text-shadow: 0 0 10px white;"
                             >
                                 {#if gachaResult.weapon.shape === "star"}★{/if}
                                 {#if gachaResult.weapon.shape === "rect"}■{/if}
+                                {#if gachaResult.weapon.shape === "nova"}✷{/if}
+                                {#if gachaResult.weapon.shape === "moon"}☾{/if}
+                                {#if gachaResult.weapon.shape === "void"}●{/if}
                             </div>
                         </div>
                     </div>
 
                     <h2
-                        class="text-4xl font-black text-white mb-2 uppercase drop-shadow-lg"
+                        class="text-4xl font-black text-white mb-2 uppercase drop-shadow-lg {gachaResult
+                            .weapon.rarity === 'mythic'
+                            ? 'animate-bounce'
+                            : ''}"
                         style="color: {gachaResult.weapon.color}"
                     >
                         {gachaResult.weapon.name}
@@ -589,13 +623,13 @@
                             on:click={closeGacha}
                             class="px-8 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-xl font-bold transition-all"
                         >
-                            CLOSE
+                            닫기
                         </button>
                         <button
                             on:click={drawWeapon}
                             class="px-8 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:scale-105 text-white rounded-xl font-bold shadow-lg transition-all"
                         >
-                            DRAW AGAIN
+                            다시 뽑기
                         </button>
                     </div>
                 </div>

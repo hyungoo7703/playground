@@ -599,7 +599,7 @@ export class GameEngine {
             case "pierce": this.player.piercing++; break;
             case "fireRate": this.player.fireRate *= 0.9; break; // User: 0.9
             case "magnet": this.player.magnetRadius += 50; break;
-            case "heal": this.player.hp = this.player.maxHp; break;
+            case "heal": this.player.hp = Math.min(this.player.maxHp, this.player.hp + this.player.maxHp * 0.5); break;
         }
         this.player.visual.bobOffset = 0;
     }

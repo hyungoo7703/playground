@@ -73,6 +73,30 @@ export class Projectile {
             ctx.stroke();
             ctx.fillStyle = "black";
             ctx.fill();
+        } else if (shape === "nova") {
+            // Mythic Nova Shape
+            const gradient = ctx.createRadialGradient(0, 0, size * 0.2, 0, 0, size);
+            gradient.addColorStop(0, "white");
+            gradient.addColorStop(0.5, this.props.color);
+            gradient.addColorStop(1, "transparent");
+            ctx.fillStyle = gradient;
+
+            ctx.beginPath();
+            const spikes = 8;
+            for (let i = 0; i < spikes * 2; i++) {
+                const r = (i % 2 === 0) ? size : size * 0.4;
+                const a = (Math.PI * i) / spikes + this.rotation * 5; // Spin fast
+                ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+            }
+            ctx.closePath();
+            ctx.fill();
+
+            // Extra glow ring
+            ctx.strokeStyle = "white";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(0, 0, size * 0.8, 0, Math.PI * 2);
+            ctx.stroke();
         }
 
         ctx.restore();

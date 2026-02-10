@@ -22,12 +22,12 @@
 
     <!-- Modern Gradient Overlay on Hover -->
     <div
-        class="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-20"
+        class="absolute inset-0 bg-gradient-to-br from-black/5 dark:from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-20"
     ></div>
 
     <!-- Content Container -->
     <div
-        class="relative flex h-full flex-col justify-between rounded-[2rem] p-8 z-10 {contentContainerClass} border border-white/5"
+        class="relative flex h-full flex-col justify-between rounded-[2rem] p-8 z-10 {contentContainerClass} border border-black/5 dark:border-white/5"
     >
         <div>
             <div class="flex gap-2 items-center mb-4">
