@@ -143,6 +143,14 @@
     let touchStart = null;
     let joystickVector = { x: 0, y: 0 };
 
+    // --- Visual State for "Survivor.io" feel ---
+    let playerVisual = {
+        facing: 1, // 1: Right, -1: Left
+        tilt: 0, // Running tilt angle (radians)
+        bobTimer: 0, // For walking bounce
+        bobOffset: 0,
+    };
+
     // Ultimate Skill State (게이지 충전 방식)
     let ultimateGauge = 0; // 0~100
     const ULTIMATE_MAX = 100;
@@ -497,6 +505,26 @@
             const length = Math.sqrt(dx * dx + dy * dy);
             player.x += (dx / length) * player.speed;
             player.y += (dy / length) * player.speed;
+
+            // --- Visual Logic Update ---
+            // 1. Facing (Left/Right)
+            if (dx !== 0) {
+                playerVisual.facing = dx > 0 ? 1 : -1;
+            }
+
+            // 2. Tilt (Leaning forward)
+            // Target tilt based on X movement magnitude
+            const targetTilt = (dx / length) * 0.15; // Max ~8 degrees
+            playerVisual.tilt += (targetTilt - playerVisual.tilt) * 0.2; // Smooth transition
+
+            // 3. Bobbing (Bounce)
+            playerVisual.bobTimer += dt * 0.015;
+            playerVisual.bobOffset = Math.sin(playerVisual.bobTimer) * 5; // +/- 5px bounce
+        } else {
+            // Stop moving visuals
+            playerVisual.tilt *= 0.8; // Return to upright
+            playerVisual.bobOffset *= 0.8; // Return to 0
+            playerVisual.bobTimer = 0;
         }
 
         camera.x = player.x - canvas.width / 2;
@@ -526,84 +554,9 @@
             e.x += Math.cos(angle) * e.speed;
             e.y += Math.sin(angle) * e.speed;
 
-            // --- Boss Attack Logic (Varied Patterns) ---
+            // --- Boss Attack Logic (Delegated) ---
             if (e.isBoss) {
-                if (!e.attackTimer) e.attackTimer = 0;
-                e.attackTimer -= dt;
-
-                if (e.attackTimer <= 0) {
-                    // Randomly choose pattern: 0=Spread, 1=Rapid Stream, 2=Spiral
-                    const pattern = Math.floor(Math.random() * 3);
-
-                    if (pattern === 0) {
-                        // Pattern 0: 8-way Spread (Classic)
-                        e.attackTimer = 1500; // Reset timer
-                        for (let i = 0; i < 12; i++) {
-                            // Increased to 12-way
-                            const ang = (Math.PI * 2 * i) / 12;
-                            projectiles.push({
-                                x: e.x,
-                                y: e.y,
-                                vx: Math.cos(ang) * 6,
-                                vy: Math.sin(ang) * 6,
-                                life: 3000,
-                                isEnemy: true,
-                                color: "#f00",
-                                pierce: 0,
-                                hitIds: new Set(),
-                            });
-                        }
-                        playSound("zap", 0.5);
-                    } else if (pattern === 1) {
-                        // Pattern 1: Rapid Stream (3 bursts)
-                        e.attackTimer = 2000;
-                        const angleToPlayer = Math.atan2(
-                            player.y - e.y,
-                            player.x - e.x,
-                        );
-                        for (let i = 0; i < 3; i++) {
-                            setTimeout(() => {
-                                // Recalculate slightly for tracking
-                                const ang =
-                                    Math.atan2(player.y - e.y, player.x - e.x) +
-                                    (Math.random() - 0.5) * 0.2;
-                                projectiles.push({
-                                    x: e.x,
-                                    y: e.y,
-                                    vx: Math.cos(ang) * 9,
-                                    vy: Math.sin(ang) * 9, // Fast
-                                    life: 3000,
-                                    isEnemy: true,
-                                    color: "#ff0",
-                                    pierce: 0,
-                                    hitIds: new Set(),
-                                });
-                                playSound("zap", 0.3);
-                            }, i * 150);
-                        }
-                    } else {
-                        // Pattern 2: Spiral (Nova)
-                        e.attackTimer = 2000;
-                        for (let i = 0; i < 16; i++) {
-                            setTimeout(() => {
-                                const ang =
-                                    (Math.PI * 2 * i) / 16 + gameTime / 1000; // Rotating offset
-                                projectiles.push({
-                                    x: e.x,
-                                    y: e.y,
-                                    vx: Math.cos(ang) * 7,
-                                    vy: Math.sin(ang) * 7,
-                                    life: 3000,
-                                    isEnemy: true,
-                                    color: "#f0f",
-                                    pierce: 0,
-                                    hitIds: new Set(),
-                                });
-                            }, i * 50); // Ripple effect
-                        }
-                        playSound("zap", 0.5);
-                    }
-                }
+                processBossAttack(e);
             }
 
             if (
@@ -772,8 +725,8 @@
             enemies.push({
                 x: player.x,
                 y: player.y - 500,
-                hp: 20000,
-                maxHp: 20000,
+                hp: 30000,
+                maxHp: 30000,
                 speed: 1.8,
                 radius: 100,
                 isBoss: true,
@@ -897,97 +850,158 @@
     function processBossAttack(boss) {
         if (!boss) return;
 
+        // Initialize timer if needed
+        if (!boss.attackTimer) boss.attackTimer = 2000;
+        boss.attackTimer -= 16; // Approx dt (since update calls it every frame)
+
+        if (boss.attackTimer > 0) return;
+
         // --- Boss 1 Patterns ---
         if (boss.bossType === 1) {
-            if (Math.random() < 0.5) {
-                // Pattern 1: Triple Shot (Guided)
-                boss.attackTimer = 2000;
-                for (let i = 0; i < 3; i++) {
-                    setTimeout(() => {
-                        const ang =
-                            Math.atan2(player.y - boss.y, player.x - boss.x) +
-                            (Math.random() - 0.5) * 0.2;
-                        projectiles.push({
-                            x: boss.x,
-                            y: boss.y,
-                            vx: Math.cos(ang) * 9,
-                            vy: Math.sin(ang) * 9,
-                            life: 3000,
-                            isEnemy: true,
-                            color: "#ff0",
-                            pierce: 0,
-                            hitIds: new Set(),
-                        });
-                        playSound("zap", 0.3);
-                    }, i * 150);
-                }
-            } else {
-                // Pattern 2: Spiral (Nova)
-                boss.attackTimer = 2000;
-                for (let i = 0; i < 16; i++) {
-                    setTimeout(() => {
-                        const ang = (Math.PI * 2 * i) / 16 + gameTime / 1000;
-                        projectiles.push({
-                            x: boss.x,
-                            y: boss.y,
-                            vx: Math.cos(ang) * 7,
-                            vy: Math.sin(ang) * 7,
-                            life: 3000,
-                            isEnemy: true,
-                            color: "#f0f",
-                            pierce: 0,
-                            hitIds: new Set(),
-                        });
-                    }, i * 50);
-                }
-                playSound("zap", 0.5);
-            }
-        }
+            const pattern = Math.floor(Math.random() * 3);
 
-        // --- Boss 2 Patterns ---
-        else if (boss.bossType === 2) {
-            if (Math.random() < 0.5) {
-                // Pattern A: Spinning Blades (New!)
-                boss.attackTimer = 3000; // 좀 더 긴 쿨타임
-                const count = 12;
-                for (let i = 0; i < count; i++) {
-                    const angle = (Math.PI * 2 * i) / count;
+            if (pattern === 0) {
+                // 1. Charge (돌진)
+                boss.attackTimer = 4000;
+
+                // Warning Flash
+                particles.push({
+                    x: boss.x,
+                    y: boss.y,
+                    vx: 0,
+                    vy: 0,
+                    life: 1000,
+                    color: "red",
+                });
+                playSound("warning", 0.5);
+
+                setTimeout(() => {
+                    const ang = Math.atan2(
+                        player.y - boss.y,
+                        player.x - boss.x,
+                    );
+                    boss.vx = Math.cos(ang) * 15; // Fast charge
+                    boss.vy = Math.sin(ang) * 15;
+
+                    // Rush movement effect (manual logic needed in update or just forceful push)
+                    // For simplicity, let's just make it move very fast for a short duration
+                    let chargeTime = 0;
+                    const rushInterval = setInterval(() => {
+                        boss.x += boss.vx;
+                        boss.y += boss.vy;
+                        chargeTime += 50;
+                        if (chargeTime > 500) clearInterval(rushInterval);
+                    }, 50);
+                }, 1000); // 1 sec warning
+            } else if (pattern === 1) {
+                // 2. Shotgun (산탄)
+                boss.attackTimer = 2500;
+                const baseAng = Math.atan2(
+                    player.y - boss.y,
+                    player.x - boss.x,
+                );
+                for (let i = -2; i <= 2; i++) {
+                    const ang = baseAng + i * 0.15;
                     projectiles.push({
                         x: boss.x,
                         y: boss.y,
-                        vx: Math.cos(angle) * 6,
-                        vy: Math.sin(angle) * 6,
-                        life: 4000, // 오래 지속
+                        vx: Math.cos(ang) * 8, // Slower but big area
+                        vy: Math.sin(ang) * 8,
+                        life: 3000,
                         isEnemy: true,
-                        isBlade: true, // 회전 칼날
-                        rotation: 0,
-                        pierce: 999,
-                        hitIds: new Set(),
+                        color: "#ff0000",
+                        pierce: 999, // Unstoppable
                     });
                 }
-                playSound("zap", 0.6);
+                playSound("explosion", 0.4);
             } else {
-                // Pattern B: Fast Homing Missiles (New!)
-                boss.attackTimer = 2500;
-                for (let i = 0; i < 5; i++) {
-                    setTimeout(() => {
-                        const ang =
-                            Math.atan2(player.y - boss.y, player.x - boss.x) +
-                            (Math.random() - 0.5) * 0.5;
-                        projectiles.push({
-                            x: boss.x,
-                            y: boss.y,
-                            vx: Math.cos(ang) * 10, // Very Fast
-                            vy: Math.sin(ang) * 10,
-                            life: 2000,
-                            isEnemy: true,
-                            color: "#f00", // Red
-                            pierce: 0,
-                            hitIds: new Set(),
-                        });
-                        playSound("zap", 0.4);
-                    }, i * 100);
+                // 3. Summon (소환)
+                boss.attackTimer = 5000;
+                playSound("levelup", 0.5);
+                for (let i = 0; i < 4; i++) {
+                    const ang = (Math.PI * 2 * i) / 4;
+                    enemies.push({
+                        x: boss.x + Math.cos(ang) * 100,
+                        y: boss.y + Math.sin(ang) * 100,
+                        hp: 50, // Weak
+                        speed: 3, // Fast
+                        radius: 12,
+                        type: 0, // Basic mob
+                    });
                 }
+            }
+        }
+
+        // --- Boss 2: Speed (Teleport, Whirlwind, Snipe) ---
+        else if (boss.bossType === 2) {
+            const pattern = Math.floor(Math.random() * 3);
+
+            if (pattern === 0) {
+                // 1. Teleport (순간이동)
+                boss.attackTimer = 2500;
+
+                // Vanish effect
+                for (let i = 0; i < 20; i++) {
+                    particles.push({
+                        x: boss.x,
+                        y: boss.y,
+                        vx: (Math.random() - 0.5) * 10,
+                        vy: (Math.random() - 0.5) * 10,
+                        life: 500,
+                        color: "#800080",
+                    });
+                }
+
+                // Move near player
+                const ang = Math.random() * Math.PI * 2;
+                boss.x = player.x + Math.cos(ang) * 150;
+                boss.y = player.y + Math.sin(ang) * 150;
+
+                playSound("zap", 0.8);
+            } else if (pattern === 1) {
+                // 2. Whirlwind (회오리)
+                boss.attackTimer = 3000;
+                let spinCount = 0;
+                const spinInterval = setInterval(() => {
+                    spinCount++;
+                    const ang = spinCount * 0.5 + gameTime * 0.01;
+                    projectiles.push({
+                        x: boss.x,
+                        y: boss.y,
+                        vx: Math.cos(ang) * 7,
+                        vy: Math.sin(ang) * 7,
+                        life: 2000,
+                        isEnemy: true,
+                        color: "#ff00ff",
+                    });
+                    if (spinCount > 20) clearInterval(spinInterval);
+                }, 50);
+                playSound("zap", 0.5);
+            } else {
+                // 3. Snipe (저격)
+                boss.attackTimer = 2000;
+
+                // Predict player movement
+                const targetX =
+                    player.x +
+                    (keys["ArrowRight"] ? 100 : keys["ArrowLeft"] ? -100 : 0);
+                const targetY =
+                    player.y +
+                    (keys["ArrowDown"] ? 100 : keys["ArrowUp"] ? -100 : 0);
+
+                const ang = Math.atan2(targetY - boss.y, targetX - boss.x);
+
+                projectiles.push({
+                    x: boss.x,
+                    y: boss.y,
+                    vx: Math.cos(ang) * 15, // Extremely fast
+                    vy: Math.sin(ang) * 15,
+                    life: 2000,
+                    isEnemy: true,
+                    color: "#ffffff", // White beam
+                    pierce: 999,
+                });
+                playSound("laser-zap", 0.6);
             }
         }
     }
@@ -1099,23 +1113,39 @@
         // 2. 히어로 (배경 제거가 완료된 PNG이므로 screen 모드 전에 그립니다)
         const hero = assets.images.hero;
         if (hero?.complete) {
+            // 캐릭터 그리기 (변형 적용) (그림자 제거됨)
+            ctx.save();
+            ctx.translate(player.x, player.y); // 중심 이동
+            ctx.scale(playerVisual.facing, 1); // 좌우 반전
+            ctx.rotate(playerVisual.tilt * playerVisual.facing); // 진행 방향으로 기울기 (반전 시 회전 방향도 고려)
+
             const aspect = hero.naturalWidth / hero.naturalHeight;
-            const drawH = 100; // 좀 더 큼직하게 변경
+            const drawH = 100;
             const drawW = drawH * aspect;
+
+            // bobOffset 적용 (Y축)
             ctx.drawImage(
                 hero,
-                player.x - drawW / 2,
-                player.y - drawH / 2,
+                -drawW / 2,
+                -drawH / 2 + playerVisual.bobOffset,
                 drawW,
                 drawH,
             );
 
-            // HP 게이지
+            // HP 게이지는 캐릭터 위에 고정 (회전/반전 영향 안 받게 restore 후 그리기 추천하지만,
+            // 간단하게 여기서 역변환하거나, 그냥 restore 후 따로 그리는 게 나음.
+            // 여기서는 일단 주석 처리된 기존 위치 대신, restore 후 그 아래에 다시 구현)
+            ctx.restore();
+
+            // HP 게이지 (캐릭터 머리 위 - 변형 영향 안 받음)
+            // Bobbing 영향은 받으면 자연스러움.
+            const uiY = player.y - 65 + playerVisual.bobOffset;
+
             ctx.fillStyle = "#333";
-            ctx.fillRect(player.x - 30, player.y - 65, 60, 6);
+            ctx.fillRect(player.x - 30, uiY, 60, 6);
             const hpPercent = Math.max(0, player.hp / player.maxHp);
             ctx.fillStyle = hpPercent > 0.3 ? "#0f0" : "#f00";
-            ctx.fillRect(player.x - 30, player.y - 65, 60 * hpPercent, 6);
+            ctx.fillRect(player.x - 30, uiY, 60 * hpPercent, 6);
         }
 
         // 3. 네온 합성 모드 ON (투사체 및 적 발광 효과)
