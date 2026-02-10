@@ -3,16 +3,23 @@
   import { fly, fade } from "svelte/transition";
   import { quintOut, bounceOut } from "svelte/easing";
   import { base } from "../lib/store.js";
+  import { audioManager } from "../lib/audioManager.js";
+  import {
+    createGrid,
+    getConnectedGroup,
+    applyGravity,
+    fillEmptyCells,
+    explodeBomb,
+    ROWS,
+    COLS,
+    FRUITS,
+    BOMB,
+    MUSHROOM,
+  } from "../lib/fruitPangLogic.js";
 
-  // --- 1. 설정 ---
-  const ROWS = 8;
-  const COLS = 7;
-  const FRUITS = ["🍎", "🍊", "🍇", "🥝", "🍋"];
-  const BOMB = "💣";
-  const MUSHROOM = "🍄";
-  // 사운드 관리
-  const popSoundPath = `${base}/sounds/pop.mp3`;
-  const bombSoundPath = `${base}/sounds/bomb-explosion.mp3`;
+  // 사운드 경로
+  const SOUND_POP = "pop";
+  const SOUND_BOMB = "bomb";
 
   // --- 2. 상태 관리 ---
   let grid = [];
@@ -30,30 +37,18 @@
 
   onMount(() => {
     bestScore = parseInt(localStorage.getItem("fruitBestScore") || "0");
+    audioManager.load(SOUND_POP, `${base}/sounds/pop.mp3`, 10);
+    audioManager.load(SOUND_BOMB, `${base}/sounds/bomb-explosion.mp3`, 3);
     initGame();
   });
 
   function playPop(type = "normal") {
     if (isMuted) return;
-
-    let soundPath = popSoundPath;
-    let volume = 0.7;
-    let duration = 300;
-
     if (type === "bomb") {
-      soundPath = bombSoundPath;
-      volume = 0.25; // 폭탄 볼륨 더 낮춤
-      duration = 400;
+      audioManager.play(SOUND_BOMB, 0.4, 400);
+    } else {
+      audioManager.play(SOUND_POP, 0.7, 300);
     }
-
-    const s = new Audio(soundPath);
-    s.volume = volume;
-    s.play().catch(() => {});
-
-    setTimeout(() => {
-      s.pause();
-      s.remove();
-    }, duration);
   }
 
   function startEnergyDrain() {
@@ -82,12 +77,7 @@
 
   function initGame(modeChange = false) {
     if (modeChange) score = 0;
-    grid = Array.from({ length: ROWS }, () =>
-      Array.from(
-        { length: COLS },
-        () => FRUITS[Math.floor(Math.random() * FRUITS.length)],
-      ),
-    );
+    grid = createGrid();
     isNewRecord = false;
     isProcessing = false;
     gameOver = false;
@@ -120,10 +110,10 @@
       return;
     }
 
-    const group = getConnectedGroup(r, c, target);
+    const group = getConnectedGroup(grid, r, c, target);
     if (group.length >= 2) {
       isProcessing = true;
-      playPop("normal"); // 한 그룹 터질 때 딱 한 번 재생
+      playPop("normal");
 
       score += group.length * 10;
       if (isHardMode) energy = Math.min(100, energy + group.length * 1.5);
@@ -138,38 +128,20 @@
   }
 
   function applyGravityOnly() {
-    for (let c = 0; c < COLS; c++) {
-      let emptyRow = ROWS - 1;
-      for (let r = ROWS - 1; r >= 0; r--) {
-        if (grid[r][c] !== null) {
-          const temp = grid[r][c];
-          grid[r][c] = null;
-          grid[emptyRow][c] = temp;
-          emptyRow--;
-        }
-      }
-    }
+    grid = applyGravity(grid);
     grid = [...grid];
     setTimeout(refillGrid, 200);
   }
 
   function refillGrid() {
-    let hasRefilled = false;
-    for (let c = 0; c < COLS; c++) {
-      for (let r = 0; r < ROWS; r++) {
-        if (grid[r][c] === null) {
-          const rand = Math.random();
-          if (isHardMode && rand < 0.07) grid[r][c] = MUSHROOM;
-          else grid[r][c] = FRUITS[Math.floor(Math.random() * FRUITS.length)];
-          hasRefilled = true;
-        }
-      }
-    }
-    if (hasRefilled) {
-      // 리필 소리는 터지는 소리와 겹치지 않게 아주 살짝 지연해서 재생 가능
+    const result = fillEmptyCells(grid, isHardMode);
+    grid = result.grid;
+
+    if (result.hasRefilled) {
       setTimeout(() => playPop("refill"), 50);
       grid = [...grid];
     }
+
     if (score > bestScore) {
       bestScore = score;
       isNewRecord = true;
@@ -180,41 +152,14 @@
     }, 200);
   }
 
-  function getConnectedGroup(r, c, target, visited = new Set()) {
-    const key = `${r},${c}`;
-    if (
-      r < 0 ||
-      r >= ROWS ||
-      c < 0 ||
-      c >= COLS ||
-      visited.has(key) ||
-      grid[r][c] !== target
-    )
-      return [];
-    visited.add(key);
-    let group = [{ r, c }];
-    [
-      [1, 0],
-      [-1, 0],
-      [0, 1],
-      [0, -1],
-    ].forEach(([dr, dc]) => {
-      group = group.concat(getConnectedGroup(r + dr, c + dc, target, visited));
-    });
-    return group;
-  }
-
   async function triggerBomb(r, c) {
     isShaking = true;
     playPop("bomb");
-    for (let i = r - 1; i <= r + 1; i++) {
-      for (let j = c - 1; j <= c + 1; j++) {
-        if (i >= 0 && i < ROWS && j >= 0 && j < COLS) {
-          grid[i][j] = null;
-          score += 20;
-        }
-      }
-    }
+
+    const result = explodeBomb(grid, r, c);
+    grid = result.grid;
+    score += result.scoreDelta;
+
     grid = [...grid];
     setTimeout(() => {
       isShaking = false;
@@ -248,7 +193,10 @@
         >
       </div>
       <button
-        on:click={() => (isMuted = !isMuted)}
+        on:click={() => {
+          isMuted = !isMuted;
+          audioManager.setMute(isMuted);
+        }}
         class="p-2 bg-slate-100 dark:bg-gray-700 rounded-xl text-lg"
       >
         {isMuted ? "🔇" : "🔊"}
