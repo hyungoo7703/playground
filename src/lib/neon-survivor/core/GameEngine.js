@@ -719,5 +719,99 @@ export class GameEngine {
         });
 
         ctx.restore();
+
+        // Minimap (screen space — after camera restore)
+        this.drawMinimap();
+    }
+
+    drawMinimap() {
+        const ctx = this.ctx;
+        const size = 110;
+        const radius = size / 2;
+        const margin = 16;
+        const cx = margin + radius;
+        const cy = this.canvas.height - margin - radius;
+        const range = 900;
+
+        ctx.save();
+
+        // Clip to circle
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        ctx.clip();
+
+        // Background
+        ctx.fillStyle = 'rgba(10, 10, 30, 0.7)';
+        ctx.fill();
+
+        // Grid rings
+        ctx.strokeStyle = 'rgba(0, 255, 255, 0.08)';
+        ctx.lineWidth = 1;
+        for (let r = radius * 0.33; r <= radius; r += radius * 0.33) {
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+        // Cross lines
+        ctx.beginPath();
+        ctx.moveTo(cx - radius, cy);
+        ctx.lineTo(cx + radius, cy);
+        ctx.moveTo(cx, cy - radius);
+        ctx.lineTo(cx, cy + radius);
+        ctx.stroke();
+
+        // Items (dim, small)
+        ctx.globalAlpha = 0.4;
+        for (const it of this.items) {
+            const dx = ((it.x - this.player.x) / range) * radius;
+            const dy = ((it.y - this.player.y) / range) * radius;
+            if (dx * dx + dy * dy < radius * radius) {
+                ctx.fillStyle = it.type === 'coin' ? '#ffd700' : '#00ffcc';
+                ctx.fillRect(cx + dx - 1, cy + dy - 1, 2, 2);
+            }
+        }
+        ctx.globalAlpha = 1;
+
+        // Enemies
+        for (const e of this.enemies) {
+            const dx = ((e.x - this.player.x) / range) * radius;
+            const dy = ((e.y - this.player.y) / range) * radius;
+            if (dx * dx + dy * dy < radius * radius) {
+                if (e.isBoss) {
+                    ctx.shadowColor = '#ffcc00';
+                    ctx.shadowBlur = 8;
+                    ctx.fillStyle = '#ffcc00';
+                    ctx.beginPath();
+                    ctx.arc(cx + dx, cy + dy, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                } else {
+                    ctx.fillStyle = e.isSpecial ? '#ff6600' : '#ff3333';
+                    ctx.fillRect(cx + dx - 1.5, cy + dy - 1.5, 3, 3);
+                }
+            }
+        }
+
+        // Player (center dot)
+        ctx.shadowColor = '#00ffff';
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = '#00ffff';
+        ctx.beginPath();
+        ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        ctx.restore();
+
+        // Border ring (outside clip)
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(0, 255, 255, 0.5)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        // Outer glow
+        ctx.strokeStyle = 'rgba(0, 255, 255, 0.15)';
+        ctx.lineWidth = 6;
+        ctx.stroke();
     }
 }
