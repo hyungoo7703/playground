@@ -39,13 +39,6 @@
   }
 
   onMount(() => {
-    // 서비스 워커 등록 경로 수정 (백틱 사용)
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker
-        .register(`${base}/sw.js`)
-        .then(() => console.log("SW Registered!"))
-        .catch((err) => console.error("SW Registration failed:", err));
-    }
     checkAuth();
   });
 
