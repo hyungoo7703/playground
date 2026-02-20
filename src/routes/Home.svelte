@@ -260,42 +260,44 @@
           <div class="h-16 bg-gray-50 rounded-2xl"></div>
         </div>
       {:else if monthlyEvents.length > 0}
-        {#each monthlyEvents as event (event.id)}
-          {@const [mainTitle, ...subTitles] = event.title.split("(")}
-          <li
-            class="list-none flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-700/30 rounded-2xl"
-          >
-            <div
-              class="flex flex-col items-center justify-center min-w-[3rem] h-12 bg-white dark:bg-gray-800 rounded-xl shadow-sm"
+        <ul class="space-y-3 list-none p-0 m-0">
+          {#each monthlyEvents as event (event.id)}
+            {@const [mainTitle, ...subTitles] = event.title.split("(")}
+            <li
+              class="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-700/30 rounded-2xl"
             >
-              <span class="text-[10px] font-bold text-gray-400 uppercase"
-                >{new Date().toLocaleString("en-US", { month: "short" })}</span
+              <div
+                class="flex flex-col items-center justify-center min-w-[3rem] h-12 bg-white dark:bg-gray-800 rounded-xl shadow-sm"
               >
-              <span class="text-lg font-black text-indigo-600 leading-none"
-                >{getDay(event.date)}</span
-              >
-            </div>
-            <div class="flex-1 overflow-hidden">
-              <p
-                class="text-[10px] font-bold text-indigo-400 truncate uppercase"
-              >
-                {event.category}
-              </p>
-              <p
-                class="font-bold text-gray-800 dark:text-gray-200 truncate text-left"
-              >
-                {mainTitle.trim()}
-              </p>
-              {#if subTitles.length > 0}
-                <p
-                  class="text-[11px] font-medium text-gray-500 dark:text-gray-400 truncate mt-0.5"
+                <span class="text-[10px] font-bold text-gray-400 uppercase"
+                  >{new Date().toLocaleString("en-US", { month: "short" })}</span
                 >
-                  {subTitles.map((s) => s.replace(")", "").trim()).join(" ")}
+                <span class="text-lg font-black text-indigo-600 leading-none"
+                  >{getDay(event.date)}</span
+                >
+              </div>
+              <div class="flex-1 overflow-hidden">
+                <p
+                  class="text-[10px] font-bold text-indigo-400 truncate uppercase"
+                >
+                  {event.category}
                 </p>
-              {/if}
-            </div>
-          </li>
-        {/each}
+                <p
+                  class="font-bold text-gray-800 dark:text-gray-200 truncate text-left"
+                >
+                  {mainTitle.trim()}
+                </p>
+                {#if subTitles.length > 0}
+                  <p
+                    class="text-[11px] font-medium text-gray-500 dark:text-gray-400 truncate mt-0.5"
+                  >
+                    {subTitles.map((s) => s.replace(")", "").trim()).join(" ")}
+                  </p>
+                {/if}
+              </div>
+            </li>
+          {/each}
+        </ul>
       {:else}
         <div class="text-center py-8">
           <p class="text-sm text-gray-400">예정된 일정이 없습니다. ☕</p>
