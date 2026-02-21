@@ -4,7 +4,7 @@ export const base = import.meta.env.PROD ? "/playground" : "";
 export const deferredPrompt = writable(null);
 export const isLoggedIn = writable(!!localStorage.getItem("accessCode"));
 // 현재 사용자 (기본값: 현구, 추후 로그인 시 설정 가능)
-export const currentUser = writable(localStorage.getItem("currentUser") || "현구");
+export const currentUser = writable(localStorage.getItem("currentUser"));
 
 export const GAS_URL =
   "https://script.google.com/macros/s/AKfycbyXKahb3Xbi6B1IUXYVKrunW776GaPnS0LxbcQ4BycnzpXXkZiMMNwX4SVNuUA2ExfO/exec";
