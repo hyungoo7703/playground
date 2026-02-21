@@ -487,6 +487,16 @@
                     ></div>
                     <span class="font-bold">로딩 중...</span>
                 </div>
+            {:else if isSubmitting}
+                <div class="flex items-center justify-center gap-3">
+                    <div
+                        class="w-8 h-8 border-3 border-white/30 border-t-white rounded-full animate-spin"
+                    ></div>
+                    <div class="text-left">
+                        <p class="font-black text-lg">출석 중...</p>
+                        <p class="text-xs opacity-80">잠시만 기다려주세요 ⏳</p>
+                    </div>
+                </div>
             {:else}
                 <div
                     class="relative z-10 flex items-center justify-center gap-3"
