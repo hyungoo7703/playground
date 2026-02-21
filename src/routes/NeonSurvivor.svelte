@@ -66,7 +66,7 @@
                 user === "현구만" ||
                 user === "관리자" ||
                 user === "네온서바이버 관리자") &&
-            engine.upgradeSystem.getCoins() === 0
+            engine.upgradeSystem.getCoins() <= 1000
         ) {
             engine.upgradeSystem.addCoins(100000);
         }
