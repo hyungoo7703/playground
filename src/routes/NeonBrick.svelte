@@ -549,7 +549,7 @@
   <!-- Background Image with Overlay -->
   <div class="absolute inset-0 z-0 opacity-40">
     <img
-      src="{base}/images/neon/background-brick.png"
+      src="{base}/images/neon/brick/background-brick.png"
       alt="Background"
       class="w-full h-full object-cover"
     />

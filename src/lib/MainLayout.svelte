@@ -24,8 +24,8 @@
 
   import FoodSpinner from "../routes/FoodSpinner.svelte";
   import CardPick from "../routes/CardPick.svelte";
+  import Attendance from "../routes/Attendance.svelte";
   import Settings from "../routes/Settings.svelte";
-  import SecretLedger from "../routes/SecretLedger.svelte";
   import Login from "../routes/Login.svelte";
 
   const location = useLocation();
@@ -97,8 +97,8 @@
 
       <Route path="food-spinner" component={FoodSpinner} />
       <Route path="card-pick" component={CardPick} />
+      <Route path="attendance" component={Attendance} />
       <Route path="settings" component={Settings} />
-      <Route path="secret-ledger" component={SecretLedger} />
     {/if}
   </main>
 </div>

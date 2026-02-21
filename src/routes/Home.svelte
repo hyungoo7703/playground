@@ -12,6 +12,11 @@
   let dDayEvent = null;
   let dDayDiff = null;
 
+  // Attendance widget state
+  let todayCheckedIn = false;
+  let attendanceStreak = 0;
+  let attendanceLoaded = false;
+
   onMount(async () => {
     // 1. D-Day Check
     const storedDDay = localStorage.getItem("dDayEvent");
@@ -56,6 +61,39 @@
     } finally {
       isLoading = false;
     }
+
+    // Attendance check
+    try {
+      const attResult = await api.getAttendance();
+      if (attResult.success) {
+        const attendance = attResult.attendance || [];
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+        const currentUser = localStorage.getItem("userName") || "가족";
+        todayCheckedIn = attendance.some(
+          (a) => a.date === todayStr && a.user_name === currentUser,
+        );
+
+        // Streak calc
+        const userDates = attendance
+          .filter((a) => a.user_name === currentUser)
+          .map((a) => a.date)
+          .sort()
+          .reverse();
+        let streak = 0;
+        for (let i = 0; i < userDates.length; i++) {
+          const check = new Date(today);
+          check.setDate(check.getDate() - i);
+          const checkStr = `${check.getFullYear()}-${String(check.getMonth() + 1).padStart(2, "0")}-${String(check.getDate()).padStart(2, "0")}`;
+          if (userDates.includes(checkStr)) streak++;
+          else break;
+        }
+        attendanceStreak = streak;
+      }
+    } catch (e) {
+      /* silent */
+    }
+    attendanceLoaded = true;
   });
 
   function navigateTo(page) {
@@ -123,6 +161,46 @@
     </div>
   {/if}
 
+  <!-- Attendance Widget -->
+  <section in:fly={{ y: 20, duration: 400 }}>
+    <button
+      on:click={() => navigateTo("attendance")}
+      class="w-full flex items-center justify-between p-5 rounded-[2rem] shadow-lg active:scale-[0.98] transition-all overflow-hidden relative
+        {!attendanceLoaded
+        ? 'bg-gray-200 dark:bg-gray-700 text-gray-400'
+        : todayCheckedIn
+          ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white'
+          : 'bg-gradient-to-r from-amber-500 to-orange-500 text-white'}"
+    >
+      <div class="relative z-10 text-left">
+        {#if !attendanceLoaded}
+          <h3 class="font-black text-lg text-gray-500 dark:text-gray-300">
+            출석체크 📅
+          </h3>
+          <p class="text-xs text-gray-400">확인 중...</p>
+        {:else if todayCheckedIn}
+          <h3 class="font-black text-lg">오늘 출석 완료! ✅</h3>
+          <p class="text-xs opacity-80">
+            {attendanceStreak > 0
+              ? `🔥 ${attendanceStreak}일 연속 출석 중!`
+              : "내일도 잊지 마세요~"}
+          </p>
+        {:else}
+          <h3 class="font-black text-lg">출석체크 하러가기 👋</h3>
+          <p class="text-xs opacity-80">터치하여 오늘의 출석을 남겨보세요!</p>
+        {/if}
+      </div>
+      <div class="relative z-10 bg-white/20 p-2 rounded-xl backdrop-blur-md">
+        <span class="text-2xl"
+          >{!attendanceLoaded ? "⏳" : todayCheckedIn ? "🏅" : "📅"}</span
+        >
+      </div>
+      <div
+        class="absolute -right-4 -bottom-4 w-20 h-20 bg-white/10 rounded-full blur-xl"
+      ></div>
+    </button>
+  </section>
+
   <section class="grid grid-cols-4 gap-2">
     <button
       on:click={() => navigateTo("bulletin-board")}
@@ -175,36 +253,6 @@
       <span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400"
         >게임</span
       >
-    </button>
-  </section>
-
-  <section in:fly={{ x: -20, delay: 100 }} class="relative">
-    <button
-      on:click={() => navigateTo("english-listening")}
-      class="w-full flex items-center justify-between p-5 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-[2rem] text-white shadow-lg active:scale-[0.98] transition-all overflow-hidden"
-    >
-      <div class="relative z-10 text-left">
-        <h3 class="font-black text-lg">영어 듣기 공부 🎧</h3>
-        <p class="text-xs opacity-80">실전 같은 대화로 귀를 뚫어보세요!</p>
-      </div>
-      <div class="relative z-10 bg-white/20 p-2 rounded-xl backdrop-blur-md">
-        <svg
-          class="w-6 h-6"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="3"
-            d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-          ></path>
-        </svg>
-      </div>
-      <div
-        class="absolute -right-4 -bottom-4 w-20 h-20 bg-white/10 rounded-full blur-xl"
-      ></div>
     </button>
   </section>
 
@@ -270,7 +318,9 @@
                 class="flex flex-col items-center justify-center min-w-[3rem] h-12 bg-white dark:bg-gray-800 rounded-xl shadow-sm"
               >
                 <span class="text-[10px] font-bold text-gray-400 uppercase"
-                  >{new Date().toLocaleString("en-US", { month: "short" })}</span
+                  >{new Date().toLocaleString("en-US", {
+                    month: "short",
+                  })}</span
                 >
                 <span class="text-lg font-black text-indigo-600 leading-none"
                   >{getDay(event.date)}</span

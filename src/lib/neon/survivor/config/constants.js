@@ -1,7 +1,7 @@
-import { base } from '../../store.js';
+import { base } from '../../../store.js';
 
-export const ASSET_PATH = `${base}/images/neon/survival`;
-export const SOUND_PATH = `${base}/sounds/neon/survival`;
+export const ASSET_PATH = `${base}/images/neon/survivor`;
+export const SOUND_PATH = `${base}/sounds/neon/survivor`;
 
 export const IMAGES = {
     hero: `${ASSET_PATH}/hero.png`,

@@ -3,7 +3,7 @@
     import { navigate } from "svelte-routing";
     import { base } from "../lib/store.js";
     import { fade, fly, scale } from "svelte/transition";
-    import { GameEngine } from "../lib/neon-survivor/core/GameEngine.js";
+    import { GameEngine } from "../lib/neon/survivor/core/GameEngine.js";
     import {
         SHOP_ITEMS,
         WEAPONS,
@@ -11,7 +11,7 @@
         getUpgradeCost,
         IN_GAME_UPGRADES,
         IMAGES,
-    } from "../lib/neon-survivor/config/constants.js";
+    } from "../lib/neon/survivor/config/constants.js";
 
     let canvas;
     let engine;

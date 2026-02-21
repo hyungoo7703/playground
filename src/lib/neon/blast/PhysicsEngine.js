@@ -1,4 +1,4 @@
-import { gameStore } from '../store.js';
+import { gameStore } from '../../store.js';
 
 const GRAVITY = 0.22;
 const BOUNCE = 0.75;
