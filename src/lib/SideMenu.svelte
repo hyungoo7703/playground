@@ -1,6 +1,6 @@
 <script>
   import { Link, useLocation } from "svelte-routing";
-  import { base, isMenuOpen, currentUser } from "./store.js";
+  import { base, isMenuOpen, isAdmin } from "./store.js";
 
   const location = useLocation();
 
@@ -145,7 +145,7 @@
 
   <nav class="px-4 py-6 overflow-y-auto h-[calc(100%-60px)]">
     <ul class="space-y-2 font-medium">
-      {#each menuItems.filter((item) => !item.adminOnly || $currentUser === "현구" || $currentUser === "관리자") as item}
+      {#each menuItems.filter((item) => !item.adminOnly || $isAdmin) as item}
         <li>
           <Link
             to={getFullPath(item.path)}

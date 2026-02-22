@@ -1,7 +1,7 @@
 <script>
   import { onMount } from "svelte";
   import { fade, scale, slide } from "svelte/transition";
-  import { currentUser } from "../lib/store.js";
+  import { currentUser, isAdmin } from "../lib/store.js";
   import { api } from "../lib/api.js";
 
   // --- 상태 관리 변수 ---
@@ -20,7 +20,7 @@
   // --- 관리자/권한 관련 변수 ---
   let newItem = ""; // 추가할 새 메뉴 이름
   let isAdding = false; // 메뉴 추가 통신 중 상태
-  const userRole = localStorage.getItem("role"); // 로그인 시 저장된 역할 (admin/member)
+  // 관리자 체크는 $isAdmin 사용
 
   /** * 1. 메뉴 리스트 가져오기 (Read) */
   async function fetchMenu() {
@@ -213,7 +213,7 @@
     </button>
 
     {#if spinMode === "menu"}
-      {#if userRole === "admin"}
+      {#if $isAdmin}
         <div
           transition:slide
           class="bg-indigo-50 dark:bg-slate-800/50 p-6 rounded-[2rem] border border-indigo-100 dark:border-slate-700"
@@ -287,7 +287,7 @@
         </div>
 
         <!-- Secret Admin Logic (Only for Hyungoo or Admin) -->
-        {#if $currentUser === "현구" || $currentUser === "관리자"}
+        {#if $isAdmin}
           <div
             class="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800 opacity-30 hover:opacity-100 transition-opacity"
           >

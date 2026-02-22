@@ -3,7 +3,7 @@
     import { fade, slide } from "svelte/transition";
     import { api } from "../lib/api.js";
     import { navigate } from "svelte-routing";
-    import { currentUser } from "../lib/store.js";
+    import { currentUser, isAdmin } from "../lib/store.js";
 
     let stocks = [];
     let isLoading = true;
@@ -480,7 +480,7 @@
                                                     ).toLocaleString()}</span
                                                 >
                                             </div>
-                                            {#if $currentUser === "현구"}
+                                            {#if $isAdmin}
                                                 <button
                                                     on:click={() =>
                                                         deleteStock(stock.id)}

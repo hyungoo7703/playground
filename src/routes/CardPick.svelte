@@ -3,7 +3,7 @@
     import { fade, scale, fly } from "svelte/transition";
     import { flip } from "svelte/animate";
     import { navigate } from "svelte-routing";
-    import { currentUser, base } from "../lib/store.js";
+    import { currentUser, isAdmin, base } from "../lib/store.js";
     import { api } from "../lib/api.js";
 
     // --- 상태 관리 ---
@@ -20,7 +20,6 @@
     // 관리자
     let newAmount = "";
     let isAdding = false;
-    const userRole = localStorage.getItem("role");
 
     // 카드 뒷면 색상
     const CARD_COLORS = [
@@ -270,7 +269,7 @@
         </div>
 
         <!-- 관리자 전용 -->
-        {#if userRole === "admin"}
+        {#if $isAdmin}
             <div
                 class="mt-8 bg-amber-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-amber-100 dark:border-slate-700"
                 transition:fade

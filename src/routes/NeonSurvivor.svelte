@@ -1,7 +1,7 @@
 <script>
     import { onMount, onDestroy } from "svelte";
     import { navigate } from "svelte-routing";
-    import { base, currentUser } from "../lib/store.js";
+    import { base, currentUser, isAdmin } from "../lib/store.js";
     import { get } from "svelte/store";
     import { fade, fly, scale } from "svelte/transition";
     import { GameEngine } from "../lib/neon/survivor/core/GameEngine.js";
@@ -61,13 +61,7 @@
         );
 
         const user = get(currentUser);
-        if (
-            (user === "현구" ||
-                user === "현구만" ||
-                user === "관리자" ||
-                user === "네온서바이버 관리자") &&
-            engine.upgradeSystem.getCoins() <= 1000
-        ) {
+        if (get(isAdmin) && engine.upgradeSystem.getCoins() <= 1000) {
             engine.upgradeSystem.addCoins(100000);
         }
 

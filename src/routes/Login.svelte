@@ -1,6 +1,6 @@
 <script>
   import { navigate } from "svelte-routing";
-  import { base, isLoggedIn, currentUser } from "../lib/store.js";
+  import { base, isLoggedIn, currentUser, userRole } from "../lib/store.js";
   import { api } from "../lib/api.js";
 
   let accessCode = "";
@@ -26,6 +26,7 @@
         localStorage.setItem("role", result.role);
 
         currentUser.set(result.userName); // 스토어 업데이트
+        userRole.set(result.role); // 역할 스토어 업데이트
         isLoggedIn.set(true); // 스토어 업데이트 (MainLayout의 {#if}가 즉시 바뀜)
         navigate(base || "/", { replace: true });
       } else {

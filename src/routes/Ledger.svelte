@@ -3,7 +3,7 @@
   import { fade, slide } from "svelte/transition";
   import { api } from "../lib/api.js";
   import { navigate } from "svelte-routing";
-  import { base } from "../lib/store.js";
+  import { base, currentUser, isAdmin } from "../lib/store.js";
 
   let ledgerItems = [];
   let isLoading = true;
@@ -23,6 +23,7 @@
   };
 
   const USERS = ["아빠", "엄마", "현구", "범수"];
+  const ADMIN_FAMILY_NAME = "현구"; // 관리자의 장부 상 실명
   const TYPES = ["이체", "지출", "수입"];
 
   async function loadLedger() {
@@ -38,17 +39,14 @@
     isLoading = false;
   }
 
-  // User State
-  let currentUser = "아빠";
-  let loggedInUser = "아빠";
+  // User State — 글로벌 store ($currentUser, $isAdmin) 사용
+  // $currentUser가 "관리자"일 경우 장부에서는 "현구"로 매핑
+  let viewAsUser = USERS.includes($currentUser)
+    ? $currentUser
+    : $isAdmin
+      ? ADMIN_FAMILY_NAME
+      : "아빠";
   let showOnlyMine = false;
-
-  const CODE_MAP = {
-    "master!99": "현구",
-    "cm!01": "아빠",
-    "cm!02": "엄마",
-    "cm!03": "범수",
-  };
 
   // Rule State
   let rules = [];
@@ -61,22 +59,12 @@
   let newRuleReceiver = "가족";
   let isBatchSubmitting = false;
 
-  function checkUser() {
-    const code = localStorage.getItem("accessCode");
-    if (code && CODE_MAP[code]) {
-      loggedInUser = CODE_MAP[code];
-      currentUser = loggedInUser;
-    }
-  }
-
   onMount(() => {
-    checkUser();
     loadLedger();
   });
 
   async function openRuleModal() {
-    if (currentUser !== "현구")
-      return alert("관리자(현구)만 접근할 수 있습니다.");
+    if (!$isAdmin) return alert("관리자만 접근할 수 있습니다.");
     showRuleModal = true;
     isLoading = true;
     const res = await api.getRules();
@@ -285,7 +273,7 @@
     if (!isMonthMatch) return false;
 
     if (showOnlyMine) {
-      return item.giver === currentUser || item.receiver === currentUser;
+      return item.giver === viewAsUser || item.receiver === viewAsUser;
     }
     return true;
   });
@@ -346,8 +334,8 @@
         <!-- User Selector (Admin Check) -->
         <div class="flex flex-col gap-2">
           <select
-            bind:value={currentUser}
-            disabled={loggedInUser !== "현구"}
+            bind:value={viewAsUser}
+            disabled={!$isAdmin}
             class="bg-indigo-500/50 text-indigo-100 text-xs font-bold py-1 px-2 rounded-lg border-none outline-none backdrop-blur-sm disabled:opacity-80 disabled:cursor-not-allowed"
           >
             {#each USERS as u}<option value={u}>{u}</option>{/each}
@@ -405,7 +393,7 @@
         </div>
 
         <div class="flex items-center gap-2">
-          {#if currentUser === "현구"}
+          {#if $isAdmin}
             <button
               on:click={openRuleModal}
               class="p-2 bg-pink-500 text-white rounded-xl shadow-lg font-bold text-xs active:scale-95 transition-all whitespace-nowrap"
@@ -490,8 +478,8 @@
 
           <div class="pl-3 flex justify-between items-center">
             <div
-              class="flex-1 {currentUser === '현구' ? 'cursor-pointer' : ''}"
-              on:click={() => currentUser === "현구" && openEditForm(item)}
+              class="flex-1 {$isAdmin ? 'cursor-pointer' : ''}"
+              on:click={() => $isAdmin && openEditForm(item)}
             >
               <div class="flex items-center gap-2 mb-1">
                 <span
@@ -705,7 +693,7 @@
             >
               📌 고정 내역 관리
             </h2>
-            <p class="text-xs text-gray-400">관리자(현구) 전용 기능입니다.</p>
+            <p class="text-xs text-gray-400">관리자 전용 기능입니다.</p>
           </div>
           <button
             on:click={() => (showRuleModal = false)}
@@ -851,7 +839,7 @@
       </div>
     </div>
   {/if}
-  {#if currentUser === "현구"}
+  {#if $isAdmin}
     <button
       on:click={() => openAddForm()}
       class="fixed bottom-24 right-6 w-14 h-14 bg-indigo-600 text-white rounded-full shadow-2xl flex items-center justify-center text-3xl font-light z-40 hover:scale-110 active:scale-90 transition-all"

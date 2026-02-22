@@ -1,10 +1,18 @@
-import { writable } from "svelte/store";
+import { writable, derived } from "svelte/store";
 
 export const base = import.meta.env.PROD ? "/playground" : "";
 export const deferredPrompt = writable(null);
 export const isLoggedIn = writable(!!localStorage.getItem("accessCode"));
-// 현재 사용자 (기본값: 현구, 추후 로그인 시 설정 가능)
+// 현재 사용자 (추후 로그인 시 설정)
 export const currentUser = writable(localStorage.getItem("currentUser"));
+// 사용자 역할 (admin/member)
+export const userRole = writable(localStorage.getItem("role"));
+// 관리자 여부 판별 (통일된 단일 소스)
+export const isAdmin = derived(
+  [currentUser, userRole],
+  ([$currentUser, $userRole]) =>
+    $userRole === "admin" || $currentUser === "현구"
+);
 
 export const GAS_URL =
   "https://script.google.com/macros/s/AKfycbyXKahb3Xbi6B1IUXYVKrunW776GaPnS0LxbcQ4BycnzpXXkZiMMNwX4SVNuUA2ExfO/exec";

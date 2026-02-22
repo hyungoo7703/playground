@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { fade, slide, fly } from "svelte/transition";
   import { api } from "../lib/api.js";
+  import { currentUser, isAdmin } from "../lib/store.js";
 
   let posts = [];
   let isLoading = true;
@@ -16,21 +17,10 @@
   let isCommentLoading = false;
   let isCommentSubmitting = false;
 
-  // User State
-  let currentUser = "가족";
-  const CODE_MAP = {
-    "master!99": "현구",
-    "cm!01": "아빠",
-    "cm!02": "엄마",
-    "cm!03": "범수",
-  };
-
-  function checkUser() {
-    const code = localStorage.getItem("accessCode");
-    if (code && CODE_MAP[code]) {
-      currentUser = CODE_MAP[code];
-    }
-  }
+  // User State - 글로벌 store 사용 ($currentUser, $isAdmin)
+  // 관리자의 게시판 표시 이름은 "현구"
+  $: displayName =
+    $isAdmin && $currentUser === "관리자" ? "현구" : $currentUser || "가족";
 
   // Form State
   let formData = {
@@ -69,7 +59,7 @@
         title: "",
         content: "",
         image_url: "",
-        author: currentUser,
+        author: displayName,
       };
     }
     showWriteModal = true;
@@ -81,7 +71,7 @@
     isSubmitting = true;
 
     // Ensure author is set
-    if (!formData.author) formData.author = currentUser;
+    if (!formData.author) formData.author = displayName;
 
     const res = formData.id
       ? await api.updatePost(formData)
@@ -135,7 +125,7 @@
 
     const res = await api.addComment({
       post_id: currentPost.id,
-      author: currentUser,
+      author: displayName,
       content: commentContent,
     });
 
@@ -163,7 +153,6 @@
   }
 
   onMount(() => {
-    checkUser();
     loadPosts();
   });
 </script>
@@ -247,14 +236,11 @@
           </h3>
 
           {#if post.image_url}
-            <div class="mb-4 rounded-xl overflow-hidden h-32 bg-gray-100">
-              <img
-                src={post.image_url}
-                alt="Attachment"
-                class="w-full h-full object-cover"
-                referrerpolicy="no-referrer"
-              />
-            </div>
+            <span
+              class="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-500 dark:text-blue-300 rounded-md text-[10px] font-bold"
+            >
+              🔗 링크
+            </span>
           {/if}
 
           <div
@@ -353,7 +339,7 @@
 
           <div>
             <label class="text-xs font-bold text-gray-400 ml-2 block mb-1"
-              >이미지 URL (선택)</label
+              >이미지/URL (선택)</label
             >
             <input
               type="text"
@@ -414,7 +400,7 @@
             >
           </button>
 
-          {#if currentUser === currentPost.author || currentUser === "현구"}
+          {#if $currentUser === currentPost.author || $isAdmin}
             <div class="flex gap-2">
               <button
                 on:click={() => {
@@ -459,12 +445,26 @@
             </div>
 
             {#if currentPost.image_url}
-              <img
-                src={currentPost.image_url}
-                alt="Post"
-                class="w-full rounded-2xl mb-6 shadow-sm"
-                referrerpolicy="no-referrer"
-              />
+              <a
+                href={currentPost.image_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex items-center gap-2 px-4 py-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl text-sm font-bold hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors mb-6 border border-blue-100 dark:border-blue-800"
+              >
+                🔗 첨부 링크 열기
+                <svg
+                  class="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  ><path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                  ></path></svg
+                >
+              </a>
             {/if}
 
             <div
@@ -521,7 +521,7 @@
                           {comment.content}
                         </p>
 
-                        {#if currentUser === comment.author || currentUser === "현구"}
+                        {#if $currentUser === comment.author || $isAdmin}
                           <button
                             on:click={() => deleteComment(comment.id)}
                             class="absolute right-2 bottom-2 text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all text-xs"
