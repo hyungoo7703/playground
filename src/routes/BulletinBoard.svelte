@@ -17,6 +17,26 @@
   let isCommentLoading = false;
   let isCommentSubmitting = false;
 
+  // Image URL State
+  let imageLoadFailed = false;
+  let imageLoading = true;
+
+  // 이미지 URL인지 판별하는 함수
+  function looksLikeImageUrl(url) {
+    if (!url) return false;
+    const lower = url.toLowerCase();
+    // 이미지 확장자 체크
+    const imageExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg', '.ico'];
+    if (imageExts.some(ext => lower.includes(ext))) return true;
+    // 알려진 이미지 호스팅 서비스
+    if (lower.includes('imgur.com')) return true;
+    if (lower.includes('i.ibb.co')) return true;
+    // Google Drive 직접 보기 링크
+    if (lower.includes('drive.google.com') && lower.includes('thumbnail')) return true;
+    if (lower.includes('lh3.googleusercontent.com')) return true;
+    return false;
+  }
+
   // User State - 글로벌 store 사용 ($currentUser, $isAdmin)
   // 관리자의 게시판 표시 이름은 "현구"
   $: displayName =
@@ -103,12 +123,11 @@
     currentPost = post;
     showDetailModal = true;
     comments = []; // Reset first
+    imageLoadFailed = false; // 이미지 상태 초기화
+    imageLoading = true;
 
     // 1. Increment View
     api.incrementPostView(post.id);
-    // Typically we update local state too to reflect +1 view immediately?
-    // Let's just re-fetch posts later or trust the detailed view implies +1 logic visually if we care.
-    // We won't re-fetch list just for view count to avoid flicker.
 
     // 2. Load Comments
     isCommentLoading = true;
@@ -117,6 +136,15 @@
       comments = res.comments;
     }
     isCommentLoading = false;
+  }
+
+  function handleImageError() {
+    imageLoadFailed = true;
+    imageLoading = false;
+  }
+
+  function handleImageLoad() {
+    imageLoading = false;
   }
 
   async function addComment() {
@@ -237,9 +265,9 @@
 
           {#if post.image_url}
             <span
-              class="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-500 dark:text-blue-300 rounded-md text-[10px] font-bold"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold {looksLikeImageUrl(post.image_url) ? 'bg-green-50 dark:bg-green-900/30 text-green-500 dark:text-green-300' : 'bg-blue-50 dark:bg-blue-900/30 text-blue-500 dark:text-blue-300'}"
             >
-              🔗 링크
+              {looksLikeImageUrl(post.image_url) ? '🖼️ 이미지' : '🔗 링크'}
             </span>
           {/if}
 
@@ -445,26 +473,48 @@
             </div>
 
             {#if currentPost.image_url}
-              <a
-                href={currentPost.image_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="inline-flex items-center gap-2 px-4 py-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl text-sm font-bold hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors mb-6 border border-blue-100 dark:border-blue-800"
-              >
-                🔗 첨부 링크 열기
-                <svg
-                  class="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  ><path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                  ></path></svg
+              {#if looksLikeImageUrl(currentPost.image_url) && !imageLoadFailed}
+                <!-- 이미지 URL: 이미지로 렌더링 시도 -->
+                <div class="mb-6">
+                  {#if imageLoading}
+                    <div class="w-full h-48 bg-gray-100 dark:bg-gray-700 rounded-xl animate-pulse flex items-center justify-center">
+                      <span class="text-gray-400 text-sm">이미지 로딩중...</span>
+                    </div>
+                  {/if}
+                  <a href={currentPost.image_url} target="_blank" rel="noopener noreferrer">
+                    <img
+                      src={currentPost.image_url}
+                      alt="첨부 이미지"
+                      class="max-w-full rounded-xl shadow-md cursor-pointer hover:opacity-90 transition-opacity"
+                      class:hidden={imageLoading}
+                      on:error={handleImageError}
+                      on:load={handleImageLoad}
+                    />
+                  </a>
+                </div>
+              {:else}
+                <!-- 일반 URL 또는 이미지 로드 실패: 링크 버튼으로 표시 -->
+                <a
+                  href={currentPost.image_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="inline-flex items-center gap-2 px-4 py-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl text-sm font-bold hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors mb-6 border border-blue-100 dark:border-blue-800"
                 >
-              </a>
+                  🔗 첨부 링크 열기
+                  <svg
+                    class="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    ><path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                    ></path></svg
+                  >
+                </a>
+              {/if}
             {/if}
 
             <div
