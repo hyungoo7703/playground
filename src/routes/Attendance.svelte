@@ -12,6 +12,7 @@
     let isSubmitting = false;
     let toastMessage = "";
     let toastType = "success";
+    let showRules = false;
 
     // Reward usage modal
     let showUseRewardModal = false;
@@ -46,6 +47,9 @@
         for (let d = 1; d <= total; d++) days.push(d);
         return days;
     }
+
+    $: currentMonthAttendanceCount = myAttendanceDays.size;
+    $: progressPercentage = (currentMonthAttendanceCount / daysInMonth) * 100;
 
     // Get attendance dates for current month (as Set of day numbers)
     $: myAttendanceDays = new Set(
@@ -257,16 +261,44 @@
                     refreshed.success ? refreshed.attendance || [] : attendance,
                     $currentUser,
                 );
+
+                // Add server-side or ledger validation to prevent multiple claims
+                const hasClaimed100DayReward = ledgerItems.some(
+                    (item) =>
+                        item.receiver === $currentUser &&
+                        item.title &&
+                        item.title.includes("100일 연속 출석"),
+                );
+
                 const celebrated100Key = `attendance_100day_${$currentUser}`;
+
                 if (
                     newStreak >= 100 &&
-                    !localStorage.getItem(celebrated100Key)
+                    !localStorage.getItem(celebrated100Key) &&
+                    !hasClaimed100DayReward
                 ) {
                     localStorage.setItem(celebrated100Key, "true");
                     localStorage.setItem(
                         `attendance_100day_cardpick_${$currentUser}`,
                         "available",
                     );
+
+                    // Add automatic ledger record for transparency so it isn't claimed twice on another device
+                    await api.addLedger({
+                        date: formatDate(new Date()),
+                        day: new Date().getDate(),
+                        type: "기타",
+                        title: `100일 연속 출석 달성 🏆`,
+                        amount: 0,
+                        giver: "시스템",
+                        receiver: $currentUser,
+                        is_settled: true,
+                    });
+
+                    const refreshedLedger = await api.getLedger();
+                    if (refreshedLedger.success)
+                        ledgerItems = refreshedLedger.ledger || [];
+
                     cardPickAvailable = true;
                     setTimeout(() => {
                         show100Modal = true;
@@ -369,350 +401,449 @@
     });
 </script>
 
-<div class="px-4 py-6 space-y-6 max-w-md mx-auto pb-20">
-    <!-- Header -->
-    <header
-        in:fade={{ duration: 600 }}
-        class="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-amber-500 via-orange-500 to-rose-500 p-8 text-white shadow-2xl"
-    >
-        <div class="relative z-10">
-            <span
-                class="text-amber-100 font-bold text-xs tracking-widest uppercase block mb-1"
-                >Daily Check-in</span
-            >
-            <h1 class="text-3xl font-black leading-tight">출석체크 📅</h1>
-            {#if streak > 0 || rewardBalance > 0}
-                <div class="mt-3 flex items-center gap-2 flex-wrap">
-                    {#if streak > 0}
+{#if isLoading}
+    <div class="px-4 py-6 space-y-6 max-w-md mx-auto pb-20 mt-2">
+        <!-- Header Skeleton -->
+        <div
+            class="h-40 bg-gray-200/50 dark:bg-gray-700/50 rounded-[2.5rem] animate-pulse"
+        ></div>
+        <!-- Rules Skeleton -->
+        <div
+            class="h-14 bg-gray-200/50 dark:bg-gray-700/50 rounded-2xl animate-pulse"
+        ></div>
+        <!-- Button Skeleton -->
+        <div
+            class="h-28 bg-gray-200/50 dark:bg-gray-700/50 rounded-[2.5rem] animate-pulse"
+        ></div>
+        <!-- Calendar Skeleton -->
+        <div
+            class="h-[22rem] bg-gray-200/50 dark:bg-gray-700/50 rounded-[2.5rem] animate-pulse"
+        ></div>
+    </div>
+{:else}
+    <div class="px-4 py-6 space-y-6 max-w-md mx-auto pb-20">
+        <!-- Header -->
+        <header
+            in:fade={{ duration: 600 }}
+            class="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-amber-500 via-orange-500 to-rose-500 p-8 text-white shadow-2xl"
+        >
+            <div class="relative z-10">
+                <span
+                    class="text-amber-100 font-bold text-xs tracking-widest uppercase block mb-1"
+                    >Daily Check-in</span
+                >
+                <h1 class="text-3xl font-black leading-tight">출석체크 📅</h1>
+                {#if streak > 0 || rewardBalance > 0}
+                    <div class="mt-3 flex items-center gap-2 flex-wrap">
+                        {#if streak > 0}
+                            <div
+                                class="flex items-center gap-2 bg-white/20 backdrop-blur-md rounded-2xl px-4 py-2"
+                            >
+                                <span class="text-2xl">🔥</span>
+                                <span class="font-black text-lg"
+                                    >{streak}일</span
+                                >
+                                <span class="text-sm opacity-90">연속!</span>
+                            </div>
+                        {/if}
                         <div
                             class="flex items-center gap-2 bg-white/20 backdrop-blur-md rounded-2xl px-4 py-2"
                         >
-                            <span class="text-2xl">🔥</span>
-                            <span class="font-black text-lg">{streak}일</span>
-                            <span class="text-sm opacity-90">연속!</span>
-                        </div>
-                    {/if}
-                    <div
-                        class="flex items-center gap-2 bg-white/20 backdrop-blur-md rounded-2xl px-4 py-2"
-                    >
-                        <span class="text-2xl">💰</span>
-                        <span class="font-black text-lg"
-                            >{rewardBalance.toLocaleString()}원</span
-                        >
-                    </div>
-                </div>
-            {/if}
-        </div>
-        <div
-            class="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"
-        ></div>
-        <div
-            class="absolute -left-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-xl"
-        ></div>
-    </header>
-
-    <!-- Reward Rules Info -->
-    <section
-        in:fly={{ y: 20, duration: 400, delay: 100 }}
-        class="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-2xl border border-amber-200 dark:border-amber-800/40"
-    >
-        <div class="flex items-start gap-3">
-            <span class="text-lg">💡</span>
-            <div class="text-xs text-amber-700 dark:text-amber-300 space-y-1">
-                <p class="font-bold">보상 규칙</p>
-                <p>📌 매일 출석 시 <strong>100원</strong> 적립</p>
-                <p>
-                    🌟 한 달 올출석 시 다음달 첫 출석에 <strong
-                        >+900원 추가 보상</strong
-                    > (총 1,000원)
-                </p>
-                <p>
-                    🏆 100일 연속 출석 시 <strong>용돈카드 뽑기 기회</strong> 제공
-                </p>
-            </div>
-        </div>
-    </section>
-
-    <!-- Card Pick Reminder Banner -->
-    {#if cardPickAvailable}
-        <section in:fly={{ y: 20, duration: 400, delay: 150 }}>
-            <button
-                on:click={() => {
-                    localStorage.setItem(cardPickKey, "used");
-                    cardPickAvailable = false;
-                    navigate(`${base}/card-pick`);
-                }}
-                class="w-full flex items-center justify-between p-5 rounded-[2rem] bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-lg active:scale-[0.98] transition-all"
-            >
-                <div class="text-left">
-                    <h3 class="font-black text-lg">🏆 100일 연속 출석 보상!</h3>
-                    <p class="text-xs opacity-80">
-                        용돈카드 뽑기 기회가 남아있어요! 터치하세요!
-                    </p>
-                </div>
-                <span class="text-3xl">🃏</span>
-            </button>
-        </section>
-    {/if}
-
-    <!-- Check-in Button -->
-    <section in:fly={{ y: 20, duration: 400 }}>
-        <button
-            on:click={doCheckIn}
-            disabled={todayChecked || isLoading || isSubmitting}
-            class="w-full relative overflow-hidden rounded-[2rem] p-6 shadow-lg transition-all active:scale-[0.98]
-        {todayChecked
-                ? 'bg-gray-100 dark:bg-gray-800 border-2 border-green-200 dark:border-green-800'
-                : 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white'}"
-        >
-            {#if todayChecked}
-                <div class="flex items-center justify-center gap-3">
-                    <span class="text-4xl" in:scale={{ duration: 500 }}>✅</span
-                    >
-                    <div class="text-left">
-                        <p
-                            class="font-black text-lg text-green-600 dark:text-green-400"
-                        >
-                            오늘 출석 완료!
-                        </p>
-                        <p class="text-xs text-gray-500">
-                            내일도 잊지 말고 와주세요~
-                        </p>
-                    </div>
-                </div>
-            {:else if isLoading}
-                <div class="flex items-center justify-center gap-3">
-                    <div
-                        class="w-6 h-6 border-2 border-white/40 border-t-white rounded-full animate-spin"
-                    ></div>
-                    <span class="font-bold">로딩 중...</span>
-                </div>
-            {:else if isSubmitting}
-                <div class="flex items-center justify-center gap-3">
-                    <div
-                        class="w-8 h-8 border-3 border-white/30 border-t-white rounded-full animate-spin"
-                    ></div>
-                    <div class="text-left">
-                        <p class="font-black text-lg">출석 중...</p>
-                        <p class="text-xs opacity-80">잠시만 기다려주세요 ⏳</p>
-                    </div>
-                </div>
-            {:else}
-                <div
-                    class="relative z-10 flex items-center justify-center gap-3"
-                >
-                    <span class="text-4xl animate-bounce">👋</span>
-                    <div class="text-left">
-                        <p class="font-black text-xl">출석하기!</p>
-                        <p class="text-xs opacity-80">
-                            터치하여 오늘의 출석을 남겨보세요
-                        </p>
-                    </div>
-                </div>
-                <div
-                    class="absolute -right-4 -bottom-4 w-20 h-20 bg-white/10 rounded-full blur-xl"
-                ></div>
-            {/if}
-        </button>
-    </section>
-
-    <!-- Calendar -->
-    <section
-        in:fly={{ y: 20, delay: 200 }}
-        class="p-6 bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-sm border border-gray-50 dark:border-gray-700"
-    >
-        <!-- Month Navigation -->
-        <div class="flex items-center justify-between mb-6">
-            <button
-                on:click={prevMonth}
-                class="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 active:scale-90 transition-all"
-            >
-                <svg
-                    class="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    ><path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2.5"
-                        d="M15 19l-7-7 7-7"
-                    /></svg
-                >
-            </button>
-            <h2 class="text-xl font-black text-gray-900 dark:text-white">
-                {currentYear}년 {monthName}
-            </h2>
-            <button
-                on:click={nextMonth}
-                class="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 active:scale-90 transition-all"
-            >
-                <svg
-                    class="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    ><path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2.5"
-                        d="M9 5l7 7-7 7"
-                    /></svg
-                >
-            </button>
-        </div>
-
-        <!-- Weekday Headers -->
-        <div class="grid grid-cols-7 gap-1 mb-2">
-            {#each WEEKDAYS as day, i}
-                <div
-                    class="text-center text-[11px] font-bold py-1
-            {i === 0
-                        ? 'text-red-400'
-                        : i === 6
-                          ? 'text-blue-400'
-                          : 'text-gray-400'}"
-                >
-                    {day}
-                </div>
-            {/each}
-        </div>
-
-        <!-- Calendar Grid -->
-        <div class="grid grid-cols-7 gap-1">
-            {#each calendarDays as day}
-                {#if day === null}
-                    <div class="aspect-square"></div>
-                {:else}
-                    {@const isToday =
-                        day === new Date().getDate() &&
-                        currentMonth === new Date().getMonth() &&
-                        currentYear === new Date().getFullYear()}
-                    {@const hasStamp = myAttendanceDays.has(day)}
-                    <div
-                        class="aspect-square flex flex-col items-center justify-center rounded-xl text-sm relative transition-all
-              {isToday
-                            ? 'bg-orange-50 dark:bg-orange-900/20 ring-2 ring-orange-400'
-                            : ''}
-              {hasStamp ? 'bg-amber-50 dark:bg-amber-900/10' : ''}"
-                    >
-                        <span
-                            class="text-[11px] font-bold leading-none
-                {isToday
-                                ? 'text-orange-600 dark:text-orange-400'
-                                : 'text-gray-600 dark:text-gray-400'}"
-                        >
-                            {day}
-                        </span>
-                        {#if hasStamp}
-                            <span
-                                class="text-lg leading-none mt-0.5"
-                                in:scale={{ duration: 300 }}
-                                >{getStampForDay(day)}</span
+                            <span class="text-2xl">💰</span>
+                            <span class="font-black text-lg"
+                                >{rewardBalance.toLocaleString()}원</span
                             >
-                        {/if}
+                        </div>
                     </div>
                 {/if}
-            {/each}
-        </div>
-    </section>
 
-    <!-- Today's Family Check-ins -->
-    {#if familyAttendanceToday.length > 0}
+                <!-- Progress Bar -->
+                <div
+                    class="mt-5 bg-black/20 rounded-full h-2 overflow-hidden shadow-inner flex shrink-0 w-full"
+                >
+                    <div
+                        class="bg-white h-full rounded-full transition-all duration-1000 ease-out flex items-center justify-end pr-1"
+                        style="width: {progressPercentage}%"
+                    >
+                        {#if progressPercentage > 10}
+                            <div
+                                class="w-1 h-1 bg-amber-500 rounded-full opacity-50"
+                            ></div>
+                        {/if}
+                    </div>
+                </div>
+                <div
+                    class="mt-1.5 flex justify-between text-[10px] font-bold text-amber-100/90 w-full"
+                >
+                    <span>이번 달 달성률</span>
+                    <span>{currentMonthAttendanceCount} / {daysInMonth}일</span>
+                </div>
+            </div>
+            <div
+                class="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"
+            ></div>
+            <div
+                class="absolute -left-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-xl"
+            ></div>
+        </header>
+
+        <!-- Reward Rules Info -->
         <section
-            in:fly={{ y: 20, delay: 300 }}
+            in:fly={{ y: 20, duration: 400, delay: 100 }}
+            class="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-2xl border border-amber-200 dark:border-amber-800/40"
+        >
+            <button
+                on:click={() => (showRules = !showRules)}
+                class="w-full flex items-center justify-between outline-none shrink-0 cursor-pointer active:scale-[0.98] transition-all"
+            >
+                <div class="flex items-center gap-2">
+                    <span class="text-lg">💡</span>
+                    <span
+                        class="font-bold text-amber-700 dark:text-amber-300 text-sm"
+                        >보상 규칙 확인하기</span
+                    >
+                </div>
+                <span
+                    class="text-amber-600 dark:text-amber-400 transition-transform duration-300 text-xs {showRules
+                        ? 'rotate-180'
+                        : ''}">▼</span
+                >
+            </button>
+            {#if showRules}
+                <div
+                    class="mt-3 pt-3 border-t border-amber-200/50 dark:border-amber-800/30 text-xs text-amber-700 dark:text-amber-300 space-y-2"
+                    transition:fade={{ duration: 200 }}
+                >
+                    <p>📌 매일 출석 시 <strong>100원</strong> 적립</p>
+                    <p>
+                        🌟 한 달 올출석 시 다음달 첫 출석에 <strong
+                            >+900원 추가 보상</strong
+                        >
+                    </p>
+                    <p>
+                        🏆 100일 연속 출석 시 <strong>용돈카드 뽑기 기회</strong
+                        > 제공 (1회)
+                    </p>
+                </div>
+            {/if}
+        </section>
+
+        <!-- Card Pick Reminder Banner -->
+        {#if cardPickAvailable}
+            <section in:fly={{ y: 20, duration: 400, delay: 150 }}>
+                <button
+                    on:click={() => {
+                        localStorage.setItem(cardPickKey, "used");
+                        cardPickAvailable = false;
+                        navigate(`${base}/card-pick`);
+                    }}
+                    class="w-full flex items-center justify-between p-5 rounded-[2rem] bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-lg active:scale-[0.98] transition-all"
+                >
+                    <div class="text-left">
+                        <h3 class="font-black text-lg">
+                            🏆 100일 연속 출석 보상!
+                        </h3>
+                        <p class="text-xs opacity-80">
+                            용돈카드 뽑기 기회가 남아있어요! 터치하세요!
+                        </p>
+                    </div>
+                    <span class="text-3xl">🃏</span>
+                </button>
+            </section>
+        {/if}
+
+        <!-- Check-in Button -->
+        <section in:fly={{ y: 20, duration: 400 }}>
+            <button
+                on:click={doCheckIn}
+                disabled={todayChecked || isSubmitting}
+                class="w-full relative overflow-hidden rounded-[2.5rem] p-6 shadow-xl transition-all active:scale-[0.98]
+            {todayChecked
+                    ? 'bg-emerald-50 dark:bg-emerald-900/20 border-2 border-emerald-200 dark:border-emerald-800/50'
+                    : 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white ' +
+                      (!isSubmitting
+                          ? 'animate-pulse hover:animate-none'
+                          : '')}"
+            >
+                {#if todayChecked}
+                    <div class="flex items-center justify-center gap-4">
+                        <div
+                            class="w-12 h-12 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center shadow-sm"
+                            in:scale={{ duration: 500, delay: 100 }}
+                        >
+                            <span class="text-2xl">🎉</span>
+                        </div>
+                        <div class="text-left">
+                            <p
+                                class="font-black text-lg text-emerald-600 dark:text-emerald-400"
+                            >
+                                오늘 출석 완료!
+                            </p>
+                            <p
+                                class="text-xs font-bold text-emerald-600/60 dark:text-emerald-400/60"
+                            >
+                                내일도 잊지 말고 와주세요~
+                            </p>
+                        </div>
+                    </div>
+                {:else if isSubmitting}
+                    <div class="flex items-center justify-center gap-4">
+                        <div
+                            class="w-8 h-8 border-4 border-white/30 border-t-white rounded-full animate-spin"
+                        ></div>
+                        <div class="text-left">
+                            <p class="font-black text-lg">출석 중...</p>
+                            <p class="text-[11px] opacity-80 font-bold">
+                                잠시만 기다려주세요 ⏳
+                            </p>
+                        </div>
+                    </div>
+                {:else}
+                    <div
+                        class="relative z-10 flex items-center justify-center gap-4"
+                    >
+                        <span class="text-4xl animate-bounce">👋</span>
+                        <div class="text-left">
+                            <p class="font-black text-xl">출석하기!</p>
+                            <p class="text-[11px] font-bold opacity-80">
+                                이곳을 터치하여 출석을 완료하세요
+                            </p>
+                        </div>
+                    </div>
+                    <div
+                        class="absolute -right-4 -bottom-4 w-20 h-20 bg-white/20 rounded-full blur-xl"
+                    ></div>
+                {/if}
+            </button>
+        </section>
+
+        <!-- Calendar -->
+        <section
+            in:fly={{ y: 20, delay: 200 }}
+            class="p-6 bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-sm border border-gray-50 dark:border-gray-700"
+        >
+            <!-- Month Navigation -->
+            <div class="flex items-center justify-between mb-6">
+                <button
+                    on:click={prevMonth}
+                    class="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 active:scale-90 transition-all"
+                >
+                    <svg
+                        class="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        ><path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2.5"
+                            d="M15 19l-7-7 7-7"
+                        /></svg
+                    >
+                </button>
+                <h2 class="text-xl font-black text-gray-900 dark:text-white">
+                    {currentYear}년 {monthName}
+                </h2>
+                <button
+                    on:click={nextMonth}
+                    class="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 active:scale-90 transition-all"
+                >
+                    <svg
+                        class="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        ><path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2.5"
+                            d="M9 5l7 7-7 7"
+                        /></svg
+                    >
+                </button>
+            </div>
+
+            <!-- Weekday Headers -->
+            <div class="grid grid-cols-7 gap-1 mb-2">
+                {#each WEEKDAYS as day, i}
+                    <div
+                        class="text-center text-[11px] font-extrabold py-1
+            {i === 0
+                            ? 'text-rose-400'
+                            : i === 6
+                              ? 'text-blue-400'
+                              : 'text-gray-400'}"
+                    >
+                        {day}
+                    </div>
+                {/each}
+            </div>
+
+            <!-- Calendar Grid -->
+            <div class="grid grid-cols-7 gap-1">
+                {#each calendarDays as day, i}
+                    {#if day === null}
+                        <div
+                            class="aspect-square bg-gray-50/50 dark:bg-gray-800/50 rounded-xl"
+                        ></div>
+                    {:else}
+                        {@const isToday =
+                            day === new Date().getDate() &&
+                            currentMonth === new Date().getMonth() &&
+                            currentYear === new Date().getFullYear()}
+                        {@const hasStamp = myAttendanceDays.has(day)}
+                        {@const isSunday = i % 7 === 0}
+                        {@const isSaturday = i % 7 === 6}
+                        {@const textColor = isToday
+                            ? "text-orange-600 dark:text-orange-400"
+                            : isSunday
+                              ? "text-rose-400/90 dark:text-rose-400/80"
+                              : isSaturday
+                                ? "text-blue-400/90 dark:text-blue-400/80"
+                                : "text-gray-600 dark:text-gray-400"}
+                        <div
+                            class="aspect-square flex flex-col items-center justify-center rounded-xl text-sm relative transition-all
+              {isToday
+                                ? 'bg-orange-50 dark:bg-orange-900/20 ring-1 ring-orange-400 shadow-sm z-10'
+                                : 'bg-gray-50/30 dark:bg-gray-700/10'}
+              {hasStamp
+                                ? 'bg-amber-50/70 dark:bg-amber-900/20 shadow-inner'
+                                : ''}"
+                        >
+                            <span
+                                class="text-[11px] font-bold leading-none {textColor} {hasStamp
+                                    ? 'opacity-90'
+                                    : ''}"
+                            >
+                                {day}
+                            </span>
+                            {#if hasStamp}
+                                <span
+                                    class="text-lg leading-none mt-0.5"
+                                    in:scale={{ duration: 300 }}
+                                    >{getStampForDay(day)}</span
+                                >
+                            {/if}
+                        </div>
+                    {/if}
+                {/each}
+            </div>
+        </section>
+
+        <!-- Today's Family Check-ins -->
+        {#if familyAttendanceToday.length > 0}
+            <section
+                in:fly={{ y: 20, delay: 300 }}
+                class="p-6 bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-sm border border-gray-50 dark:border-gray-700"
+            >
+                <h2
+                    class="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2 mb-4"
+                >
+                    <span class="w-1.5 h-5 bg-orange-500 rounded-full"></span>
+                    오늘의 출석 현황
+                </h2>
+                <div class="flex flex-wrap gap-4">
+                    {#each familyAttendanceToday as item}
+                        <div class="flex flex-col items-center gap-1.5">
+                            <div
+                                class="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-br from-emerald-400 to-teal-500 text-white font-black text-lg shadow-md border-2 border-white dark:border-gray-800 relative"
+                            >
+                                {item.user_name?.charAt(0)}
+                                <div
+                                    class="absolute -bottom-1 -right-1 bg-white dark:bg-gray-800 rounded-full p-[2px] shadow-sm"
+                                >
+                                    <span class="text-[10px] leading-none block"
+                                        >✨</span
+                                    >
+                                </div>
+                            </div>
+                            <span
+                                class="text-[11px] font-bold text-gray-700 dark:text-gray-300"
+                                >{item.user_name}</span
+                            >
+                            <span class="text-[9px] text-gray-400 font-bold"
+                                >{item.timestamp
+                                    ?.split(" ")[1]
+                                    ?.substring(0, 5) || "오늘"}</span
+                            >
+                        </div>
+                    {/each}
+                </div>
+            </section>
+        {/if}
+
+        <!-- Reward Wallet -->
+        <section
+            in:fly={{ y: 20, delay: 350 }}
             class="p-6 bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-sm border border-gray-50 dark:border-gray-700"
         >
             <h2
                 class="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2 mb-4"
             >
-                <span class="w-1.5 h-5 bg-orange-500 rounded-full"></span>
-                오늘의 출석 현황
+                <span class="w-1.5 h-5 bg-amber-500 rounded-full"></span>
+                보상 지갑
             </h2>
-            <div class="flex flex-wrap gap-2">
-                {#each familyAttendanceToday as item}
-                    <div
-                        class="flex items-center gap-2 bg-green-50 dark:bg-green-900/20 px-4 py-2 rounded-2xl border border-green-100 dark:border-green-800"
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <p class="text-xs text-gray-400 font-bold">
+                        사용 가능 잔액
+                    </p>
+                    <p
+                        class="text-3xl font-black text-gray-900 dark:text-white"
                     >
-                        <span class="text-lg">✅</span>
-                        <span
-                            class="font-bold text-green-700 dark:text-green-400 text-sm"
-                            >{item.user_name}</span
+                        {rewardBalance.toLocaleString()}<span
+                            class="text-sm font-bold text-gray-400">원</span
                         >
-                        <span class="text-xs text-gray-400"
-                            >{item.timestamp}</span
-                        >
-                    </div>
-                {/each}
+                    </p>
+                    <p class="text-[10px] text-gray-400 mt-1">
+                        총 적립 {totalEarned.toLocaleString()}원 · 사용 {totalUsed.toLocaleString()}원
+                    </p>
+                </div>
+                <button
+                    on:click={() => {
+                        useAmount = "";
+                        useDescription = "";
+                        showUseRewardModal = true;
+                    }}
+                    disabled={rewardBalance <= 0}
+                    class="px-5 py-3 bg-gradient-to-r from-rose-500 to-pink-500 text-white font-bold rounded-2xl shadow-lg active:scale-95 transition-all disabled:opacity-40"
+                >
+                    보상 사용 🎁
+                </button>
             </div>
-        </section>
-    {/if}
 
-    <!-- Reward Wallet -->
-    <section
-        in:fly={{ y: 20, delay: 350 }}
-        class="p-6 bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-sm border border-gray-50 dark:border-gray-700"
-    >
-        <h2
-            class="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2 mb-4"
-        >
-            <span class="w-1.5 h-5 bg-amber-500 rounded-full"></span>
-            보상 지갑
-        </h2>
-        <div class="flex items-center justify-between mb-4">
-            <div>
-                <p class="text-xs text-gray-400 font-bold">사용 가능 잔액</p>
-                <p class="text-3xl font-black text-gray-900 dark:text-white">
-                    {rewardBalance.toLocaleString()}<span
-                        class="text-sm font-bold text-gray-400">원</span
-                    >
-                </p>
-                <p class="text-[10px] text-gray-400 mt-1">
-                    총 적립 {totalEarned.toLocaleString()}원 · 사용 {totalUsed.toLocaleString()}원
-                </p>
-            </div>
-            <button
-                on:click={() => {
-                    useAmount = "";
-                    useDescription = "";
-                    showUseRewardModal = true;
-                }}
-                disabled={rewardBalance <= 0}
-                class="px-5 py-3 bg-gradient-to-r from-rose-500 to-pink-500 text-white font-bold rounded-2xl shadow-lg active:scale-95 transition-all disabled:opacity-40"
-            >
-                보상 사용 🎁
-            </button>
-        </div>
-
-        {#if usageHistory.length > 0}
-            <div
-                class="border-t border-gray-100 dark:border-gray-700 pt-3 mt-3"
-            >
-                <p class="text-xs font-bold text-gray-400 mb-2">사용 내역</p>
-                <ul class="space-y-2">
-                    {#each usageHistory as u}
-                        <li
-                            class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700/30 rounded-xl"
-                        >
-                            <div>
-                                <span
-                                    class="text-sm font-bold text-gray-800 dark:text-gray-200"
-                                    >{u.desc}</span
-                                >
-                                <span class="text-[10px] text-gray-400 ml-2"
-                                    >{u.date}</span
-                                >
-                            </div>
-                            <span class="text-sm font-black text-rose-500"
-                                >-{u.amount.toLocaleString()}원</span
+            {#if usageHistory.length > 0}
+                <div
+                    class="border-t border-gray-100 dark:border-gray-700 pt-3 mt-3"
+                >
+                    <p class="text-xs font-bold text-gray-400 mb-2">
+                        사용 내역
+                    </p>
+                    <ul class="space-y-2">
+                        {#each usageHistory as u}
+                            <li
+                                class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700/30 rounded-xl"
                             >
-                        </li>
-                    {/each}
-                </ul>
-            </div>
-        {/if}
-    </section>
-</div>
+                                <div>
+                                    <span
+                                        class="text-sm font-bold text-gray-800 dark:text-gray-200"
+                                        >{u.desc}</span
+                                    >
+                                    <span class="text-[10px] text-gray-400 ml-2"
+                                        >{u.date}</span
+                                    >
+                                </div>
+                                <span class="text-sm font-black text-rose-500"
+                                    >-{u.amount.toLocaleString()}원</span
+                                >
+                            </li>
+                        {/each}
+                    </ul>
+                </div>
+            {/if}
+        </section>
+    </div>
+{/if}
 
 <!-- Reward Use Modal -->
 {#if showUseRewardModal}
