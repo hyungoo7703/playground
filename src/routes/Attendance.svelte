@@ -77,12 +77,31 @@
     // Reward calculation
     $: myRecords = attendance.filter((a) => a.user_name === $currentUser);
 
-    // 올출석 보너스: 올출석 달성 시 마지막 날 1000원 (나머지 100원)
-    const DAILY_REWARD = 100;
-    const PERFECT_DAY_REWARD = 1000;
+    // 갓챠 보상 시스템
+    const GACHA_REWARDS = [50, 100, 200, 300]; // 일일 (각 25%)
+    const PERFECT_GACHA_REWARDS = [500, 900, 1400]; // 올출석 보너스 (각 33%)
+
+    function hashStr(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            hash = (hash << 5) - hash + str.charCodeAt(i);
+            hash |= 0;
+        }
+        return Math.abs(hash);
+    }
+
+    function getGachaReward(dateStr, userName) {
+        return GACHA_REWARDS[hashStr(dateStr + userName) % 4];
+    }
+
+    function getPerfectBonus(year, month, userName) {
+        return PERFECT_GACHA_REWARDS[
+            hashStr(`perfect-${year}-${month}-${userName}`) % 3
+        ];
+    }
 
     function calcEarned(records) {
-        // Group by year-month
+        // Group by year-month, keeping actual dates
         const monthMap = {};
         records.forEach((a) => {
             const d = new Date(a.date);
@@ -91,23 +110,31 @@
                 monthMap[key] = {
                     year: d.getFullYear(),
                     month: d.getMonth(),
-                    days: new Set(),
+                    dates: new Map(),
                 };
-            monthMap[key].days.add(d.getDate());
+            // Store date string -> user_name for gacha calc
+            monthMap[key].dates.set(d.getDate(), a.date);
         });
 
+        const userName = $currentUser;
         let total = 0;
-        Object.values(monthMap).forEach(({ year, month, days }) => {
+        Object.values(monthMap).forEach(({ year, month, dates }) => {
             const daysInMonth = new Date(year, month + 1, 0).getDate();
             const now = new Date();
             const isCurrentMonth =
                 year === now.getFullYear() && month === now.getMonth();
 
-            if (!isCurrentMonth && days.size === daysInMonth) {
-                // 올출석: (일수 - 1) × 100 + 1000
-                total += (days.size - 1) * DAILY_REWARD + PERFECT_DAY_REWARD;
+            if (!isCurrentMonth && dates.size === daysInMonth) {
+                // 올출석: 갓챠 합산 + 올출석 보너스 갓챠
+                let gachaSum = 0;
+                dates.forEach((dateStr) => {
+                    gachaSum += getGachaReward(dateStr, userName);
+                });
+                total += gachaSum + getPerfectBonus(year, month, userName);
             } else {
-                total += days.size * DAILY_REWARD;
+                dates.forEach((dateStr) => {
+                    total += getGachaReward(dateStr, userName);
+                });
             }
         });
 
@@ -247,13 +274,25 @@
                     );
                 }).length;
 
+                const todayReward = getGachaReward(
+                    formatDate(new Date()),
+                    $currentUser,
+                );
+                const perfectBonus = getPerfectBonus(
+                    lastMonthYear,
+                    lastMonth,
+                    $currentUser,
+                );
                 if (lastMonthDays === daysInLastMonth && thisMonthCount === 1) {
                     showToast(
-                        `🎉 출석 완료! +100원 | 지난달 올출석 보너스 +900원 🌟`,
+                        `🎉 출석 완료! +${todayReward}원 🎰 | 올출석 보너스 +${perfectBonus.toLocaleString()}원 🌟`,
                         "success",
                     );
                 } else {
-                    showToast("출석 완료! +100원 보상 획득! 💰", "success");
+                    showToast(
+                        `출석 완료! +${todayReward}원 보상 획득! 🎰`,
+                        "success",
+                    );
                 }
 
                 // 100일 연속 출석 축하 모달 (연속 깨지면 리셋)
@@ -514,11 +553,12 @@
                     class="mt-3 pt-3 border-t border-amber-200/50 dark:border-amber-800/30 text-xs text-amber-700 dark:text-amber-300 space-y-2"
                     transition:fade={{ duration: 200 }}
                 >
-                    <p>📌 매일 출석 시 <strong>100원</strong> 적립</p>
                     <p>
-                        🌟 한 달 올출석 시 다음달 첫 출석에 <strong
-                            >+900원 추가 보상</strong
-                        >
+                        🎰 매일 출석 시 <strong>50~300원</strong> 랜덤 적립 (50/100/200/300원)
+                    </p>
+                    <p>
+                        🌟 한 달 올출석 시 <strong>+500/900/1,400원</strong> 랜덤
+                        보너스
                     </p>
                     <p>
                         🏆 100일 연속 출석 시 <strong>용돈카드 뽑기 기회</strong
