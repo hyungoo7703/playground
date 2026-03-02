@@ -6,11 +6,12 @@
 
   // --- 상태 관리 변수 ---
   let foodList = []; // 구글 시트에서 가져온 메뉴 리스트
+  let isDeleting = null; // 삭제 중인 메뉴 이름
   let spinMode = "menu"; // 'menu' or 'whoPay'
   const WHO_PAY_MEMBERS = ["엄마", "현구", "범수"];
 
   let spinning = false; // 룰렛 회전 여부
-  let responseult = "오늘 뭐 먹지?";
+  let spinResult = "오늘 뭐 먹지?";
   let spinInterval;
   let isLoading = true; // 초기 로딩 상태
 
@@ -55,9 +56,27 @@
     }
   }
 
+  // --- 3. 관리자 메뉴 삭제 (Delete) ---
+  async function deleteMenuItem(name) {
+    if (!confirm(`"${name}" 메뉴를 삭제하시겠습니까?`)) return;
+    isDeleting = name;
+    try {
+      const data = await api.deleteFood(name);
+      if (data.success) {
+        await fetchMenu();
+      } else {
+        alert("삭제 실패: " + (data.message || "알 수 없는 오류"));
+      }
+    } catch (e) {
+      alert("삭제 중 오류가 발생했습니다.");
+    } finally {
+      isDeleting = null;
+    }
+  }
+
   function switchMode(mode) {
     spinMode = mode;
-    responseult = mode === "menu" ? "오늘 뭐 먹지?" : "누가 낼까?";
+    spinResult = mode === "menu" ? "오늘 뭐 먹지?" : "누가 낼까?";
     spinning = false;
   }
 
@@ -74,7 +93,7 @@
     // 80ms 간격으로 랜덤 메뉴 표시
     spinInterval = setInterval(() => {
       const randomIndex = Math.floor(Math.random() * list.length);
-      responseult = list[randomIndex];
+      spinResult = list[randomIndex];
     }, 80);
 
     // 2.5초 후 멈춤
@@ -87,11 +106,11 @@
         targetWinner &&
         list.includes(targetWinner)
       ) {
-        responseult = targetWinner;
+        spinResult = targetWinner;
         // targetWinner = null; // Optional: Reset after win? Let's keep it manual for repeated trolling.
       } else {
         const finalIndex = Math.floor(Math.random() * list.length);
-        responseult = list[finalIndex];
+        spinResult = list[finalIndex];
       }
 
       spinning = false;
@@ -154,17 +173,17 @@
                 ? 'text-indigo-600'
                 : 'text-green-600'} animate-bounce"
             >
-              {responseult}
+              {spinResult}
             </div>
           {:else}
             <div in:fade>
-              {#if responseult.includes("오늘") || responseult.includes("누가")}
+              {#if spinResult.includes("오늘") || spinResult.includes("누가")}
                 <span
                   class="text-slate-200 dark:text-slate-800 text-7xl block mb-2"
                   >?</span
                 >
                 <p class="text-xl font-bold text-slate-400 italic">
-                  {responseult}
+                  {spinResult}
                 </p>
               {:else}
                 <span
@@ -177,7 +196,7 @@
                 <div
                   class="text-4xl font-black text-slate-900 dark:text-white leading-tight mb-2"
                 >
-                  {responseult}
+                  {spinResult}
                 </div>
                 <p
                   class="{spinMode === 'menu'
@@ -260,9 +279,19 @@
         <div class="flex flex-wrap justify-center gap-2">
           {#each foodList as food}
             <span
-              class="px-3 py-1.5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl text-[11px] font-bold border border-slate-200/50 dark:border-slate-700"
+              class="px-3 py-1.5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl text-[11px] font-bold border border-slate-200/50 dark:border-slate-700 flex items-center gap-1.5"
             >
               {food}
+              {#if $isAdmin}
+                <button
+                  on:click|stopPropagation={() => deleteMenuItem(food)}
+                  disabled={isDeleting === food}
+                  class="w-4 h-4 flex items-center justify-center rounded-full bg-slate-200 dark:bg-slate-700 text-slate-400 hover:bg-red-100 hover:text-red-500 dark:hover:bg-red-900/50 dark:hover:text-red-400 transition-colors text-[9px] leading-none disabled:opacity-50"
+                  title="{food} 삭제"
+                >
+                  {isDeleting === food ? "·" : "✕"}
+                </button>
+              {/if}
             </span>
           {/each}
         </div>

@@ -103,7 +103,7 @@
             currency: "KRW",
             quantity: "",
         };
-        contributions = { 아빠: 0, 엄마: 0, 현구: 0, 범수: 0 };
+        contributions = { 엄마: 0, 범수: 0 };
     }
 
     async function deleteStock(id) {
@@ -179,10 +179,12 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div class="col-span-2">
                         <label
+                            for="stock-name"
                             class="block text-xs font-bold text-gray-400 mb-1 ml-1"
                             >종목명</label
                         >
                         <input
+                            id="stock-name"
                             type="text"
                             bind:value={newStock.name}
                             placeholder="주식명 입력(아래 선택 가능)"
@@ -202,10 +204,12 @@
                     </div>
                     <div>
                         <label
+                            for="stock-price"
                             class="block text-xs font-bold text-gray-400 mb-1 ml-1"
                             >매입 단가 (1주)</label
                         >
                         <input
+                            id="stock-price"
                             type="number"
                             bind:value={newStock.price}
                             placeholder="금액입력"
@@ -214,10 +218,12 @@
                     </div>
                     <div>
                         <label
+                            for="stock-quantity"
                             class="block text-xs font-bold text-gray-400 mb-1 ml-1"
                             >매입 수량 (주)</label
                         >
                         <input
+                            id="stock-quantity"
                             type="number"
                             bind:value={newStock.quantity}
                             placeholder="수량입력"

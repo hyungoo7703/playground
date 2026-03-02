@@ -25,7 +25,13 @@ const getSaveData = () => {
   if (typeof window === "undefined" || !window.localStorage)
     return { level: 1, highScore: 0 };
   const save = localStorage.getItem("neon_blast_save");
-  return save ? JSON.parse(save) : { level: 1, highScore: 0 };
+  if (!save) return { level: 1, highScore: 0 };
+  try {
+    return JSON.parse(save);
+  } catch {
+    localStorage.removeItem("neon_blast_save");
+    return { level: 1, highScore: 0 };
+  }
 };
 
 const initialSave = getSaveData();

@@ -143,7 +143,7 @@
     </button>
   </div>
 
-  <nav class="px-4 py-6 overflow-y-auto h-[calc(100%-60px)]">
+  <nav class="px-4 py-6 overflow-y-auto h-[calc(100%-60px)] scrollbar-hide">
     <ul class="space-y-2 font-medium">
       {#each menuItems.filter((item) => !item.adminOnly || $isAdmin) as item}
         <li>
@@ -173,3 +173,13 @@
     </ul>
   </nav>
 </aside>
+
+<style>
+  .scrollbar-hide {
+    -ms-overflow-style: none; /* IE/Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none; /* Chrome/Safari/Opera */
+  }
+</style>
