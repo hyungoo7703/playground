@@ -90,13 +90,33 @@
         return Math.abs(hash);
     }
 
+    // 해시 개선 기준 날짜: 이전 기록은 구 해시, 이후는 신 해시
+    const GACHA_FIX_DATE = "2026-03-03";
+
     function getGachaReward(dateStr, userName) {
-        return GACHA_REWARDS[hashStr(dateStr + userName) % 4];
+        if (dateStr < GACHA_FIX_DATE) {
+            // 기존 해시 (호환성 유지)
+            return GACHA_REWARDS[hashStr(dateStr + userName) % 4];
+        }
+        // 개선된 해시: 유저별 다른 보상
+        let seed = "";
+        const maxLen = Math.max(dateStr.length, userName.length);
+        for (let i = 0; i < maxLen; i++) {
+            if (i < userName.length) seed += userName[i];
+            if (i < dateStr.length) seed += dateStr[i];
+        }
+        return GACHA_REWARDS[hashStr(seed) % 4];
     }
 
     function getPerfectBonus(year, month, userName) {
+        if (year < 2026 || (year === 2026 && month < 2)) {
+            // 기존 해시 (2026년 3월 이전)
+            return PERFECT_GACHA_REWARDS[
+                hashStr(`perfect-${year}-${month}-${userName}`) % 3
+            ];
+        }
         return PERFECT_GACHA_REWARDS[
-            hashStr(`perfect-${year}-${month}-${userName}`) % 3
+            hashStr(`${userName}-perfect-${year}-${month}-${userName}`) % 3
         ];
     }
 
@@ -451,8 +471,16 @@
                 >Daily Check-in</span
             >
             <h1 class="text-3xl font-black leading-tight">출석체크 📅</h1>
-            {#if streak > 0 || rewardBalance > 0}
-                <div class="mt-3 flex items-center gap-2 flex-wrap">
+            <div class="mt-3 flex items-center gap-2 flex-wrap">
+                {#if isLoading}
+                    <div
+                        class="flex items-center gap-2 bg-white/20 backdrop-blur-md rounded-2xl px-4 py-2"
+                    >
+                        <span class="text-sm opacity-80 animate-pulse"
+                            >⏳ 보상 파악중...</span
+                        >
+                    </div>
+                {:else}
                     {#if streak > 0}
                         <div
                             class="flex items-center gap-2 bg-white/20 backdrop-blur-md rounded-2xl px-4 py-2"
@@ -462,16 +490,18 @@
                             <span class="text-sm opacity-90">연속!</span>
                         </div>
                     {/if}
-                    <div
-                        class="flex items-center gap-2 bg-white/20 backdrop-blur-md rounded-2xl px-4 py-2"
-                    >
-                        <span class="text-2xl">💰</span>
-                        <span class="font-black text-lg"
-                            >{rewardBalance.toLocaleString()}원</span
+                    {#if rewardBalance > 0}
+                        <div
+                            class="flex items-center gap-2 bg-white/20 backdrop-blur-md rounded-2xl px-4 py-2"
                         >
-                    </div>
-                </div>
-            {/if}
+                            <span class="text-2xl">💰</span>
+                            <span class="font-black text-lg"
+                                >{rewardBalance.toLocaleString()}원</span
+                            >
+                        </div>
+                    {/if}
+                {/if}
+            </div>
 
             <!-- Progress Bar -->
             <div
@@ -571,12 +601,24 @@
             on:click={doCheckIn}
             disabled={todayChecked || isSubmitting || isLoading}
             class="w-full relative overflow-hidden rounded-[2.5rem] p-6 shadow-xl transition-all active:scale-[0.98]
-            {todayChecked
-                ? 'bg-emerald-50 dark:bg-emerald-900/20 border-2 border-emerald-200 dark:border-emerald-800/50'
-                : 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white ' +
-                  (!isSubmitting ? 'animate-pulse hover:animate-none' : '')}"
+            {isLoading
+                ? 'bg-gray-200 dark:bg-gray-700 text-gray-400'
+                : todayChecked
+                  ? 'bg-emerald-50 dark:bg-emerald-900/20 border-2 border-emerald-200 dark:border-emerald-800/50'
+                  : 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white ' +
+                    (!isSubmitting ? 'animate-pulse hover:animate-none' : '')}"
         >
-            {#if todayChecked}
+            {#if isLoading}
+                <div class="flex items-center justify-center gap-4">
+                    <span class="text-3xl animate-pulse">📅</span>
+                    <div class="text-left">
+                        <p class="font-black text-lg">출석여부 파악중...</p>
+                        <p class="text-[11px] opacity-80 font-bold">
+                            잠시만 기다려주세요 ⏳
+                        </p>
+                    </div>
+                </div>
+            {:else if todayChecked}
                 <div class="flex items-center justify-center gap-4">
                     <div
                         class="w-12 h-12 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center shadow-sm"
@@ -793,14 +835,24 @@
         <div class="flex items-center justify-between mb-4">
             <div>
                 <p class="text-xs text-gray-400 font-bold">사용 가능 잔액</p>
-                <p class="text-3xl font-black text-gray-900 dark:text-white">
-                    {rewardBalance.toLocaleString()}<span
-                        class="text-sm font-bold text-gray-400">원</span
+                {#if isLoading}
+                    <p
+                        class="text-lg font-bold text-gray-400 animate-pulse mt-1"
                     >
-                </p>
-                <p class="text-[10px] text-gray-400 mt-1">
-                    총 적립 {totalEarned.toLocaleString()}원 · 사용 {totalUsed.toLocaleString()}원
-                </p>
+                        ⏳ 계산 중...
+                    </p>
+                {:else}
+                    <p
+                        class="text-3xl font-black text-gray-900 dark:text-white"
+                    >
+                        {rewardBalance.toLocaleString()}<span
+                            class="text-sm font-bold text-gray-400">원</span
+                        >
+                    </p>
+                    <p class="text-[10px] text-gray-400 mt-1">
+                        총 적립 {totalEarned.toLocaleString()}원 · 사용 {totalUsed.toLocaleString()}원
+                    </p>
+                {/if}
             </div>
             <button
                 on:click={() => {
@@ -808,7 +860,7 @@
                     useDescription = "";
                     showUseRewardModal = true;
                 }}
-                disabled={rewardBalance <= 0}
+                disabled={rewardBalance <= 0 || isLoading}
                 class="px-5 py-3 bg-gradient-to-r from-rose-500 to-pink-500 text-white font-bold rounded-2xl shadow-lg active:scale-95 transition-all disabled:opacity-40"
             >
                 보상 사용 🎁
