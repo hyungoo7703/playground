@@ -4,6 +4,7 @@
     import { navigate } from "svelte-routing";
     import { base, currentUser } from "../lib/store.js";
     import { api } from "../lib/api.js";
+    import { formatDate } from "../lib/utils.js";
 
     let attendance = [];
     let ledgerItems = [];
@@ -187,12 +188,7 @@
         }))
         .reverse();
 
-    function formatDate(date) {
-        const y = date.getFullYear();
-        const m = String(date.getMonth() + 1).padStart(2, "0");
-        const d = String(date.getDate()).padStart(2, "0");
-        return `${y}-${m}-${d}`;
-    }
+    // formatDate는 lib/utils.js에서 import
 
     function calcStreak(data, user) {
         const userDates = data
@@ -899,9 +895,13 @@
 
 <!-- Reward Use Modal -->
 {#if showUseRewardModal}
+    <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
     <div
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
         role="dialog"
+        tabindex="-1"
+        aria-modal="true"
+        aria-label="보상 사용 모달"
         on:click|self={() => (showUseRewardModal = false)}
         on:keydown={(e) => e.key === "Escape" && (showUseRewardModal = false)}
         transition:fade={{ duration: 200 }}
@@ -961,9 +961,13 @@
 
 <!-- 100-Day Streak Celebration Modal -->
 {#if show100Modal}
+    <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
     <div
         class="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-md p-4"
         role="dialog"
+        tabindex="-1"
+        aria-modal="true"
+        aria-label="100일 연속 출석 축하 모달"
         on:click|self={() => (show100Modal = false)}
         on:keydown={(e) => e.key === "Escape" && (show100Modal = false)}
         transition:fade={{ duration: 300 }}

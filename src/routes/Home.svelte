@@ -4,6 +4,7 @@
   import { navigate } from "svelte-routing";
   import { base } from "../lib/store.js";
   import { api } from "../lib/api.js";
+  import { formatDate } from "../lib/utils.js";
 
   let monthlyEvents = [];
   let isLoading = true;
@@ -68,7 +69,7 @@
       if (attResult.success) {
         const attendance = attResult.attendance || [];
         const today = new Date();
-        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+        const todayStr = formatDate(today);
         const currentUser = localStorage.getItem("userName") || "가족";
         todayCheckedIn = attendance.some(
           (a) => a.date === todayStr && a.user_name === currentUser,
@@ -84,7 +85,7 @@
         for (let i = 0; i < userDates.length; i++) {
           const check = new Date(today);
           check.setDate(check.getDate() - i);
-          const checkStr = `${check.getFullYear()}-${String(check.getMonth() + 1).padStart(2, "0")}-${String(check.getDate()).padStart(2, "0")}`;
+          const checkStr = formatDate(check);
           if (userDates.includes(checkStr)) streak++;
           else break;
         }
@@ -126,9 +127,9 @@
   <!-- D-Day Banner -->
   {#if dDayEvent}
     {@const [dDayMain, ...dDaySubs] = dDayEvent.title.split("(")}
-    <div
+    <button
       in:fly={{ y: -20, duration: 500 }}
-      class="relative bg-gradient-to-r from-pink-500 to-rose-500 rounded-[2rem] p-6 text-white shadow-lg overflow-hidden flex justify-between items-center group cursor-pointer"
+      class="w-full relative bg-gradient-to-r from-pink-500 to-rose-500 rounded-[2rem] p-6 text-white shadow-lg overflow-hidden flex justify-between items-center group cursor-pointer text-left"
       on:click={() => navigateTo("events")}
     >
       <div class="relative z-10">
@@ -158,7 +159,7 @@
       <div
         class="absolute -left-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-all"
       ></div>
-    </div>
+    </button>
   {/if}
 
   <!-- Attendance Widget -->

@@ -121,6 +121,10 @@
   <div
     class="fixed inset-0 z-30 bg-gray-900/50 backdrop-blur-sm lg:hidden"
     on:click={closeMenu}
+    on:keydown={(e) => e.key === "Escape" && closeMenu()}
+    role="button"
+    tabindex="-1"
+    aria-label="메뉴 닫기"
   ></div>
 {/if}
 

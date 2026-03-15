@@ -39,7 +39,6 @@ const initialSave = getSaveData();
 export const gameStore = writable({
   balls: [],
   pegs: [],
-  particles: [],
   zones: [],
   portals: [],
   movingWalls: [],

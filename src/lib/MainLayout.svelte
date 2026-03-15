@@ -38,8 +38,25 @@
     }
   }
 
+  // 설치 관련 이벤트 핸들러
+  function onBeforeInstallPrompt(e) {
+    e.preventDefault();
+    deferredPrompt.set(e);
+  }
+  function onAppInstalled() {
+    deferredPrompt.set(null);
+  }
+
   onMount(() => {
     checkAuth();
+
+    window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+    window.addEventListener("appinstalled", onAppInstalled);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+      window.removeEventListener("appinstalled", onAppInstalled);
+    };
   });
 
   // 로그인 여부나 경로가 바뀔 때마다 체크
@@ -50,17 +67,6 @@
     $location.pathname.includes("/neon-blast") ||
     $location.pathname.includes("/neon-brick") ||
     $location.pathname.includes("/neon-survivor");
-
-  // 설치 관련 이벤트
-  if (typeof window !== "undefined") {
-    window.addEventListener("beforeinstallprompt", (e) => {
-      e.preventDefault();
-      deferredPrompt.set(e);
-    });
-    window.addEventListener("appinstalled", () => {
-      deferredPrompt.set(null);
-    });
-  }
 </script>
 
 <div
