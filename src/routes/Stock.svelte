@@ -53,6 +53,21 @@
         }
     }
 
+    function handleHalfSplit() {
+        if (calculatedTotal > 0) {
+            const half = Math.floor(calculatedTotal / 2);
+            contributions["엄마"] = half;
+            contributions["범수"] = calculatedTotal - half;
+        }
+    }
+
+    function handleFullAmount(who) {
+        if (calculatedTotal > 0) {
+            contributions = { 엄마: 0, 범수: 0 };
+            contributions[who] = calculatedTotal;
+        }
+    }
+
     async function handleSubmit() {
         if (!newStock.name || !newStock.price || !newStock.quantity)
             return alert("필수 정보를 모두 입력해주세요.");
@@ -179,23 +194,36 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div class="col-span-2">
                         <label
+                            for="stock-date"
+                            class="block text-xs font-bold text-gray-400 mb-1 ml-1"
+                            >매입 일자 (언제 샀나요?)</label
+                        >
+                        <input
+                            id="stock-date"
+                            type="date"
+                            bind:value={newStock.date}
+                            class="w-full p-4 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white rounded-2xl font-bold text-lg outline-none focus:ring-2 focus:ring-emerald-500 [color-scheme:light] dark:[color-scheme:dark]"
+                        />
+                    </div>
+                    <div class="col-span-2">
+                        <label
                             for="stock-name"
                             class="block text-xs font-bold text-gray-400 mb-1 ml-1"
-                            >종목명</label
+                            >종목명 (어떤 주식인가요?)</label
                         >
                         <input
                             id="stock-name"
                             type="text"
                             bind:value={newStock.name}
-                            placeholder="주식명 입력(아래 선택 가능)"
+                            placeholder="주식명 직접 입력 또는 아래에서 선택"
                             class="w-full p-4 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white rounded-2xl font-bold text-lg outline-none focus:ring-2 focus:ring-emerald-500"
                         />
                         <!-- Popular Stocks Chips -->
                         <div class="flex gap-2 mt-2 flex-wrap">
-                            {#each ["삼성전자", "현대차"] as stockName}
+                            {#each ["삼성전자", "현대차", "갤럭시아머니트리", "슈프리마에이치큐"] as stockName}
                                 <button
                                     on:click={() => (newStock.name = stockName)}
-                                    class="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-xs font-bold text-gray-600 dark:text-gray-300 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors"
+                                    class="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-sm font-bold text-gray-600 dark:text-gray-300 rounded-xl hover:bg-emerald-100 dark:hover:bg-emerald-900 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors shadow-sm"
                                 >
                                     {stockName}
                                 </button>
@@ -206,29 +234,39 @@
                         <label
                             for="stock-price"
                             class="block text-xs font-bold text-gray-400 mb-1 ml-1"
-                            >매입 단가 (1주)</label
+                            >1주당 가격</label
                         >
                         <input
                             id="stock-price"
                             type="number"
                             bind:value={newStock.price}
-                            placeholder="금액입력"
+                            placeholder="단가 입력"
                             class="w-full p-4 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white rounded-2xl font-bold text-lg outline-none focus:ring-2 focus:ring-emerald-500"
                         />
+                        {#if newStock.price}
+                            <div class="text-right mt-1 mr-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                                {Number(newStock.price).toLocaleString()}원
+                            </div>
+                        {/if}
                     </div>
                     <div>
                         <label
                             for="stock-quantity"
                             class="block text-xs font-bold text-gray-400 mb-1 ml-1"
-                            >매입 수량 (주)</label
+                            >매입 수량</label
                         >
                         <input
                             id="stock-quantity"
                             type="number"
                             bind:value={newStock.quantity}
-                            placeholder="수량입력"
+                            placeholder="수량 입력"
                             class="w-full p-4 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white rounded-2xl font-bold text-lg outline-none focus:ring-2 focus:ring-emerald-500"
                         />
+                        {#if newStock.quantity}
+                            <div class="text-right mt-1 mr-1 text-xs font-bold text-blue-600 dark:text-blue-400">
+                                총 {Number(newStock.quantity).toLocaleString()}주
+                            </div>
+                        {/if}
                     </div>
                 </div>
 
@@ -273,11 +311,19 @@
                         </span>
                     </div>
 
+                    {#if calculatedTotal > 0}
+                    <div class="flex gap-2 mb-4">
+                        <button on:click={handleHalfSplit} class="flex-1 py-3 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 text-sm font-black rounded-xl active:scale-95 transition-all shadow-sm border border-emerald-200 dark:border-emerald-800">
+                            ⚖️ 5:5 반반 나누기
+                        </button>
+                    </div>
+                    {/if}
+
                     <div class="space-y-3">
                         {#each FAMILY_MEMBERS as mem}
-                            <div class="flex items-center gap-3">
+                            <div class="flex items-center gap-2">
                                 <div
-                                    class="w-12 text-sm font-bold text-gray-600 dark:text-gray-300"
+                                    class="w-10 text-sm font-bold text-gray-600 dark:text-gray-300"
                                 >
                                     {mem}
                                 </div>
@@ -297,11 +343,18 @@
                                         >원</span
                                     >
                                 </div>
-                                <!-- Quick Fill Button -->
+                                <!-- Quick Fill Buttons -->
+                                <button
+                                    on:click={() => handleFullAmount(mem)}
+                                    disabled={calculatedTotal <= 0}
+                                    class="px-3 py-3 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl text-xs font-bold active:scale-95 transition-all disabled:opacity-30 border border-blue-100 dark:border-blue-800/50"
+                                >
+                                    전액
+                                </button>
                                 <button
                                     on:click={() => handleAutoFill(mem)}
                                     disabled={remainToFill <= 0}
-                                    class="px-3 py-3 bg-gray-100 dark:bg-gray-700 rounded-xl text-xs font-bold text-gray-500 disabled:opacity-30 active:scale-95"
+                                    class="px-3 py-3 bg-gray-100 dark:bg-gray-700 rounded-xl text-xs font-bold text-gray-500 dark:text-gray-300 disabled:opacity-30 active:scale-95 border border-gray-200 dark:border-gray-600"
                                 >
                                     나머지
                                 </button>

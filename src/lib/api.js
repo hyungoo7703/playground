@@ -86,6 +86,7 @@ export const api = {
     // Management (Roulette 등)
     getManagement: (section) => fetchFromGAS('getManagement', { section }),
     addManagement: (section, value) => fetchFromGAS('addManagement', { section, value }),
+    deleteManagement: (section, value) => fetchFromGAS('deleteManagement', { section, value }),
 
     // Attendance
     getAttendance: () => fetchFromGAS('getAttendance'),

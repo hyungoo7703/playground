@@ -57,6 +57,8 @@
   let newRuleAmount = "";
   let newRuleGiver = "나";
   let newRuleReceiver = "가족";
+  let newRuleTotalMonths = ""; // 할부 총 개월 수
+  let newRuleStartMonth = new Date().toISOString().slice(0, 7); // 시작 월 (YYYY-MM)
   let isBatchSubmitting = false;
 
   onMount(() => {
@@ -87,16 +89,19 @@
       giver: newRuleGiver,
       receiver: newRuleReceiver,
       type: "이체",
+      total_months: newRuleTotalMonths || null,
+      start_month: newRuleStartMonth || null,
     };
     const res = await api.addRule(payload);
     if (res.success) {
       newRuleTitle = "";
       newRuleAmount = "";
-      const r = await api.getRules();
-      if (r.success) rules = r.rules;
+      newRuleTotalMonths = "";
     } else {
       alert("규칙 추가 실패: " + res.message);
     }
+    const r = await api.getRules();
+    if (r.success) rules = r.rules;
     isRuleSubmitting = false;
   }
 
@@ -123,23 +128,46 @@
     isBatchSubmitting = true;
 
     // Create items for current viewed month
-    const newItems = rules.map((rule) => {
-      // Handle day overflow (e.g. Feb 30 -> Feb 28/29) or just rely on Date auto-correction
-      // Construct date string YYYY-MM-DD
+    const newItems = [];
+    rules.forEach((rule) => {
+      let finalTitle = rule.title;
+
+      // Installment / Duration logic
+      if (rule.start_month) {
+        const [startYear, startMonth] = rule.start_month.split("-").map(Number);
+        const monthsPassed = (displayYear - startYear) * 12 + (displayMonth - startMonth);
+        const currentInstallment = monthsPassed + 1;
+
+        if (currentInstallment < 1) return; // Not started yet
+
+        if (rule.total_months) {
+          const total = parseInt(rule.total_months);
+          if (currentInstallment > total) return; // Ended
+          finalTitle = `[${currentInstallment}/${total}회차] ${rule.title}`;
+        } else {
+          finalTitle = `[${currentInstallment}회차] ${rule.title}`;
+        }
+      }
+
       const y = displayYear;
       const m = String(displayMonth).padStart(2, "0");
       const d = String(rule.day || 1).padStart(2, "0");
-      return {
+      newItems.push({
         date: `${y}-${m}-${d}`,
         day: parseInt(rule.day || 1),
         type: rule.type || "이체",
-        title: rule.title,
+        title: finalTitle,
         amount: rule.amount,
         giver: rule.giver,
         receiver: rule.receiver,
         is_settled: false,
-      };
+      });
     });
+
+    if (newItems.length === 0) {
+      isBatchSubmitting = false;
+      return alert("이번 달에 추가할 유효한 내역이 없습니다.");
+    }
 
     const res = await api.batchAddLedger(newItems);
     if (res.success) {
@@ -751,13 +779,18 @@
                 <div>
                   <div class="flex items-center gap-2">
                     <span
-                      class="text-[10px] bg-gray-200 dark:bg-gray-600 px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-300"
+                      class="text-[10px] bg-gray-200 dark:bg-gray-600 px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-300 whitespace-nowrap"
                       >매월 {rule.day}일</span
                     >
                     <h4 class="font-bold text-gray-900 dark:text-white text-sm">
                       {rule.title}
                     </h4>
                   </div>
+                  {#if rule.start_month}
+                    <p class="text-[10px] font-bold text-pink-500 mt-1">
+                      ⏳ 할부: {rule.start_month}부터 {#if rule.total_months}{rule.total_months}개월{:else}계속{/if}
+                    </p>
+                  {/if}
                   <p class="text-xs text-indigo-500 mt-0.5">
                     {formatAmount(rule.amount)} ({rule.giver} → {rule.receiver})
                   </p>
@@ -798,21 +831,45 @@
                 class="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-3 rounded-xl text-sm font-bold outline-none text-center"
               />
             </div>
-            <input
-              type="text"
-              bind:value={newRuleTitle}
-              placeholder="내용 (예: 월세)"
-              class="flex-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-4 py-3 rounded-xl text-sm font-bold outline-none"
-            />
+            <div class="flex-1">
+              <input
+                type="text"
+                bind:value={newRuleTitle}
+                placeholder="내역 이름"
+                class="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-4 py-3 rounded-xl text-sm font-bold outline-none"
+              />
+            </div>
           </div>
-          <div class="flex gap-2">
+          <div class="flex gap-2 items-center">
             <input
               type="text"
               bind:value={newRuleAmount}
               placeholder="금액"
               class="flex-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-4 py-3 rounded-xl text-sm font-bold outline-none"
             />
+            <span class="text-xs text-gray-400 font-bold">원</span>
           </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[10px] font-bold text-gray-400 mb-1 ml-1">할부 시작 월 (YYYY-MM)</label>
+              <input
+                type="month"
+                bind:value={newRuleStartMonth}
+                class="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-4 py-2.5 rounded-xl text-xs font-bold outline-none"
+              />
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-gray-400 mb-1 ml-1">총 개월 수 (빈칸=무한)</label>
+              <input
+                type="number"
+                bind:value={newRuleTotalMonths}
+                placeholder="무한"
+                class="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-4 py-2.5 rounded-xl text-xs font-bold outline-none"
+              />
+            </div>
+          </div>
+
           <div class="grid grid-cols-[1fr_auto_1fr] gap-2 items-center">
             <select
               bind:value={newRuleGiver}

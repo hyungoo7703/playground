@@ -55,6 +55,21 @@
     }
   }
 
+  // --- 관리자 메뉴 삭제 (Delete) ---
+  async function deleteMenuItem(value) {
+    if (!confirm(`'${value}' 메뉴를 정말 삭제하시겠습니까?`)) return;
+    try {
+      const data = await api.deleteManagement("roulette", value);
+      if (data.success) {
+        if (spinMode === "menu") await fetchMenu();
+      } else {
+        alert("삭제 실패: " + data.message);
+      }
+    } catch (e) {
+      alert("삭제 중 오류가 발생했습니다.");
+    }
+  }
+
   function switchMode(mode) {
     spinMode = mode;
     spinResult = mode === "menu" ? "오늘 뭐 먹지?" : "누가 낼까?";
@@ -260,9 +275,18 @@
         <div class="flex flex-wrap justify-center gap-2">
           {#each foodList as food}
             <span
-              class="px-3 py-1.5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl text-[11px] font-bold border border-slate-200/50 dark:border-slate-700"
+              class="flex items-center gap-1 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl text-[11px] font-bold border border-slate-200/50 dark:border-slate-700"
             >
               {food}
+              {#if $isAdmin}
+                <button
+                  on:click={() => deleteMenuItem(food)}
+                  class="ml-1 text-slate-400 hover:text-red-500 transition-colors"
+                  title="삭제하기"
+                >
+                  ✕
+                </button>
+              {/if}
             </span>
           {/each}
         </div>
