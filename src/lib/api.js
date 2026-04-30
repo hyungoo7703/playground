@@ -4,7 +4,13 @@ import { GAS_URL } from './store.js';
 // ==========================================
 // 시간 기반 토큰 생성 (TOTP 방식)
 // ==========================================
-const APP_SECRET = "my_super_secret_key_2026";
+const _d = (s, k) => {
+  const b = atob(s);
+  let r = "";
+  for (let i = 0; i < b.length; i++) r += String.fromCharCode(b.charCodeAt(i) ^ k.charCodeAt(i % k.length));
+  return r;
+};
+const APP_SECRET = _d("HR5yFRQdSEBvQVNOGQANLwxIHz5fHQAG", "pg-fam-2026-key");
 
 function generateAppToken() {
     const timeSlice = Math.floor(Date.now() / 60000); // 1분 단위

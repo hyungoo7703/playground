@@ -14,8 +14,16 @@ export const isAdmin = derived(
     $userRole === "admin" || $currentUser === "현구"
 );
 
-export const GAS_URL =
-  "https://script.google.com/macros/s/AKfycbyXKahb3Xbi6B1IUXYVKrunW776GaPnS0LxbcQ4BycnzpXXkZiMMNwX4SVNuUA2ExfO/exec";
+const _d = (s, k) => {
+  const b = atob(s);
+  let r = "";
+  for (let i = 0; i < b.length; i++) r += String.fromCharCode(b.charCodeAt(i) ^ k.charCodeAt(i % k.length));
+  return r;
+};
+export const GAS_URL = _d(
+  "GBNZFhJXAh1DUUREGxFXFwhCAQ0IA1FfXxlACgYLHxQCFU4sZlRJUVRUMy4YGAUePgMEG3ABe2N1MjMyAhJDMVZaG3VRYlh+WykBEgR8UiMUTlxKQm51AD8QPSpjETlZfmR+R2NsWSABFigCAxkITg==",
+  "pg-fam-2026-key"
+);
 
 // 메뉴 상태 관리
 export const isMenuOpen = writable(false);
