@@ -5,6 +5,7 @@
     import { navigate } from "svelte-routing";
     import { currentUser, isAdmin, base } from "../lib/store.js";
     import { api } from "../lib/api.js";
+    import { readCache, writeCache } from "../lib/cache.js";
 
     // --- 상태 관리 ---
     let amounts = []; // 구글 시트에서 가져온 금액 리스트
@@ -33,18 +34,34 @@
 
     /** 금액 리스트 가져오기 */
     async function fetchAmounts() {
-        isLoading = true;
+        // 캐시 먼저 그리고, 뒤에서 갱신 (SWR)
+        const cached = readCache("cardpick_amounts");
+        if (cached) {
+            amounts = cached;
+            initializeCards();
+            isLoading = false;
+        } else {
+            isLoading = true;
+        }
+
         try {
             const data = await api.getManagement("cardpick");
             if (data.success) {
-                amounts = data.data.map((item) => item.value);
-                initializeCards();
+                const fresh = data.data.map((item) => item.value);
+                writeCache("cardpick_amounts", fresh);
+                // 값이 바뀐 경우에만 재배치 (진행 중인 판 리셋 방지)
+                if (JSON.stringify(fresh) !== JSON.stringify(amounts)) {
+                    amounts = fresh;
+                    initializeCards();
+                }
             }
         } catch (e) {
             console.error("데이터 로드 실패:", e);
-            // 기본값
-            amounts = ["5,000원", "10,000원", "15,000원", "20,000원"];
-            initializeCards();
+            // 기본값 (캐시로 이미 깔린 판은 유지)
+            if (amounts.length === 0) {
+                amounts = ["5,000원", "10,000원", "15,000원", "20,000원"];
+                initializeCards();
+            }
         } finally {
             isLoading = false;
         }

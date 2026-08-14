@@ -3,6 +3,7 @@
   import { fade, slide } from "svelte/transition";
   import { api } from "../lib/api.js";
   import { formatDate } from "../lib/utils.js";
+  import { readCache, writeCache } from "../lib/cache.js";
   import { navigate } from "svelte-routing";
   import { base, currentUser, isAdmin } from "../lib/store.js";
 
@@ -27,13 +28,22 @@
   const TYPES = ["이체", "지출", "수입"];
 
   async function loadLedger() {
-    isLoading = true;
+    // 캐시 먼저 그리고, 뒤에서 갱신 (SWR)
+    const cached = readCache("ledger");
+    if (cached) {
+      ledgerItems = cached.sort((a, b) => new Date(a.date) - new Date(b.date));
+      isLoading = false;
+    } else {
+      isLoading = true;
+    }
+
     const res = await api.getLedger();
     if (res.success) {
       ledgerItems = res.ledger.sort(
         (a, b) => new Date(a.date) - new Date(b.date),
       );
-    } else {
+      writeCache("ledger", ledgerItems);
+    } else if (!cached) {
       alert("장부 불러오기 실패: " + (res.message || "알 수 없는 오류"));
     }
     isLoading = false;

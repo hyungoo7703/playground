@@ -5,6 +5,7 @@
   import { base } from "../lib/store.js";
   import { api } from "../lib/api.js";
   import { formatDate } from "../lib/utils.js";
+  import { readCache, writeCache } from "../lib/cache.js";
 
   let monthlyEvents = [];
   let isLoading = true;
@@ -47,63 +48,90 @@
       }
     }
 
+    // 2. 캐시 먼저 렌더 (SWR)
+    const cachedEvents = readCache("events");
+    if (cachedEvents) {
+      applyEvents(cachedEvents);
+      isLoading = false;
+    }
+    const cachedAttendance = readCache("attendance");
+    if (cachedAttendance) {
+      applyAttendance(cachedAttendance);
+      attendanceLoaded = true;
+    }
+
+    // 3. 일정+출석+장부를 한 번의 왕복으로 갱신
     try {
-      const result = await api.getEvents();
-
-      if (result.success) {
-        const today = new Date();
-        const currentYear = today.getFullYear();
-        const currentMonth = today.getMonth();
-
-        monthlyEvents = result.events
-          .filter((event) => {
-            const eventDate = new Date(event.date);
-            return (
-              eventDate.getFullYear() === currentYear &&
-              eventDate.getMonth() === currentMonth
-            );
-          })
-          .sort((a, b) => a.date.localeCompare(b.date)); // Use string sort for consistency
+      const res = await api.bootstrap();
+      if (res.success) {
+        writeCache("events", res.events || []);
+        writeCache("attendance", res.attendance || []);
+        writeCache("ledger", res.ledger || []);
+        applyEvents(res.events || []);
+        applyAttendance(res.attendance || []);
+      } else {
+        // GAS에 bootstrap 액션이 아직 없으면 개별 호출로 폴백
+        const [evRes, attRes] = await Promise.all([
+          api.getEvents(),
+          api.getAttendance(),
+        ]);
+        if (evRes.success) {
+          writeCache("events", evRes.events || []);
+          applyEvents(evRes.events || []);
+        }
+        if (attRes.success) {
+          writeCache("attendance", attRes.attendance || []);
+          applyAttendance(attRes.attendance || []);
+        }
       }
     } catch (e) {
       console.error("데이터 로드 실패:", e);
     } finally {
       isLoading = false;
+      attendanceLoaded = true;
     }
-
-    // Attendance check
-    try {
-      const attResult = await api.getAttendance();
-      if (attResult.success) {
-        const attendance = attResult.attendance || [];
-        const today = new Date();
-        const todayStr = formatDate(today);
-        const currentUser = localStorage.getItem("userName") || "가족";
-        todayCheckedIn = attendance.some(
-          (a) => a.date === todayStr && a.user_name === currentUser,
-        );
-
-        // Streak calc
-        const userDates = attendance
-          .filter((a) => a.user_name === currentUser)
-          .map((a) => a.date)
-          .sort()
-          .reverse();
-        let streak = 0;
-        for (let i = 0; i < userDates.length; i++) {
-          const check = new Date(today);
-          check.setDate(check.getDate() - i);
-          const checkStr = formatDate(check);
-          if (userDates.includes(checkStr)) streak++;
-          else break;
-        }
-        attendanceStreak = streak;
-      }
-    } catch (e) {
-      /* silent */
-    }
-    attendanceLoaded = true;
   });
+
+  function applyEvents(events) {
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth();
+
+    monthlyEvents = events
+      .filter((event) => {
+        const eventDate = new Date(event.date);
+        return (
+          eventDate.getFullYear() === currentYear &&
+          eventDate.getMonth() === currentMonth
+        );
+      })
+      .sort((a, b) => a.date.localeCompare(b.date)); // Use string sort for consistency
+  }
+
+  function applyAttendance(attendance) {
+    const today = new Date();
+    const todayStr = formatDate(today);
+    const currentUser = localStorage.getItem("userName") || "가족";
+    todayCheckedIn = attendance.some(
+      (a) => a.date === todayStr && a.user_name === currentUser,
+    );
+
+    // Streak calc
+    const userDates = attendance
+      .filter((a) => a.user_name === currentUser)
+      .map((a) => a.date)
+      .sort()
+      .reverse();
+    let streak = 0;
+    for (let i = 0; i < userDates.length; i++) {
+      const check = new Date(today);
+      check.setDate(check.getDate() - i);
+      const checkStr = formatDate(check);
+      if (userDates.includes(checkStr)) streak++;
+      else break;
+    }
+    attendanceStreak = streak;
+  }
 
   function navigateTo(page) {
     navigate(`${base}/${page}`);

@@ -3,6 +3,8 @@
   import { fade, slide, fly } from "svelte/transition";
   import { api } from "../lib/api.js";
   import { formatDate } from "../lib/utils.js";
+  import { readCache, writeCache } from "../lib/cache.js";
+  import Spinner from "../lib/components/Spinner.svelte";
   import { currentUser, isAdmin } from "../lib/store.js";
 
   let posts = [];
@@ -57,11 +59,20 @@
   // --- Actions ---
 
   async function loadPosts() {
-    isLoading = true;
+    // 캐시 먼저 그리고, 뒤에서 갱신 (SWR)
+    const cached = readCache("posts");
+    if (cached) {
+      posts = cached;
+      isLoading = false;
+    } else {
+      isLoading = true;
+    }
+
     const res = await api.getPosts();
     if (res.success) {
       posts = res.posts; // Backend already reverses them? Or we sort here.
-    } else {
+      writeCache("posts", posts);
+    } else if (!cached) {
       alert("게시글 불러오기 실패");
     }
     isLoading = false;
@@ -223,13 +234,8 @@
   <!-- Post List -->
   <main class="p-4 space-y-4">
     {#if isLoading}
-      <div class="flex flex-col items-center justify-center py-20 space-y-4">
-        <div
-          class="animate-spin rounded-full h-10 w-10 border-4 border-indigo-200 border-t-indigo-600"
-        ></div>
-        <p class="text-gray-500 font-bold animate-pulse">
-          게시글을 불러오고 있습니다...
-        </p>
+      <div class="flex flex-col items-center justify-center py-10">
+        <Spinner label="게시글을 불러오는 중..." />
       </div>
     {:else if posts.length === 0}
       <div

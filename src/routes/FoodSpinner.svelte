@@ -3,6 +3,7 @@
   import { fade, scale, slide } from "svelte/transition";
   import { currentUser, isAdmin } from "../lib/store.js";
   import { api } from "../lib/api.js";
+  import { readCache, writeCache } from "../lib/cache.js";
 
   // --- 상태 관리 변수 ---
   let foodList = []; // 구글 시트에서 가져온 메뉴 리스트
@@ -25,11 +26,20 @@
 
   /** * 1. 메뉴 리스트 가져오기 (Read) */
   async function fetchMenu() {
-    isLoading = true;
+    // 캐시 먼저 그리고, 뒤에서 갱신 (SWR)
+    const cached = readCache("roulette_menu");
+    if (cached) {
+      foodList = cached;
+      isLoading = false;
+    } else {
+      isLoading = true;
+    }
+
     try {
       const data = await api.getManagement("roulette");
       if (data.success) {
         foodList = data.data.map((item) => item.value);
+        writeCache("roulette_menu", foodList);
       }
     } catch (e) {
       console.error("데이터 로드 실패:", e);

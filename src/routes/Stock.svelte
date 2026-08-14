@@ -3,6 +3,8 @@
     import { fade, slide } from "svelte/transition";
     import { api } from "../lib/api.js";
     import { formatDate } from "../lib/utils.js";
+    import { readCache, writeCache } from "../lib/cache.js";
+    import Spinner from "../lib/components/Spinner.svelte";
     import { navigate } from "svelte-routing";
     import { currentUser, isAdmin } from "../lib/store.js";
 
@@ -37,11 +39,20 @@
     $: remainToFill = calculatedTotal - totalContributed;
 
     async function loadStocks() {
-        isLoading = true;
+        // 캐시 먼저 그리고, 뒤에서 갱신 (SWR)
+        const cached = readCache("stocks");
+        if (cached) {
+            stocks = cached;
+            isLoading = false;
+        } else {
+            isLoading = true;
+        }
+
         const res = await api.getStocks();
         if (res.success) {
             stocks = res.stocks;
-        } else {
+            writeCache("stocks", stocks);
+        } else if (!cached) {
             alert("데이터 불러오기 실패");
         }
         isLoading = false;
@@ -403,11 +414,7 @@
             <!-- List View -->
             <div class="space-y-4">
                 {#if isLoading}
-                    <div
-                        class="text-center py-10 text-gray-400 font-bold animate-pulse"
-                    >
-                        데이터 로딩 중...
-                    </div>
+                    <Spinner label="주식 데이터를 가져오는 중..." />
                 {:else if stocks.length === 0}
                     <div
                         class="text-center py-20 bg-white dark:bg-gray-800 rounded-[2rem] text-gray-400"

@@ -42,6 +42,9 @@ export const api = {
     // Auth
     login: (password) => fetchFromGAS('login', { password }),
 
+    // 자주 쓰는 데이터(일정+출석+장부)를 한 번의 왕복으로
+    bootstrap: () => fetchFromGAS('bootstrap'),
+
     // Ledger
     getLedger: () => fetchFromGAS('getLedger'),
     addLedger: (data) => fetchFromGAS('addLedger', data),

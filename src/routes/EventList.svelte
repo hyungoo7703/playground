@@ -3,6 +3,8 @@
   import { fade, fly } from "svelte/transition";
   import { api } from "../lib/api.js";
   import { formatDate } from "../lib/utils.js";
+  import { readCache, writeCache } from "../lib/cache.js";
+  import Spinner from "../lib/components/Spinner.svelte";
 
   let events = [];
   let isLoading = true;
@@ -20,11 +22,20 @@
   let showDDayModal = false;
 
   async function fetchEvents() {
-    isLoading = true;
+    // 캐시 먼저 그리고, 뒤에서 갱신 (SWR)
+    const cached = readCache("events");
+    if (cached) {
+      events = cached;
+      isLoading = false;
+    } else {
+      isLoading = true;
+    }
+
     const res = await api.getEvents();
     if (res.success) {
       // 날짜순 정렬 (오름차순: 과거 -> 미래)
       events = res.events.sort((a, b) => a.date.localeCompare(b.date));
+      writeCache("events", events);
     }
     isLoading = false;
   }
@@ -167,9 +178,7 @@
 
   <div class="space-y-3">
     {#if isLoading}
-      <div class="text-center py-10 text-gray-400 animate-pulse">
-        데이터를 가져오는 중...
-      </div>
+      <Spinner label="일정을 가져오는 중..." />
     {:else}
       {#each events as event (event.id)}
         {@const [mainTitle, ...subTitles] = event.title.split("(")}

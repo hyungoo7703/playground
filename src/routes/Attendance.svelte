@@ -5,6 +5,7 @@
     import { base, currentUser } from "../lib/store.js";
     import { api } from "../lib/api.js";
     import { formatDate } from "../lib/utils.js";
+    import { readCache, writeCache } from "../lib/cache.js";
 
     let attendance = [];
     let ledgerItems = [];
@@ -424,6 +425,19 @@
     }
 
     onMount(async () => {
+        // 캐시 먼저 그리고, 뒤에서 갱신 (SWR)
+        const cachedAtt = readCache("attendance");
+        const cachedLedger = readCache("ledger");
+        if (cachedAtt) {
+            attendance = cachedAtt;
+            const today = formatDate(new Date());
+            todayChecked = attendance.some(
+                (a) => a.date === today && a.user_name === $currentUser,
+            );
+        }
+        if (cachedLedger) ledgerItems = cachedLedger;
+        if (cachedAtt && cachedLedger) isLoading = false;
+
         try {
             const [attResult, ledgerResult] = await Promise.all([
                 api.getAttendance(),
@@ -432,6 +446,7 @@
 
             if (attResult.success) {
                 attendance = attResult.attendance || [];
+                writeCache("attendance", attendance);
                 const today = formatDate(new Date());
                 todayChecked = attendance.some(
                     (a) => a.date === today && a.user_name === $currentUser,
@@ -440,6 +455,7 @@
 
             if (ledgerResult.success) {
                 ledgerItems = ledgerResult.ledger || [];
+                writeCache("ledger", ledgerItems);
             }
         } catch (e) {
             console.error("출석 데이터 로드 실패:", e);
