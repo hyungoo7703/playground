@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { fade, slide } from "svelte/transition";
   import { api } from "../lib/api.js";
+  import { formatDate } from "../lib/utils.js";
   import { navigate } from "svelte-routing";
   import { base, currentUser, isAdmin } from "../lib/store.js";
 
@@ -13,7 +14,7 @@
   // Form State
   let formData = {
     id: null,
-    date: new Date().toISOString().split("T")[0],
+    date: formatDate(new Date()),
     type: "이체", // 이체 위주
     title: "",
     amount: "",
@@ -52,7 +53,7 @@
   let newRuleGiver = "나";
   let newRuleReceiver = "가족";
   let newRuleTotalMonths = ""; // 할부 총 개월 수
-  let newRuleStartMonth = new Date().toISOString().slice(0, 7); // 시작 월 (YYYY-MM)
+  let newRuleStartMonth = formatDate(new Date()).slice(0, 7); // 시작 월 (YYYY-MM)
   let isBatchSubmitting = false;
 
   onMount(() => {
@@ -73,13 +74,14 @@
   }
 
   async function handleAddRule() {
-    if (!newRuleTitle || !newRuleAmount)
+    const ruleAmount = cleanAmount(newRuleAmount);
+    if (!newRuleTitle || !ruleAmount)
       return alert("내용과 금액을 입력해주세요.");
     isRuleSubmitting = true;
     const payload = {
       day: newRuleDay,
       title: newRuleTitle,
-      amount: newRuleAmount,
+      amount: ruleAmount,
       giver: newRuleGiver,
       receiver: newRuleReceiver,
       type: "이체",
@@ -145,13 +147,24 @@
 
       const y = displayYear;
       const m = String(displayMonth).padStart(2, "0");
-      const d = String(rule.day || 1).padStart(2, "0");
+      // Clamp to the month's last day so a day-31 rule doesn't roll over into next month
+      const lastDay = new Date(displayYear, displayMonth, 0).getDate();
+      const dayNum = Math.min(parseInt(rule.day || 1), lastDay);
+      const d = String(dayNum).padStart(2, "0");
+
+      // Skip rules already applied to this month (prevents duplicates on re-click)
+      const alreadyExists = ledgerItems.some(
+        (item) =>
+          item.title === finalTitle && String(item.date).startsWith(`${y}-${m}`),
+      );
+      if (alreadyExists) return;
+
       newItems.push({
         date: `${y}-${m}-${d}`,
-        day: parseInt(rule.day || 1),
+        day: dayNum,
         type: rule.type || "이체",
         title: finalTitle,
-        amount: rule.amount,
+        amount: cleanAmount(rule.amount),
         giver: rule.giver,
         receiver: rule.receiver,
         is_settled: false,
@@ -160,7 +173,9 @@
 
     if (newItems.length === 0) {
       isBatchSubmitting = false;
-      return alert("이번 달에 추가할 유효한 내역이 없습니다.");
+      return alert(
+        "이번 달에 추가할 내역이 없습니다. (이미 추가된 규칙은 건너뜁니다)",
+      );
     }
 
     const res = await api.batchAddLedger(newItems);
@@ -177,7 +192,7 @@
   function openAddForm() {
     formData = {
       id: null,
-      date: new Date().toISOString().split("T")[0],
+      date: formatDate(new Date()),
       type: "이체",
       title: "",
       amount: "",
@@ -193,15 +208,18 @@
     showForm = true;
   }
 
+  // Strip commas/units so "10,000" doesn't get parsed as 10 downstream
+  const cleanAmount = (v) => parseFloat(String(v).replace(/[^\d.-]/g, "")) || 0;
+
   async function handleSubmit() {
-    if (!formData.title || !formData.amount)
+    const amount = cleanAmount(formData.amount);
+    if (!formData.title || !amount)
       return alert("내용과 금액을 입력해주세요.");
 
     isSubmitting = true;
     let res;
 
-    // Amount can be string now
-    const payload = { ...formData };
+    const payload = { ...formData, amount };
 
     // Add day field for backend consistency
     if (payload.date) {
