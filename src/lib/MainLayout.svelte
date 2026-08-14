@@ -15,7 +15,6 @@
   import EnglishListening from "../routes/EnglishListening.svelte";
 
   // Games
-  import Game from "../routes/Game.svelte";
   import FruitPang from "../routes/FruitPang.svelte";
   import NeonBlast from "../routes/NeonBlast.svelte";
   import NeonBrick from "../routes/NeonBrick.svelte";
@@ -95,7 +94,6 @@
       <Route path="english-listening" component={EnglishListening} />
 
       <!-- Games -->
-      <Route path="game" component={Game} />
       <Route path="fruit-pang" component={FruitPang} />
       <Route path="neon-blast" component={NeonBlast} />
       <Route path="neon-brick" component={NeonBrick} />

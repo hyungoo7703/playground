@@ -10,6 +10,16 @@
   let monthlyEvents = [];
   let isLoading = true;
   const userName = localStorage.getItem("userName") || "가족";
+  const todayLabel = new Date().toLocaleDateString("ko-KR", {
+    month: "long",
+    day: "numeric",
+    weekday: "long",
+  });
+
+  // Ledger summary (bottom card)
+  let monthCount = 0;
+  let monthUnsettled = 0;
+  let ledgerLoaded = false;
 
   let dDayEvent = null;
   let dDayDiff = null;
@@ -59,6 +69,8 @@
       applyAttendance(cachedAttendance);
       attendanceLoaded = true;
     }
+    const cachedLedger = readCache("ledger");
+    if (cachedLedger) applyLedger(cachedLedger);
 
     // 3. 일정+출석+장부를 한 번의 왕복으로 갱신
     try {
@@ -69,6 +81,7 @@
         writeCache("ledger", res.ledger || []);
         applyEvents(res.events || []);
         applyAttendance(res.attendance || []);
+        applyLedger(res.ledger || []);
       } else {
         // GAS에 bootstrap 액션이 아직 없으면 개별 호출로 폴백
         const [evRes, attRes] = await Promise.all([
@@ -106,6 +119,16 @@
         );
       })
       .sort((a, b) => a.date.localeCompare(b.date)); // Use string sort for consistency
+  }
+
+  function applyLedger(ledger) {
+    const ym = formatDate(new Date()).slice(0, 7);
+    const monthItems = ledger.filter((i) => String(i.date).startsWith(ym));
+    monthCount = monthItems.length;
+    monthUnsettled = monthItems.filter(
+      (i) => !i.is_settled || i.is_settled === "FALSE",
+    ).length;
+    ledgerLoaded = true;
   }
 
   function applyAttendance(attendance) {
@@ -148,8 +171,8 @@
     class="relative overflow-hidden rounded-[2.5rem] bg-gray-900 p-8 text-white shadow-2xl"
   >
     <div class="relative z-10">
-      <span class="text-indigo-400 font-bold text-sm tracking-widest uppercase"
-        >Welcome back</span
+      <span class="text-indigo-400 font-bold text-sm tracking-widest"
+        >{todayLabel}</span
       >
       <h1 class="text-3xl font-black mt-1 leading-tight">
         {userName}님,<br />오늘도 반갑습니다!
@@ -195,6 +218,13 @@
       <div
         class="absolute -left-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-all"
       ></div>
+    </button>
+  {:else}
+    <button
+      on:click={() => navigateTo("events")}
+      class="w-full p-4 rounded-[2rem] border-2 border-dashed border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 text-sm font-bold active:scale-[0.98] transition-all"
+    >
+      🎉 기다려지는 날이 있나요? 일정에서 D-Day를 설정해보세요
     </button>
   {/if}
 
@@ -254,61 +284,6 @@
       <div
         class="absolute -right-4 -bottom-4 w-20 h-20 bg-white/10 rounded-full blur-xl"
       ></div>
-    </button>
-  </section>
-
-  <section class="grid grid-cols-4 gap-2">
-    <button
-      on:click={() => navigateTo("bulletin-board")}
-      class="flex flex-col items-center p-3 bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-green-100 dark:border-green-900 active:scale-95 transition-all"
-    >
-      <div
-        class="w-9 h-9 bg-green-50 rounded-2xl flex items-center justify-center text-lg mb-2"
-      >
-        💬
-      </div>
-      <span class="text-[10px] font-bold text-green-600 dark:text-green-400"
-        >게시판</span
-      >
-    </button>
-    <button
-      on:click={() => navigateTo("ledger")}
-      class="flex flex-col items-center p-3 bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-yellow-100 dark:border-yellow-900 active:scale-95 transition-all"
-    >
-      <div
-        class="w-9 h-9 bg-yellow-50 rounded-2xl flex items-center justify-center text-lg mb-2"
-      >
-        💰
-      </div>
-      <span class="text-[10px] font-bold text-yellow-600 dark:text-yellow-400"
-        >장부</span
-      >
-    </button>
-    <button
-      on:click={() => navigateTo("stock")}
-      class="flex flex-col items-center p-3 bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-emerald-100 dark:border-emerald-900 active:scale-95 transition-all"
-    >
-      <div
-        class="w-9 h-9 bg-emerald-50 rounded-2xl flex items-center justify-center text-lg mb-2"
-      >
-        📈
-      </div>
-      <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400"
-        >주식</span
-      >
-    </button>
-    <button
-      on:click={() => navigateTo("game")}
-      class="flex flex-col items-center p-3 bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-indigo-100 dark:border-indigo-900 active:scale-95 transition-all"
-    >
-      <div
-        class="w-9 h-9 bg-indigo-50 rounded-2xl flex items-center justify-center text-lg mb-2"
-      >
-        🎮
-      </div>
-      <span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400"
-        >게임</span
-      >
     </button>
   </section>
 
@@ -381,5 +356,37 @@
         </div>
       {/if}
     </div>
+  </section>
+
+  <!-- 이번 달 장부 요약: 하단 탭 바로 위에서 장부로 연결 -->
+  <section in:fly={{ y: 20, delay: 500 }}>
+    <button
+      on:click={() => navigateTo("ledger")}
+      class="w-full flex items-center justify-between p-5 bg-white dark:bg-gray-800 rounded-[2rem] shadow-sm border border-gray-50 dark:border-gray-700 active:scale-[0.98] transition-all"
+    >
+      <div class="text-left">
+        <h3
+          class="font-black text-gray-900 dark:text-white flex items-center gap-2"
+        >
+          <span class="w-1.5 h-5 bg-yellow-400 rounded-full"></span>
+          이번 달 장부
+        </h3>
+        {#if ledgerLoaded}
+          <p class="text-xs text-gray-400 mt-1">
+            총 {monthCount}건{monthUnsettled > 0
+              ? ` · 미정산 ${monthUnsettled}건`
+              : " · 모두 정산 완료 ✨"}
+          </p>
+        {:else}
+          <p class="text-xs text-gray-400 mt-1 animate-pulse">확인 중...</p>
+        {/if}
+      </div>
+      <span class="text-2xl">💰</span>
+    </button>
+    <p
+      class="text-center text-[11px] text-gray-400 dark:text-gray-500 font-bold mt-3"
+    >
+      장부 · 일정 · 게시판은 아래 탭에서 언제든지 👇
+    </p>
   </section>
 </div>

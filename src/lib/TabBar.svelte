@@ -4,12 +4,12 @@
 
   const location = useLocation();
 
-  // 사용 빈도순: 장부 > 출석 > 일정
+  // 출석체크는 홈 카드에서 진입 (탭 아님)
   const tabs = [
     { path: "/", label: "홈", emoji: "🏠" },
     { path: "/ledger", label: "장부", emoji: "💰" },
-    { path: "/attendance", label: "출석", emoji: "✅" },
     { path: "/events", label: "일정", emoji: "📅" },
+    { path: "/bulletin-board", label: "게시판", emoji: "📝" },
     { path: "/menu", label: "전체", emoji: "🧩" },
   ];
 

@@ -8,6 +8,7 @@
     {
       title: "가족",
       items: [
+        { path: "/attendance", label: "출석체크", emoji: "✅" },
         { path: "/bulletin-board", label: "가족 게시판", emoji: "📝" },
         { path: "/food-spinner", label: "오늘 뭐 먹지?", emoji: "🍽️" },
         { path: "/card-pick", label: "용돈 카드뽑기", emoji: "🎁", adminOnly: true },
