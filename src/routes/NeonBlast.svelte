@@ -223,22 +223,33 @@
     shootBall((e.clientX - rect.left) * scaleX);
   }
 
+  const onPegHit = () => playSfx("glass-clink");
+  const onPortalWarp = () => playSfx("warp");
+  const onPowerUp = () => playSfx("power-up");
+  const onZoneStart = () => {
+    if (!isMuted && zapAudio) zapAudio.play();
+  };
+  const onZoneStop = () => {
+    if (zapAudio) {
+      zapAudio.pause();
+      zapAudio.currentTime = 0;
+    }
+  };
+
   onMount(() => {
-    window.addEventListener("pegHit", () => playSfx("glass-clink"));
-    window.addEventListener("portalWarp", () => playSfx("warp"));
-    window.addEventListener("powerUp", () => playSfx("power-up"));
-    window.addEventListener("zoneStart", () => {
-      if (!isMuted && zapAudio) zapAudio.play();
-    });
-    window.addEventListener("zoneStop", () => {
-      if (zapAudio) {
-        zapAudio.pause();
-        zapAudio.currentTime = 0;
-      }
-    });
+    window.addEventListener("pegHit", onPegHit);
+    window.addEventListener("portalWarp", onPortalWarp);
+    window.addEventListener("powerUp", onPowerUp);
+    window.addEventListener("zoneStart", onZoneStart);
+    window.addEventListener("zoneStop", onZoneStop);
   });
 
   onDestroy(() => {
+    window.removeEventListener("pegHit", onPegHit);
+    window.removeEventListener("portalWarp", onPortalWarp);
+    window.removeEventListener("powerUp", onPowerUp);
+    window.removeEventListener("zoneStart", onZoneStart);
+    window.removeEventListener("zoneStop", onZoneStop);
     stopPersistentSounds();
     cancelAnimationFrame(frame);
     if (bgmAudio) bgmAudio.pause();

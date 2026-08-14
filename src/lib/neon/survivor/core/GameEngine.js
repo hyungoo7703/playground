@@ -106,6 +106,14 @@ export class GameEngine {
             cancelAnimationFrame(this.animationId);
             this.animationId = null;
         }
+        // Cancel pending boss attack timers so they don't fire after leave/restart
+        if (this.bossTimers) {
+            this.bossTimers.forEach((id) => {
+                clearTimeout(id);
+                clearInterval(id);
+            });
+            this.bossTimers = [];
+        }
         this.assetManager.stopBGM();
         this.inputManager.setJoystick(0, 0); // Reset input
     }
@@ -279,6 +287,7 @@ export class GameEngine {
     }
 
     processBossAttack(boss) {
+        if (!this.bossTimers) this.bossTimers = [];
         if (!boss.attackTimer) boss.attackTimer = 2000;
         boss.attackTimer -= 16;
 
@@ -291,7 +300,7 @@ export class GameEngine {
                 boss.attackTimer = 4000;
                 this.particles.push({ x: boss.x, y: boss.y, vx: 0, vy: 0, life: 1000, color: "red" });
                 this.assetManager.playSound("warning", 0.5);
-                setTimeout(() => {
+                this.bossTimers.push(setTimeout(() => {
                     if (boss.hp <= 0) return;
                     const ang = Math.atan2(this.player.y - boss.y, this.player.x - boss.x);
                     let chargeTime = 0;
@@ -302,7 +311,8 @@ export class GameEngine {
                         chargeTime += 50;
                         if (chargeTime > 500) clearInterval(rushInterval);
                     }, 50);
-                }, 1000);
+                    this.bossTimers.push(rushInterval);
+                }, 1000));
             } else if (pattern === 1) { // Shotgun
                 boss.attackTimer = 2500;
                 const baseAng = Math.atan2(this.player.y - boss.y, this.player.x - boss.x);
@@ -345,6 +355,7 @@ export class GameEngine {
                         { isEnemy: true, life: 2000 }));
                     if (spinCount > 20) clearInterval(spinInterval);
                 }, 50);
+                this.bossTimers.push(spinInterval);
                 this.assetManager.playSound("zap", 0.5);
             } else { // Snipe
                 boss.attackTimer = 2000;

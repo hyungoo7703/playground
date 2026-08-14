@@ -78,7 +78,12 @@
     });
 
     onDestroy(() => {
-        if (engine) engine.stopLoop();
+        if (engine) {
+            engine.stopLoop();
+            engine.inputManager.destroy();
+        }
+        if (gachaTimer) clearTimeout(gachaTimer);
+        if (toastTimer) clearTimeout(toastTimer);
         window.removeEventListener("resize", handleResize);
     });
 
