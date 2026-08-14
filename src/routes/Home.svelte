@@ -238,6 +238,25 @@
     </button>
   </section>
 
+  <!-- 자주 쓰는 액션: 출석 바로 아래 배치 -->
+  <section in:fly={{ x: -20, delay: 200 }} class="relative">
+    <button
+      on:click={() => navigateTo("food-spinner")}
+      class="w-full flex items-center justify-between p-5 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-[2rem] text-white shadow-lg active:scale-[0.98] transition-all overflow-hidden"
+    >
+      <div class="relative z-10 text-left">
+        <h3 class="font-black text-lg">오늘 뭐 먹지? 🎰</h3>
+        <p class="text-xs opacity-80">고민될 땐 룰렛을 돌려보세요!</p>
+      </div>
+      <div class="relative z-10 bg-white/20 p-2 rounded-xl backdrop-blur-md">
+        <span class="text-2xl">🍽️</span>
+      </div>
+      <div
+        class="absolute -right-4 -bottom-4 w-20 h-20 bg-white/10 rounded-full blur-xl"
+      ></div>
+    </button>
+  </section>
+
   <section class="grid grid-cols-4 gap-2">
     <button
       on:click={() => navigateTo("bulletin-board")}
@@ -290,35 +309,6 @@
       <span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400"
         >게임</span
       >
-    </button>
-  </section>
-
-  <section in:fly={{ x: -20, delay: 200 }} class="relative">
-    <button
-      on:click={() => navigateTo("food-spinner")}
-      class="w-full flex items-center justify-between p-5 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-[2rem] text-white shadow-lg active:scale-[0.98] transition-all overflow-hidden"
-    >
-      <div class="relative z-10 text-left">
-        <h3 class="font-black text-lg">오늘 뭐 먹지? 🎰</h3>
-        <p class="text-xs opacity-80">고민될 땐 룰렛을 돌려보세요!</p>
-      </div>
-      <div class="relative z-10 bg-white/20 p-2 rounded-xl backdrop-blur-md">
-        <svg
-          class="w-6 h-6"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          ><path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="3"
-            d="M9 5l7 7-7 7"
-          ></path></svg
-        >
-      </div>
-      <div
-        class="absolute -right-4 -bottom-4 w-20 h-20 bg-white/10 rounded-full blur-xl"
-      ></div>
     </button>
   </section>
 

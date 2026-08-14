@@ -23,9 +23,6 @@ export const GAS_URL = _d(
 );
 export const APP_SECRET = _d("FgZASxsqTwBUA3t1HxEJKj5vIFU=", "pg-fam-2026-key");
 
-// 메뉴 상태 관리
-export const isMenuOpen = writable(false);
-
 const getSaveData = () => {
   // 브라우저 환경인지 확인
   if (typeof window === "undefined" || !window.localStorage)

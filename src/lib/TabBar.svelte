@@ -1,0 +1,49 @@
+<script>
+  import { Link, useLocation } from "svelte-routing";
+  import { base } from "./store.js";
+
+  const location = useLocation();
+
+  // 사용 빈도순: 장부 > 출석 > 일정
+  const tabs = [
+    { path: "/", label: "홈", emoji: "🏠" },
+    { path: "/ledger", label: "장부", emoji: "💰" },
+    { path: "/attendance", label: "출석", emoji: "✅" },
+    { path: "/events", label: "일정", emoji: "📅" },
+    { path: "/menu", label: "전체", emoji: "🧩" },
+  ];
+
+  $: fullPath = (path) => (path === "/" ? base || "/" : `${base}${path}`);
+
+  $: isActive = (path) => {
+    const current = $location.pathname.replace(/\/$/, "") || "/";
+    const target = fullPath(path).replace(/\/$/, "") || "/";
+    return current === target;
+  };
+</script>
+
+<nav
+  class="fixed bottom-0 inset-x-0 z-40 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-t border-gray-200 dark:border-gray-800 pb-[env(safe-area-inset-bottom)]"
+  aria-label="주요 메뉴"
+>
+  <div class="max-w-md mx-auto grid grid-cols-5">
+    {#each tabs as tab}
+      <Link
+        to={fullPath(tab.path)}
+        class="flex flex-col items-center justify-center gap-1 py-2 min-h-[60px] transition-colors {isActive(
+          tab.path,
+        )
+          ? 'text-indigo-600 dark:text-indigo-300'
+          : 'text-gray-400 dark:text-gray-500'}"
+        aria-label={tab.label}
+      >
+        <span
+          class="text-[1.375rem] leading-none transition-all {isActive(tab.path)
+            ? 'scale-110'
+            : 'grayscale opacity-60'}">{tab.emoji}</span
+        >
+        <span class="text-[11px] font-bold leading-none">{tab.label}</span>
+      </Link>
+    {/each}
+  </div>
+</nav>

@@ -3,8 +3,7 @@
   import { Route, navigate, useLocation } from "svelte-routing";
   import { base, deferredPrompt, isLoggedIn } from "./store.js";
 
-  import Header from "./Header.svelte";
-  import SideMenu from "./SideMenu.svelte";
+  import TabBar from "./TabBar.svelte";
 
   import Home from "../routes/Home.svelte";
   import EventList from "../routes/EventList.svelte";
@@ -26,6 +25,7 @@
   import CardPick from "../routes/CardPick.svelte";
   import Attendance from "../routes/Attendance.svelte";
   import Settings from "../routes/Settings.svelte";
+  import Menu from "../routes/Menu.svelte";
   import Login from "../routes/Login.svelte";
 
   const location = useLocation();
@@ -77,13 +77,10 @@
     ? 'h-[100dvh] overflow-hidden'
     : 'min-h-screen'}"
 >
-  {#if $isLoggedIn && $location.pathname !== `${base}/login`}
-    <Header />
-    <SideMenu />
-  {/if}
-
   <main
-    class={isGameplayPage ? "flex-1 overflow-hidden relative" : "p-4 sm:p-6"}
+    class={isGameplayPage
+      ? "flex-1 overflow-hidden relative"
+      : "p-4 sm:p-6 pb-24"}
   >
     {#if !$isLoggedIn}
       <Login />
@@ -108,6 +105,11 @@
       <Route path="card-pick" component={CardPick} />
       <Route path="attendance" component={Attendance} />
       <Route path="settings" component={Settings} />
+      <Route path="menu" component={Menu} />
     {/if}
   </main>
+
+  {#if $isLoggedIn && $location.pathname !== `${base}/login` && !isGameplayPage}
+    <TabBar />
+  {/if}
 </div>
