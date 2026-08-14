@@ -2,12 +2,13 @@
   import { onMount } from "svelte";
   import { fade, fly } from "svelte/transition";
   import { api } from "../lib/api.js";
+  import { formatDate } from "../lib/utils.js";
 
   let events = [];
   let isLoading = true;
 
   // 폼 입력 상태
-  let newDate = new Date().toISOString().split("T")[0];
+  let newDate = formatDate(new Date());
   let newTitle = "";
   let newCategory = "일반";
   let isSubmitting = false;
@@ -40,7 +41,7 @@
   // 취소 버튼
   function resetForm() {
     editingId = null;
-    newDate = new Date().toISOString().split("T")[0];
+    newDate = formatDate(new Date());
     newTitle = "";
     newCategory = "일반";
   }
@@ -84,7 +85,7 @@
 
   // 미래 일정만 필터링 (오늘 포함)
   $: futureEvents = events.filter(
-    (e) => e.date >= new Date().toISOString().split("T")[0],
+    (e) => e.date >= formatDate(new Date()),
   );
 
   onMount(fetchEvents);

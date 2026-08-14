@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { fade, slide, fly } from "svelte/transition";
   import { api } from "../lib/api.js";
+  import { formatDate } from "../lib/utils.js";
   import { currentUser, isAdmin } from "../lib/store.js";
 
   let posts = [];
@@ -43,7 +44,7 @@
   // Form State
   let formData = {
     id: null,
-    date: new Date().toISOString().split("T")[0],
+    date: formatDate(new Date()),
     category: "일상",
     title: "",
     content: "",
@@ -72,7 +73,7 @@
     } else {
       formData = {
         id: null,
-        date: new Date().toISOString().split("T")[0],
+        date: formatDate(new Date()),
         category: "일상",
         title: "",
         content: "",

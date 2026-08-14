@@ -2,6 +2,7 @@
     import { onMount } from "svelte";
     import { fade, slide } from "svelte/transition";
     import { api } from "../lib/api.js";
+    import { formatDate } from "../lib/utils.js";
     import { navigate } from "svelte-routing";
     import { currentUser, isAdmin } from "../lib/store.js";
 
@@ -12,7 +13,7 @@
 
     // New Stock Form
     let newStock = {
-        date: new Date().toISOString().split("T")[0],
+        date: formatDate(new Date()),
         name: "",
         price: "", // Unit Price
         currency: "KRW",
@@ -112,7 +113,7 @@
 
     function resetForm() {
         newStock = {
-            date: new Date().toISOString().split("T")[0],
+            date: formatDate(new Date()),
             name: "",
             price: "",
             currency: "KRW",
