@@ -369,7 +369,7 @@
     }
 
     async function submitUseReward() {
-        const amt = parseInt(useAmount);
+        const amt = parseInt(String(useAmount).replace(/[^\d]/g, ""), 10);
         if (!amt || amt <= 0) return showToast("금액을 입력해주세요.", "error");
         if (amt > rewardBalance)
             return showToast(
