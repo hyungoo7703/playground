@@ -25,7 +25,7 @@ export const GAS_URL = _d(
   "GBNZFhJXAh1DUUREGxFXFwhCAQ0IA1FfXxlACgYLHxQCFU4sZlRJUVRUMy4YGAUePgMEG3ABe2N1MjMyAhJDMVZaG3VRYlh+WykBEgR8UiMUTlxKQm51AD8QPSpjETlZfmR+R2NsWSABFigCAxkITg==",
   "pg-fam-2026-key"
 );
-export const APP_SECRET = _d("HR5yFRQdSEBvQVNOGQANLwxIHz5fHQAG", "pg-fam-2026-key");
+export const APP_SECRET = _d("FgZASxsqTwBUA3t1HxEJKj5vIFU=", "pg-fam-2026-key");
 
 // 메뉴 상태 관리
 export const isMenuOpen = writable(false);
