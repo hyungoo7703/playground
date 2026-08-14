@@ -3,6 +3,7 @@
   import { fade, fly } from "svelte/transition";
   import { api } from "../lib/api.js";
   import { formatDate } from "../lib/utils.js";
+  import { isAdmin } from "../lib/store.js";
   import { readCache, writeCache } from "../lib/cache.js";
   import Spinner from "../lib/components/Spinner.svelte";
 
@@ -123,6 +124,7 @@
     홈 화면 D-Day 설정하기
   </button>
 
+  {#if $isAdmin}
   <div
     class="bg-white dark:bg-gray-800 p-5 rounded-3xl shadow-xl border-2 transition-all {editingId
       ? 'border-amber-400'
@@ -175,6 +177,7 @@
       </div>
     </div>
   </div>
+  {/if}
 
   <div class="space-y-3">
     {#if isLoading}
@@ -210,6 +213,7 @@
             {/if}
           </div>
 
+          {#if $isAdmin}
           <button
             on:click={() => setEditMode(event)}
             class="p-2 text-gray-300 hover:text-indigo-500 transition-colors"
@@ -227,6 +231,7 @@
               ></path></svg
             >
           </button>
+          {/if}
         </div>
       {/each}
     {/if}
