@@ -26,6 +26,7 @@ async function fetchFromGAS(action, payload = {}) {
             body: JSON.stringify({
                 action,
                 app_token: generateAppToken(),  // 모든 요청에 토큰 포함
+                access_code: localStorage.getItem("accessCode"), // 서버에서 유효 코드 검증 (login 제외)
                 ...payload
             }),
         });
