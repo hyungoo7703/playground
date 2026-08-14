@@ -36,7 +36,6 @@
     $: firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
     $: calendarDays = buildCalendarDays(daysInMonth, firstDayOfMonth);
 
-    const userName = localStorage.getItem("userName") || "가족";
     const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
     // Stamp emojis - randomly assigned per day for fun
