@@ -21,8 +21,16 @@
   onMount(async () => {
     // 1. D-Day Check
     const storedDDay = localStorage.getItem("dDayEvent");
+    let event = null;
     if (storedDDay) {
-      const event = JSON.parse(storedDDay);
+      try {
+        event = JSON.parse(storedDDay);
+      } catch {
+        // 손상된 값이 onMount 전체를 중단시키지 않도록 제거
+        localStorage.removeItem("dDayEvent");
+      }
+    }
+    if (event) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const target = new Date(event.date);
