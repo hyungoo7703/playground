@@ -8,12 +8,8 @@ export const isLoggedIn = writable(!!localStorage.getItem("accessCode"));
 export const currentUser = writable(localStorage.getItem("currentUser"));
 // 사용자 역할 (admin/member)
 export const userRole = writable(localStorage.getItem("role"));
-// 관리자 여부 판별 (통일된 단일 소스)
-export const isAdmin = derived(
-  [currentUser, userRole],
-  ([$currentUser, $userRole]) =>
-    $userRole === "admin" || $currentUser === "현구"
-);
+// 관리자 여부 판별 — 서버(login)가 code 시트의 role 열로 판정한 값만 신뢰
+export const isAdmin = derived(userRole, ($userRole) => $userRole === "admin");
 
 const _d = (s, k) => {
   const b = atob(s);

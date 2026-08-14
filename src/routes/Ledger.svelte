@@ -23,7 +23,6 @@
   };
 
   const USERS = ["아빠", "엄마", "현구", "범수"];
-  const ADMIN_FAMILY_NAME = "현구"; // 관리자의 장부 상 실명
   const TYPES = ["이체", "지출", "수입"];
 
   async function loadLedger() {
@@ -40,12 +39,7 @@
   }
 
   // User State — 글로벌 store ($currentUser, $isAdmin) 사용
-  // $currentUser가 "관리자"일 경우 장부에서는 "현구"로 매핑
-  let viewAsUser = USERS.includes($currentUser)
-    ? $currentUser
-    : $isAdmin
-      ? ADMIN_FAMILY_NAME
-      : "아빠";
+  let viewAsUser = USERS.includes($currentUser) ? $currentUser : "아빠";
   let showOnlyMine = false;
 
   // Rule State

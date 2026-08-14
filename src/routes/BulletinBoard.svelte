@@ -38,9 +38,7 @@
   }
 
   // User State - 글로벌 store 사용 ($currentUser, $isAdmin)
-  // 관리자의 게시판 표시 이름은 "현구"
-  $: displayName =
-    $isAdmin && $currentUser === "관리자" ? "현구" : $currentUser || "가족";
+  $: displayName = $currentUser || "가족";
 
   // Form State
   let formData = {
