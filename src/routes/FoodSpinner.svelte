@@ -1,5 +1,5 @@
 <script>
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import { fade, scale, slide } from "svelte/transition";
   import { currentUser, isAdmin } from "../lib/store.js";
   import { api } from "../lib/api.js";
@@ -12,6 +12,7 @@
   let spinning = false; // 룰렛 회전 여부
   let spinResult = "오늘 뭐 먹지?";
   let spinInterval;
+  let spinTimeout;
   let isLoading = true; // 초기 로딩 상태
 
   // Secret Admin State
@@ -93,7 +94,7 @@
     }, 80);
 
     // 2.5초 후 멈춤
-    setTimeout(() => {
+    spinTimeout = setTimeout(() => {
       clearInterval(spinInterval);
 
       // Rigged Logic
@@ -115,6 +116,11 @@
   }
 
   onMount(fetchMenu);
+
+  onDestroy(() => {
+    clearInterval(spinInterval);
+    clearTimeout(spinTimeout);
+  });
 </script>
 
 <div class="px-4 py-8 max-w-md mx-auto space-y-8 pb-32">
