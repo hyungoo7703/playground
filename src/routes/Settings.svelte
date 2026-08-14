@@ -2,6 +2,15 @@
   import { isDarkMode, deferredPrompt } from "../lib/store.js";
   import { fade } from "svelte/transition";
 
+  function logout() {
+    if (!confirm("로그아웃 하시겠습니까?")) return;
+    // 로그인 정보만 삭제 (게임 세이브, 다크모드 등은 유지)
+    ["accessCode", "userName", "currentUser", "role"].forEach((key) =>
+      localStorage.removeItem(key),
+    );
+    location.reload();
+  }
+
   async function installPWA() {
     if (!$deferredPrompt) return;
 
@@ -41,6 +50,12 @@
   </div>
 
   <div class="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+    <button
+      on:click={logout}
+      class="w-full flex items-center justify-center gap-2 p-3 mb-3 bg-gray-50 dark:bg-gray-700/40 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-700 dark:text-gray-300 font-bold active:scale-95 transition-all"
+    >
+      <span>🚪</span> 로그아웃
+    </button>
     <button
       on:click={() => {
         if (
