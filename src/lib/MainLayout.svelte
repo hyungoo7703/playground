@@ -35,6 +35,9 @@
     const loginPath = `${base}/login`;
     if (!$isLoggedIn && $location.pathname !== loginPath) {
       navigate(loginPath, { replace: true });
+    } else if ($isLoggedIn && $location.pathname === loginPath) {
+      // 로그인 상태로 /login 진입 시 빈 화면(등록된 Route 없음) 방지
+      navigate(base || "/", { replace: true });
     }
   }
 
