@@ -523,7 +523,6 @@
                                                 >
                                             </div>
                                             <div
-                                                <div
                                                 class="flex flex-col items-end"
                                             >
                                                 <span

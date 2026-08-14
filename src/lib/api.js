@@ -46,6 +46,7 @@ export const api = {
     getLedger: () => fetchFromGAS('getLedger'),
     addLedger: (data) => fetchFromGAS('addLedger', data),
     updateLedger: (data) => fetchFromGAS('updateLedger', data),
+    settleLedger: (data) => fetchFromGAS('settleLedger', data), // is_settled만 변경 (멤버 허용)
     deleteLedger: (id) => fetchFromGAS('deleteLedger', { id }),
     batchAddLedger: (items) => fetchFromGAS('batchAddLedger', { items }),
 

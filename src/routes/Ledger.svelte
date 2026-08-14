@@ -245,13 +245,15 @@
     )
       return;
 
-    const res = await api.updateLedger({
-      ...item,
+    const res = await api.settleLedger({
+      id: item.id,
       is_settled: !item.is_settled,
     });
 
     if (res.success) {
       loadLedger();
+    } else {
+      alert("정산 처리 실패: " + (res.message || "알 수 없는 오류"));
     }
   }
 
