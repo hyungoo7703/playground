@@ -1,6 +1,7 @@
 import { writable, derived } from "svelte/store";
 
-export const base = import.meta.env.PROD ? "/playground" : "";
+// Vite's base (vite.config.js) is the single source; strip trailing slash for routing
+export const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 export const deferredPrompt = writable(null);
 export const isLoggedIn = writable(!!localStorage.getItem("accessCode"));
 // 현재 사용자 (추후 로그인 시 설정)
@@ -24,6 +25,7 @@ export const GAS_URL = _d(
   "GBNZFhJXAh1DUUREGxFXFwhCAQ0IA1FfXxlACgYLHxQCFU4sZlRJUVRUMy4YGAUePgMEG3ABe2N1MjMyAhJDMVZaG3VRYlh+WykBEgR8UiMUTlxKQm51AD8QPSpjETlZfmR+R2NsWSABFigCAxkITg==",
   "pg-fam-2026-key"
 );
+export const APP_SECRET = _d("HR5yFRQdSEBvQVNOGQANLwxIHz5fHQAG", "pg-fam-2026-key");
 
 // 메뉴 상태 관리
 export const isMenuOpen = writable(false);
