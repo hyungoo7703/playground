@@ -1,5 +1,5 @@
 // sw.js
-const CACHE_NAME = "family-playground-v2";
+const CACHE_NAME = "family-playground-v3";
 const PRECACHE_URLS = [
   "./",
   "./index.html",

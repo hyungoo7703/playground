@@ -228,15 +228,14 @@ ${eventsStr}
 {#if isOpen}
   <!-- Full Screen on Mobile, Centered Modal on Tablet/Desktop -->
   <div
-    class="fixed inset-0 z-50 bg-black/60 sm:backdrop-blur-sm transition-opacity flex items-center justify-center p-0 sm:p-4"
+    class="fixed inset-0 z-50 bg-white dark:bg-gray-900 sm:bg-black/60 sm:backdrop-blur-sm transition-opacity flex items-center justify-center p-0 sm:p-4"
     transition:fade={{ duration: 150 }}
-    on:click|self={onClose}
     on:keydown={(e) => e.key === 'Escape' && onClose()}
     role="presentation"
   >
-    <!-- Main Chat Window (100% full height on mobile, 720px on desktop) -->
+    <!-- Main Chat Window (100% full viewport height on mobile, 720px on desktop) -->
     <div
-      class="w-full h-full sm:h-[720px] sm:max-w-xl bg-white dark:bg-gray-900 rounded-none sm:rounded-[2rem] shadow-2xl flex flex-col overflow-hidden sm:border border-gray-100 dark:border-gray-800"
+      class="w-full h-[100dvh] sm:h-[720px] sm:max-w-xl bg-white dark:bg-gray-900 rounded-none sm:rounded-[2rem] shadow-2xl flex flex-col overflow-hidden sm:border border-gray-100 dark:border-gray-800"
       transition:fly={{ y: 150, duration: 200 }}
     >
       <!-- Top App Bar -->
