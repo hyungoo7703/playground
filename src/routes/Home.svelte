@@ -317,6 +317,34 @@
     </button>
   </section>
 
+  <!-- 우리 가족 주식 요약 위젯 -->
+  <section in:fly={{ y: 20, delay: 350 }}>
+    <button
+      on:click={() => navigateTo("stock")}
+      class="w-full flex items-center justify-between p-5 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 rounded-[2rem] shadow-sm border border-emerald-100 dark:border-emerald-800/40 active:scale-[0.98] transition-all"
+    >
+      <div class="text-left">
+        <h3
+          class="font-black text-gray-900 dark:text-white flex items-center gap-2"
+        >
+          <span class="w-1.5 h-5 bg-emerald-500 rounded-full"></span>
+          우리 가족 주식
+        </h3>
+        {#if stockLoaded}
+          <p class="text-xs text-emerald-700 dark:text-emerald-300 font-bold mt-1">
+            {stockCount > 0
+              ? `총 ${stockCount}개 종목 · ${stockTotalAmount.toLocaleString()}원 투자 중 📈`
+              : "아직 주식 내역이 없습니다. 시작해보세요! 🚀"}
+          </p>
+        {:else}
+          <p class="text-xs text-gray-400 mt-1 animate-pulse">주식 현황 확인 중...</p>
+        {/if}
+      </div>
+      <span class="text-2xl p-2 bg-white dark:bg-gray-800 rounded-2xl shadow-sm">📈</span>
+    </button>
+  </section>
+
+  <!-- 이번 달 일정 -->
   <section
     in:fly={{ y: 20, delay: 400 }}
     class="p-6 bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-sm border border-gray-50 dark:border-gray-700"
@@ -388,33 +416,6 @@
     </div>
   </section>
 
-  <!-- 우리 가족 주식 요약 위젯 -->
-  <section in:fly={{ y: 20, delay: 450 }}>
-    <button
-      on:click={() => navigateTo("stock")}
-      class="w-full flex items-center justify-between p-5 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 rounded-[2rem] shadow-sm border border-emerald-100 dark:border-emerald-800/40 active:scale-[0.98] transition-all"
-    >
-      <div class="text-left">
-        <h3
-          class="font-black text-gray-900 dark:text-white flex items-center gap-2"
-        >
-          <span class="w-1.5 h-5 bg-emerald-500 rounded-full"></span>
-          우리 가족 주식
-        </h3>
-        {#if stockLoaded}
-          <p class="text-xs text-emerald-700 dark:text-emerald-300 font-bold mt-1">
-            {stockCount > 0
-              ? `총 ${stockCount}개 종목 · ${stockTotalAmount.toLocaleString()}원 투자 중 📈`
-              : "아직 주식 내역이 없습니다. 시작해보세요! 🚀"}
-          </p>
-        {:else}
-          <p class="text-xs text-gray-400 mt-1 animate-pulse">주식 현황 확인 중...</p>
-        {/if}
-      </div>
-      <span class="text-2xl p-2 bg-white dark:bg-gray-800 rounded-2xl shadow-sm">📈</span>
-    </button>
-  </section>
-
   <!-- 이번 달 장부 요약: 하단 탭 바로 위에서 장부로 연결 -->
   <section in:fly={{ y: 20, delay: 500 }}>
     <button
@@ -423,6 +424,7 @@
     >
       <div class="text-left">
         <h3
+
           class="font-black text-gray-900 dark:text-white flex items-center gap-2"
         >
           <span class="w-1.5 h-5 bg-yellow-400 rounded-full"></span>
