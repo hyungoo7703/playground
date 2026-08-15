@@ -1,7 +1,23 @@
 <script>
   import { onMount, tick } from "svelte";
   import { fade, fly } from "svelte/transition";
+  import { marked } from "marked";
   import { askAIChat } from "../aiApi.js";
+
+  // Configure marked for smooth chat rendering
+  marked.setOptions({
+    breaks: true,
+    gfm: true,
+  });
+
+  function formatMessage(content) {
+    if (!content) return "";
+    try {
+      return marked.parse(content);
+    } catch (e) {
+      return content;
+    }
+  }
 
   // Props passed from Home.svelte
   export let isOpen = false;
@@ -41,13 +57,13 @@
 
   function initGreeting() {
     let dDayIntro = dDayEvent
-      ? ` 🎂 D-Day: <strong>${dDayEvent.title}</strong> (D-${dDayDiff === 0 ? "Day" : dDayDiff})`
+      ? ` 🎂 D-Day: **${dDayEvent.title}** (D-${dDayDiff === 0 ? "Day" : dDayDiff})`
       : "";
 
     messages = [
       {
         role: "model",
-        content: `안녕하세요 ${userName}님! 저는 우리 가족 전용 AI 집사 <strong>패밀리봇</strong>이에요 🏡✨<br/>${dDayIntro}<br/>이번 달 일정, 가계부 미정산, 오늘 저녁 메뉴 추천이나 가족 대화 등 무엇이든 물어보세요!`,
+        content: `안녕하세요 **${userName}**님! 저는 우리 가족 전용 AI 집사 **패밀리봇**이에요 🏡✨\n${dDayIntro}\n이번 달 일정, 가계부 미정산, 오늘 저녁 메뉴 추천이나 가족 대화 등 무엇이든 물어보세요!`,
       },
     ];
   }
@@ -141,7 +157,7 @@ ${eventsStr}
         .slice(-8)
         .map(m => ({
           role: m.role === "model" ? "model" : "user",
-          content: m.content.replace(/<[^>]*>/g, ""),
+          content: m.content,
         }));
 
       if (recentMessages.length === 0) {
@@ -273,7 +289,7 @@ ${eventsStr}
 
               <!-- Message Bubble -->
               <div
-                class="px-4 py-3 rounded-2xl leading-relaxed whitespace-pre-wrap break-words shadow-sm text-xs sm:text-sm {msg.role === 'user'
+                class="chat-bubble px-4 py-3 rounded-2xl leading-relaxed break-words shadow-sm text-xs sm:text-sm {msg.role === 'user'
                   ? 'bg-indigo-600 text-white rounded-br-none font-medium'
                   : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-100 dark:border-gray-700/80 rounded-bl-none'}"
               >
@@ -287,8 +303,10 @@ ${eventsStr}
                       패밀리봇이 답변 작성 중... ✍️
                     </span>
                   </div>
+                {:else if msg.role === 'user'}
+                  <div class="whitespace-pre-wrap">{msg.content}</div>
                 {:else}
-                  {@html msg.content}
+                  <div class="markdown-content">{@html formatMessage(msg.content)}</div>
                 {/if}
               </div>
             </div>
@@ -337,5 +355,49 @@ ${eventsStr}
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+
+  .markdown-content :global(p) {
+    margin-bottom: 0.5rem;
+  }
+  .markdown-content :global(p:last-child) {
+    margin-bottom: 0;
+  }
+  .markdown-content :global(strong) {
+    font-weight: 800;
+    color: #4f46e5;
+  }
+  :global(.dark) .markdown-content :global(strong) {
+    color: #a5b4fc;
+  }
+  .markdown-content :global(ul) {
+    list-style-type: disc;
+    padding-left: 1.2rem;
+    margin-bottom: 0.5rem;
+  }
+  .markdown-content :global(ol) {
+    list-style-type: decimal;
+    padding-left: 1.2rem;
+    margin-bottom: 0.5rem;
+  }
+  .markdown-content :global(li) {
+    margin-bottom: 0.2rem;
+  }
+  .markdown-content :global(h1),
+  .markdown-content :global(h2),
+  .markdown-content :global(h3),
+  .markdown-content :global(h4) {
+    font-weight: 800;
+    margin-top: 0.6rem;
+    margin-bottom: 0.3rem;
+  }
+  .markdown-content :global(code) {
+    background: rgba(0, 0, 0, 0.06);
+    padding: 0.15rem 0.35rem;
+    border-radius: 0.25rem;
+    font-size: 0.85em;
+  }
+  :global(.dark) .markdown-content :global(code) {
+    background: rgba(255, 255, 255, 0.1);
   }
 </style>
