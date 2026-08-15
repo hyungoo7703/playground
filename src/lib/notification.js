@@ -34,6 +34,8 @@ export function getNotificationPermission() {
   return Notification.permission;
 }
 
+export const VAPID_VERSION = "v2_2026_08_15";
+
 // 알림 권한 요청 및 구글 시트에 기기 푸시 주소 등록
 export async function registerPushDevice(customUserName = null) {
   if (!isNotificationSupported()) {
@@ -46,23 +48,29 @@ export async function registerPushDevice(customUserName = null) {
     return { success: false, permission, message: "알림 권한이 허용되지 않았습니다." };
   }
 
-  // 2. 서비스 워커 및 PushManager 구독 생성
+  // 2. 서비스 워커 및 PushManager 구독 생성 (기존 구형 구독이 있으면 해제 후 새 VAPID 키로 재구독)
   const registration = await navigator.serviceWorker.ready;
-  let subscription = await registration.pushManager.getSubscription();
+  const existingSub = await registration.pushManager.getSubscription();
 
-  if (!subscription) {
+  if (existingSub) {
     try {
-      subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-      });
-    } catch (e) {
-      console.warn("VAPID 구독 생성 실패, 기본 구독 시도:", e);
-      // 구형 브라우저 또는 VAPID 제약 fallback
-      subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-      });
+      await existingSub.unsubscribe();
+    } catch (unsubErr) {
+      console.warn("기존 구형 구독 해제 경고:", unsubErr);
     }
+  }
+
+  let subscription = null;
+  try {
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+    });
+  } catch (e) {
+    console.warn("VAPID 구독 생성 실패, 기본 구독 시도:", e);
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+    });
   }
 
   if (!subscription) {
@@ -84,6 +92,7 @@ export async function registerPushDevice(customUserName = null) {
   if (res && res.success) {
     localStorage.setItem("isPushRegistered", "true");
     localStorage.setItem("lastPushUser", userName);
+    localStorage.setItem("push_vapid_version", VAPID_VERSION);
     return { success: true, permission: "granted", message: "기기 등록 완료" };
   } else {
     throw new Error(res?.message || "구글 시트에 기기 등록 실패");
@@ -98,16 +107,18 @@ export async function autoRegisterPushIfGranted() {
   const isRegistered = localStorage.getItem("isPushRegistered");
   const currentUser = localStorage.getItem("userName") || "가족";
   const lastUser = localStorage.getItem("lastPushUser");
+  const storedVersion = localStorage.getItem("push_vapid_version");
 
-  // 이미 등록되었고 사용자가 동일하면 중복 요청 생략 (0ms)
-  if (isRegistered === "true" && lastUser === currentUser) return;
+  // 이미 현재 최신 VAPID 버전으로 등록되었고 사용자가 동일하면 중복 요청 생략
+  if (isRegistered === "true" && lastUser === currentUser && storedVersion === VAPID_VERSION) return;
 
   try {
     await registerPushDevice(currentUser);
   } catch (e) {
-    console.debug("백그라운드 푸시 자동 등록 시도 중:", e.message);
+    console.debug("백그라운드 푸시 자동 갱신 등록 시도 중:", e.message);
   }
 }
+
 
 // 로컬 알림 발송 (서비스 워커 또는 Notification API 사용)
 export async function showLocalNotification(title, options = {}) {
