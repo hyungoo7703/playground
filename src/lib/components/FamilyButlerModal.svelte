@@ -267,17 +267,8 @@ ${eventsStr}
         <div class="flex items-center gap-1.5">
           <button
             type="button"
-            on:click={clearChat}
-            class="p-2 text-xs text-indigo-200 hover:text-white hover:bg-white/10 rounded-xl transition-all font-bold flex items-center gap-1"
-            title="대화 비우기"
-          >
-            <span>🔄</span>
-            <span class="hidden sm:inline text-[11px]">비우기</span>
-          </button>
-          <button
-            type="button"
             on:click={onClose}
-            class="p-2 text-white/80 hover:text-white hover:bg-white/20 rounded-xl transition-all text-sm font-bold w-9 h-9 hidden sm:flex items-center justify-center"
+            class="p-2 text-white/80 hover:text-white hover:bg-white/20 rounded-xl transition-all text-sm font-bold w-9 h-9 flex items-center justify-center"
             title="닫기"
           >
             ✕
