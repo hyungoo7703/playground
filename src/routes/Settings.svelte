@@ -317,15 +317,24 @@
       </div>
     {/if}
 
-    <div class="pt-1">
+    <div class="space-y-2 pt-1">
       {#if notiPermission !== "granted"}
         <button
           on:click={handleRequestNotification}
-          class="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl text-xs active:scale-95 transition-all shadow-md flex items-center justify-center gap-2"
+          disabled={isRegisteringNoti}
+          class="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl text-xs active:scale-95 transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
         >
-          <span>🔔</span> 푸시 알림 권한 켜기
+          <span>🔔</span> {isRegisteringNoti ? "권한 요청 중..." : "푸시 알림 권한 켜기"}
         </button>
       {:else}
+        <button
+          on:click={handleRequestNotification}
+          disabled={isRegisteringNoti}
+          class="w-full py-3 px-4 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-300 font-bold rounded-2xl text-xs active:scale-95 transition-all flex items-center justify-center gap-2 border border-indigo-200 dark:border-indigo-800 disabled:opacity-50"
+        >
+          <span>🔄</span> {isRegisteringNoti ? "시트에 등록 중..." : "구글 시트에 내 기기 등록 / 갱신"}
+        </button>
+
         <button
           on:click={handleSendTestNoti}
           disabled={isSendingNoti}
@@ -335,6 +344,7 @@
         </button>
       {/if}
     </div>
+
   </section>
 
   <!-- 4. PWA 앱 설치 버튼 (지원되는 경우) -->
