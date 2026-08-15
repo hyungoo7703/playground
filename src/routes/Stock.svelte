@@ -15,10 +15,10 @@
   // New Stock Form
   let newStock = {
     date: formatDate(new Date()),
-    name: "",
+    name: "삼성전자",
     price: "",
     currency: "KRW",
-    quantity: "",
+    quantity: "1",
   };
 
   const FAMILY_MEMBERS = ["아빠", "엄마", "현구", "범수"];
@@ -29,13 +29,52 @@
     범수: 0,
   };
 
+  // Selected preset payer mode: 'mom' | 'bum' | 'half' | 'all' | 'custom'
+  let payerMode = "half";
+
+  $: calculatedTotal =
+    (parseInt(newStock.price) || 0) * (parseFloat(newStock.quantity) || 0);
+
   $: totalContributed = Object.values(contributions).reduce(
     (a, b) => a + (parseInt(b) || 0),
     0,
   );
-  $: calculatedTotal =
-    (parseInt(newStock.price) || 0) * (parseFloat(newStock.quantity) || 0);
   $: remainToFill = calculatedTotal - totalContributed;
+
+  // Automatically update contributions when payerMode or calculatedTotal changes
+  function applyPayerMode(mode) {
+    payerMode = mode;
+    FAMILY_MEMBERS.forEach((m) => (contributions[m] = 0));
+
+    if (calculatedTotal <= 0) return;
+
+    if (mode === "mom") {
+      contributions["엄마"] = calculatedTotal;
+    } else if (mode === "bum") {
+      contributions["범수"] = calculatedTotal;
+    } else if (mode === "half") {
+      const half = Math.floor(calculatedTotal / 2);
+      contributions["엄마"] = half;
+      contributions["범수"] = calculatedTotal - half;
+    } else if (mode === "all") {
+      const quarter = Math.floor(calculatedTotal / 4);
+      const rem = calculatedTotal - quarter * 4;
+      contributions["아빠"] = quarter;
+      contributions["엄마"] = quarter + rem;
+      contributions["현구"] = quarter;
+      contributions["범수"] = quarter;
+    }
+  }
+
+  // Reactive auto-sync when calculated total changes in non-custom mode
+  $: if (payerMode !== "custom" && calculatedTotal > 0) {
+    applyPayerMode(payerMode);
+  }
+
+  function addQuantity(q) {
+    const current = parseFloat(newStock.quantity) || 0;
+    newStock.quantity = String(current + q);
+  }
 
   async function loadStocks() {
     const cached = readCache("stocks");
@@ -56,37 +95,13 @@
     isLoading = false;
   }
 
-  function handleAutoFill(who) {
-    if (remainToFill > 0) {
-      contributions[who] = (parseInt(contributions[who]) || 0) + remainToFill;
-    }
-  }
-
-  function handleEqualSplit(activeMembers = ["엄마", "범수"]) {
-    if (calculatedTotal > 0 && activeMembers.length > 0) {
-      const splitAmount = Math.floor(calculatedTotal / activeMembers.length);
-      const remainder = calculatedTotal - splitAmount * activeMembers.length;
-      FAMILY_MEMBERS.forEach((m) => (contributions[m] = 0));
-      activeMembers.forEach((m, idx) => {
-        contributions[m] = splitAmount + (idx === 0 ? remainder : 0);
-      });
-    }
-  }
-
-  function handleFullAmount(who) {
-    if (calculatedTotal > 0) {
-      FAMILY_MEMBERS.forEach((m) => (contributions[m] = 0));
-      contributions[who] = calculatedTotal;
-    }
-  }
-
   async function handleSubmit() {
     if (!newStock.name || !newStock.price || !newStock.quantity)
-      return alert("필수 정보를 모두 입력해주세요.");
+      return alert("종목명, 단가, 수량을 모두 입력해주세요.");
 
     if (totalContributed !== calculatedTotal)
       return alert(
-        `총 매입액(${calculatedTotal.toLocaleString()}원)과 분배금액 합계(${totalContributed.toLocaleString()}원)가 일치하지 않습니다.`,
+        `총 매입액(${calculatedTotal.toLocaleString()}원)과 분배금액(${totalContributed.toLocaleString()}원)을 맞춰주세요.`,
       );
 
     isSubmitting = true;
@@ -124,11 +139,12 @@
   function resetForm() {
     newStock = {
       date: formatDate(new Date()),
-      name: "",
+      name: "삼성전자",
       price: "",
       currency: "KRW",
-      quantity: "",
+      quantity: "1",
     };
+    payerMode = "half";
     contributions = { 아빠: 0, 엄마: 0, 현구: 0, 범수: 0 };
   }
 
@@ -176,12 +192,12 @@
   };
 
   const POPULAR_STOCKS = [
-    "삼성전자",
-    "현대차",
-    "SK하이닉스",
-    "NAVER",
-    "카카오",
-    "맥쿼리인프라",
+    { name: "삼성전자", emoji: "📱" },
+    { name: "현대차", emoji: "🚗" },
+    { name: "SK하이닉스", emoji: "💾" },
+    { name: "맥쿼리인프라", emoji: "🌲" },
+    { name: "카카오", emoji: "💬" },
+    { name: "NAVER", emoji: "🔍" },
   ];
 </script>
 
@@ -214,198 +230,232 @@
     <div class="absolute -left-8 -bottom-8 w-32 h-32 bg-teal-400/20 rounded-full blur-2xl"></div>
   </header>
 
-  <!-- Action Toggle Button -->
+  <!-- Big Friendly Action Toggle Button -->
   <button
     on:click={() => (showAddForm = !showAddForm)}
-    class="w-full py-4 bg-white dark:bg-gray-800 rounded-2xl shadow-sm text-emerald-600 dark:text-emerald-400 font-black text-sm border border-gray-100 dark:border-gray-700 active:scale-95 transition-all flex items-center justify-center gap-2"
+    class="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-3xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 font-black text-base"
   >
-    <span>{showAddForm ? "📋 보유 주식 목록 보기" : "➕ 새 주식 매입 기록하기"}</span>
+    <span>{showAddForm ? "📋 보유 주식 목록 보기" : "➕ 새 주식 샀어요! (간편 입력)"}</span>
   </button>
 
   {#if showAddForm}
-    <!-- Input Form -->
+    <!-- Parent-Friendly Ultra Simple Stock Form -->
     <div
       transition:slide
-      class="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 space-y-5"
+      class="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 space-y-6"
     >
-      <h2 class="text-lg font-black text-gray-900 dark:text-white">
-        📝 매입 정보 입력
-      </h2>
+      <div class="flex justify-between items-center pb-2 border-b border-gray-100 dark:border-gray-700">
+        <h2 class="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2">
+          <span>📝</span> 주식 매입 기록
+        </h2>
+        <span class="text-xs text-emerald-600 dark:text-emerald-400 font-bold">쉬운 3단계 입력</span>
+      </div>
 
-      <!-- Date & Name -->
-      <div class="space-y-4">
-        <div>
-          <label for="stock-date" class="block text-xs font-bold text-gray-400 dark:text-gray-500 mb-1 ml-1">
-            매입 일자
-          </label>
-          <input
-            id="stock-date"
-            type="date"
-            bind:value={newStock.date}
-            class="w-full p-3.5 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-emerald-500 border border-gray-200 dark:border-gray-700 transition-all"
-          />
+      <!-- STEP 1: 종목 선택 -->
+      <div class="space-y-2">
+        <div class="flex items-center gap-1.5">
+          <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-black flex items-center justify-center">1</span>
+          <span class="text-xs font-black text-gray-800 dark:text-gray-200">어떤 주식을 사셨나요?</span>
         </div>
 
-        <div>
-          <label for="stock-name" class="block text-xs font-bold text-gray-400 dark:text-gray-500 mb-1 ml-1">
-            종목명
-          </label>
-          <input
-            id="stock-name"
-            type="text"
-            bind:value={newStock.name}
-            placeholder="주식명 입력 또는 아래 추천 선택"
-            class="w-full p-3.5 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-emerald-500 border border-gray-200 dark:border-gray-700 transition-all"
-          />
-          <!-- Chips -->
-          <div class="flex gap-1.5 mt-2 flex-wrap">
-            {#each POPULAR_STOCKS as stockName}
-              <button
-                type="button"
-                on:click={() => (newStock.name = stockName)}
-                class="px-2.5 py-1 bg-gray-100 dark:bg-gray-700 text-xs font-bold text-gray-600 dark:text-gray-300 rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-600 transition-colors"
-              >
-                {stockName}
-              </button>
-            {/each}
-          </div>
+        <div class="grid grid-cols-3 gap-2">
+          {#each POPULAR_STOCKS as stock}
+            <button
+              type="button"
+              on:click={() => (newStock.name = stock.name)}
+              class="p-2.5 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all border {newStock.name === stock.name
+                ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-500 font-black'
+                : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold'}"
+            >
+              <span class="text-lg">{stock.emoji}</span>
+              <span class="text-xs">{stock.name}</span>
+            </button>
+          {/each}
         </div>
 
-        <!-- Price & Quantity -->
+        <input
+          type="text"
+          bind:value={newStock.name}
+          placeholder="목록에 없는 경우 직접 입력"
+          class="w-full p-3 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-2xl font-bold text-xs outline-none focus:ring-2 focus:ring-emerald-500 border border-gray-200 dark:border-gray-700"
+        />
+      </div>
+
+      <!-- STEP 2: 단가 및 수량 입력 -->
+      <div class="space-y-3">
+        <div class="flex items-center gap-1.5">
+          <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-black flex items-center justify-center">2</span>
+          <span class="text-xs font-black text-gray-800 dark:text-gray-200">얼마에 몇 주 사셨나요?</span>
+        </div>
+
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label for="stock-price" class="block text-xs font-bold text-gray-400 dark:text-gray-500 mb-1 ml-1">
+            <label for="p-stock-price" class="block text-[11px] font-bold text-gray-400 mb-1 ml-1">
               1주당 가격 (단가)
             </label>
-            <input
-              id="stock-price"
-              type="number"
-              bind:value={newStock.price}
-              placeholder="0"
-              class="w-full p-3.5 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-emerald-500 border border-gray-200 dark:border-gray-700"
-            />
-            {#if newStock.price}
-              <p class="text-right mt-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-                {Number(newStock.price).toLocaleString()}원
-              </p>
-            {/if}
+            <div class="relative">
+              <input
+                id="p-stock-price"
+                type="number"
+                bind:value={newStock.price}
+                placeholder="예: 70000"
+                class="w-full p-3.5 pr-8 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-2xl font-black text-base outline-none focus:ring-2 focus:ring-emerald-500 border border-gray-200 dark:border-gray-700"
+              />
+              <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">원</span>
+            </div>
           </div>
 
           <div>
-            <label for="stock-quantity" class="block text-xs font-bold text-gray-400 dark:text-gray-500 mb-1 ml-1">
+            <label for="p-stock-qty" class="block text-[11px] font-bold text-gray-400 mb-1 ml-1">
               매입 수량
             </label>
-            <input
-              id="stock-quantity"
-              type="number"
-              bind:value={newStock.quantity}
-              placeholder="0"
-              class="w-full p-3.5 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-emerald-500 border border-gray-200 dark:border-gray-700"
-            />
-            {#if newStock.quantity}
-              <p class="text-right mt-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400">
-                총 {Number(newStock.quantity).toLocaleString()}주
-              </p>
-            {/if}
+            <div class="relative">
+              <input
+                id="p-stock-qty"
+                type="number"
+                bind:value={newStock.quantity}
+                placeholder="1"
+                class="w-full p-3.5 pr-8 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-2xl font-black text-base outline-none focus:ring-2 focus:ring-emerald-500 border border-gray-200 dark:border-gray-700 text-center"
+              />
+              <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">주</span>
+            </div>
           </div>
         </div>
 
-        <!-- Calculated Total Banner -->
-        {#if newStock.price && newStock.quantity}
-          <div
-            in:fade
-            class="bg-emerald-50 dark:bg-emerald-950/30 p-4 rounded-2xl flex justify-between items-center border border-emerald-200 dark:border-emerald-800"
+        <!-- Quick Quantity Buttons -->
+        <div class="flex gap-1.5 justify-end">
+          <button
+            type="button"
+            on:click={() => addQuantity(1)}
+            class="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
           >
-            <span class="text-xs font-bold text-emerald-800 dark:text-emerald-300">총 매입액</span>
-            <span class="text-lg font-black text-emerald-700 dark:text-emerald-400">
-              {(newStock.price * newStock.quantity).toLocaleString()}원
+            +1주
+          </button>
+          <button
+            type="button"
+            on:click={() => addQuantity(5)}
+            class="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
+          >
+            +5주
+          </button>
+          <button
+            type="button"
+            on:click={() => addQuantity(10)}
+            class="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
+          >
+            +10주
+          </button>
+          <button
+            type="button"
+            on:click={() => addQuantity(50)}
+            class="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
+          >
+            +50주
+          </button>
+        </div>
+
+        <!-- Big Total Summary Box -->
+        {#if calculatedTotal > 0}
+          <div class="p-4 bg-emerald-50 dark:bg-emerald-950/40 rounded-2xl border border-emerald-200 dark:border-emerald-800 flex justify-between items-center">
+            <span class="text-xs font-bold text-emerald-800 dark:text-emerald-300">총 결제 금액</span>
+            <span class="text-xl font-black text-emerald-700 dark:text-emerald-400">
+              {calculatedTotal.toLocaleString()}원
             </span>
           </div>
         {/if}
+      </div>
 
-        <div class="h-px bg-gray-100 dark:bg-gray-700 my-1"></div>
+      <!-- STEP 3: 누구 돈으로 샀나요? (초간단 버튼) -->
+      <div class="space-y-3">
+        <div class="flex items-center gap-1.5">
+          <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-black flex items-center justify-center">3</span>
+          <span class="text-xs font-black text-gray-800 dark:text-gray-200">누구 돈으로 샀나요? (클릭 한 번으로 선택)</span>
+        </div>
 
-        <!-- Distribution by Family Members -->
-        <div class="space-y-3">
-          <div class="flex justify-between items-center">
-            <h3 class="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">
-              💰 투자자별 분배 금액
-            </h3>
-            <span
-              class="text-xs font-bold px-2 py-0.5 rounded-full {remainToFill === 0
-                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
-                : 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300'}"
-            >
-              {remainToFill === 0 ? "금액 일치 ✨" : `${remainToFill.toLocaleString()}원 남음`}
-            </span>
-          </div>
+        <div class="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            on:click={() => applyPayerMode("mom")}
+            class="p-3.5 rounded-2xl text-left border transition-all {payerMode === 'mom'
+              ? 'bg-pink-50 dark:bg-pink-950/40 border-pink-500 text-pink-700 dark:text-pink-300 ring-2 ring-pink-500 font-black'
+              : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold'}"
+          >
+            <span class="text-base block mb-0.5">👩 엄마 100%</span>
+            <span class="text-[10px] text-gray-400 font-normal">엄마 혼자 전액 부담</span>
+          </button>
 
-          <!-- Quick Split Shortcuts -->
-          {#if calculatedTotal > 0}
-            <div class="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                on:click={() => handleEqualSplit(["엄마", "범수"])}
-                class="py-2 px-3 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-xs font-bold rounded-xl active:scale-95 transition-all border border-emerald-200 dark:border-emerald-800"
-              >
-                엄마+범수 5:5 분배
-              </button>
-              <button
-                type="button"
-                on:click={() => handleEqualSplit(FAMILY_MEMBERS)}
-                class="py-2 px-3 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 text-xs font-bold rounded-xl active:scale-95 transition-all border border-indigo-200 dark:border-indigo-800"
-              >
-                4인 균등 분배 (1/N)
-              </button>
-            </div>
-          {/if}
+          <button
+            type="button"
+            on:click={() => applyPayerMode("bum")}
+            class="p-3.5 rounded-2xl text-left border transition-all {payerMode === 'bum'
+              ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-500 text-amber-700 dark:text-amber-300 ring-2 ring-amber-500 font-black'
+              : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold'}"
+          >
+            <span class="text-base block mb-0.5">👦 범수 100%</span>
+            <span class="text-[10px] text-gray-400 font-normal">범수 혼자 전액 부담</span>
+          </button>
 
-          <!-- Member Inputs -->
-          <div class="space-y-2">
+          <button
+            type="button"
+            on:click={() => applyPayerMode("half")}
+            class="p-3.5 rounded-2xl text-left border transition-all {payerMode === 'half'
+              ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-500 font-black'
+              : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold'}"
+          >
+            <span class="text-base block mb-0.5">⚖️ 엄마 & 범수 반반</span>
+            <span class="text-[10px] text-gray-400 font-normal">5:5 정확히 반반</span>
+          </button>
+
+          <button
+            type="button"
+            on:click={() => applyPayerMode("all")}
+            class="p-3.5 rounded-2xl text-left border transition-all {payerMode === 'all'
+              ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-500 text-indigo-700 dark:text-indigo-300 ring-2 ring-indigo-500 font-black'
+              : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold'}"
+          >
+            <span class="text-base block mb-0.5">👨‍👩‍👧‍👦 4명 모두 똑같이</span>
+            <span class="text-[10px] text-gray-400 font-normal">1/N 균등 분할</span>
+          </button>
+        </div>
+
+        <!-- Custom Mode Toggle -->
+        <button
+          type="button"
+          on:click={() => (payerMode = "custom")}
+          class="w-full py-2 text-center text-xs font-bold text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+        >
+          {payerMode === "custom" ? "▼ 직접 금액 입력 중" : "직접 금액을 따로 지정할래요"}
+        </button>
+
+        {#if payerMode === "custom"}
+          <div transition:slide class="space-y-2 p-3 bg-gray-50 dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700">
             {#each FAMILY_MEMBERS as mem}
               <div class="flex items-center gap-2">
-                <div class="w-12 text-xs font-bold text-gray-700 dark:text-gray-300">
-                  {mem}
-                </div>
+                <span class="w-12 text-xs font-bold text-gray-700 dark:text-gray-300">{mem}</span>
                 <div class="flex-1 relative">
                   <input
                     type="number"
                     bind:value={contributions[mem]}
                     placeholder="0"
-                    class="w-full p-2.5 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500 text-right pr-9 border border-gray-200 dark:border-gray-700 transition-all {contributions[mem] > 0 ? 'bg-emerald-50 dark:bg-emerald-950/30' : ''}"
+                    class="w-full p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl text-xs font-bold text-right pr-8 outline-none border border-gray-200 dark:border-gray-700"
                   />
-                  <span class="absolute right-3 top-2.5 text-[10px] text-gray-400 font-bold">원</span>
+                  <span class="absolute right-2.5 top-2 text-[10px] text-gray-400">원</span>
                 </div>
-                <button
-                  type="button"
-                  on:click={() => handleFullAmount(mem)}
-                  disabled={calculatedTotal <= 0}
-                  class="px-2.5 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl text-xs font-bold active:scale-95 transition-all disabled:opacity-30"
-                >
-                  전액
-                </button>
-                <button
-                  type="button"
-                  on:click={() => handleAutoFill(mem)}
-                  disabled={remainToFill <= 0}
-                  class="px-2.5 py-2.5 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 rounded-xl text-xs font-bold active:scale-95 transition-all disabled:opacity-30 border border-emerald-200 dark:border-emerald-800"
-                >
-                  나머지
-                </button>
               </div>
             {/each}
           </div>
-        </div>
-
-        <!-- Submit Button -->
-        <button
-          on:click={handleSubmit}
-          disabled={isSubmitting || remainToFill !== 0}
-          class="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-sm shadow-md active:scale-95 transition-all disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:shadow-none"
-        >
-          {isSubmitting ? "저장 중..." : "매입 내역 저장하기"}
-        </button>
+        {/if}
       </div>
+
+      <!-- Save Button -->
+      <button
+        type="button"
+        on:click={handleSubmit}
+        disabled={isSubmitting || calculatedTotal <= 0}
+        class="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-base shadow-lg active:scale-95 transition-all disabled:opacity-40"
+      >
+        {isSubmitting ? "저장 중..." : "✨ 주식 매입 완료 저장하기"}
+      </button>
     </div>
   {:else}
     <!-- Summary List Cards -->
@@ -418,7 +468,7 @@
         <div class="text-center py-16 bg-white dark:bg-gray-800 rounded-3xl p-6 text-gray-400 shadow-sm border border-gray-100 dark:border-gray-700">
           <span class="text-4xl block mb-2">📈</span>
           <p class="text-sm font-bold text-gray-600 dark:text-gray-300">아직 등록된 주식이 없습니다.</p>
-          <p class="text-xs text-gray-400 mt-1">상단의 '+ 새 주식 매입 기록하기'로 첫 투자를 남겨보세요!</p>
+          <p class="text-xs text-gray-400 mt-1">상단의 '+ 새 주식 샀어요!' 버튼을 눌러 첫 투자를 기록해보세요!</p>
         </div>
       {:else}
         {#each summaryByStock as item}
@@ -478,7 +528,7 @@
               </summary>
               <div class="space-y-2 mt-3 pt-1">
                 {#each stocks.filter((s) => s.stock_name === item.name) as stock}
-                  <div class="flex justify-between items-center text-xs p-3 bg-gray-50 dark:bg-gray-750 dark:bg-gray-700/40 rounded-2xl">
+                  <div class="flex justify-between items-center text-xs p-3 bg-gray-50 dark:bg-gray-700/40 rounded-2xl">
                     <div class="flex items-center gap-2">
                       <span class="w-2 h-2 rounded-full {MEMBER_COLORS[stock.owner] || 'bg-gray-400'}"></span>
                       <div>

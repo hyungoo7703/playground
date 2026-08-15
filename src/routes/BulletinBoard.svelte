@@ -12,6 +12,9 @@
   let showWriteModal = false;
   let isSubmitting = false;
 
+  // Selected Category Filter
+  let selectedCategory = "전체";
+
   // Detail View State
   let showDetailModal = false;
   let currentPost = null;
@@ -20,30 +23,34 @@
   let isCommentLoading = false;
   let isCommentSubmitting = false;
 
-  // Image URL State
+  // Image State
   let imageLoadFailed = false;
   let imageLoading = true;
 
-  // 이미지 URL인지 판별하는 함수
   function looksLikeImageUrl(url) {
     if (!url) return false;
     const lower = url.toLowerCase();
-    // 이미지 확장자 체크
-    const imageExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg', '.ico'];
-    if (imageExts.some(ext => lower.includes(ext))) return true;
-    // 알려진 이미지 호스팅 서비스
-    if (lower.includes('imgur.com')) return true;
-    if (lower.includes('i.ibb.co')) return true;
-    // Google Drive 직접 보기 링크
-    if (lower.includes('drive.google.com') && lower.includes('thumbnail')) return true;
-    if (lower.includes('lh3.googleusercontent.com')) return true;
+    const imageExts = [
+      ".jpg",
+      ".jpeg",
+      ".png",
+      ".gif",
+      ".webp",
+      ".bmp",
+      ".svg",
+      ".ico",
+    ];
+    if (imageExts.some((ext) => lower.includes(ext))) return true;
+    if (lower.includes("imgur.com")) return true;
+    if (lower.includes("i.ibb.co")) return true;
+    if (lower.includes("drive.google.com") && lower.includes("thumbnail"))
+      return true;
+    if (lower.includes("lh3.googleusercontent.com")) return true;
     return false;
   }
 
-  // User State - 글로벌 store 사용 ($currentUser, $isAdmin)
   $: displayName = $currentUser || "가족";
 
-  // Form State
   let formData = {
     id: null,
     date: formatDate(new Date()),
@@ -55,11 +62,22 @@
   };
 
   const CATEGORIES = ["일상", "공지", "유머", "정보", "축하"];
+  const CATEGORY_EMOJIS = {
+    일상: "☕",
+    공지: "📢",
+    유머: "😆",
+    정보: "💡",
+    축하: "🎉",
+  };
 
-  // --- Actions ---
+  const MEMBER_AVATARS = {
+    아빠: "👨",
+    엄마: "👩",
+    현구: "🧑",
+    범수: "👦",
+  };
 
   async function loadPosts() {
-    // 캐시 먼저 그리고, 뒤에서 갱신 (SWR)
     const cached = readCache("posts");
     if (cached) {
       posts = cached;
@@ -70,7 +88,7 @@
 
     const res = await api.getPosts();
     if (res.success) {
-      posts = res.posts; // Backend already reverses them? Or we sort here.
+      posts = res.posts;
       writeCache("posts", posts);
     } else if (!cached) {
       alert("게시글 불러오기 실패");
@@ -100,7 +118,6 @@
       return alert("제목과 내용을 입력해주세요.");
     isSubmitting = true;
 
-    // Ensure author is set
     if (!formData.author) formData.author = displayName;
 
     const res = formData.id
@@ -120,26 +137,22 @@
     if (!confirm("정말 삭제하시겠습니까? 관련 댓글도 모두 삭제됩니다.")) return;
     const res = await api.deletePost(id);
     if (res.success) {
-      showDetailModal = false; // Close detail if open
+      showDetailModal = false;
       loadPosts();
     } else {
       alert("삭제 실패: " + res.message);
     }
   }
 
-  // --- Detail View & Comments ---
-
   async function openDetail(post) {
     currentPost = post;
     showDetailModal = true;
-    comments = []; // Reset first
-    imageLoadFailed = false; // 이미지 상태 초기화
+    comments = [];
+    imageLoadFailed = false;
     imageLoading = true;
 
-    // 1. Increment View
     api.incrementPostView(post.id);
 
-    // 2. Load Comments
     isCommentLoading = true;
     const res = await api.getComments(post.id);
     if (res.success) {
@@ -169,7 +182,6 @@
 
     if (res.success) {
       commentContent = "";
-      // Reload comments
       isCommentLoading = true;
       const r = await api.getComments(currentPost.id);
       if (r.success) comments = r.comments;
@@ -182,7 +194,6 @@
     if (!confirm("댓글을 삭제하시겠습니까?")) return;
     const res = await api.deleteComment(id);
     if (res.success) {
-      // Reload comments
       isCommentLoading = true;
       const r = await api.getComments(currentPost.id);
       if (r.success) comments = r.comments;
@@ -193,304 +204,343 @@
   onMount(() => {
     loadPosts();
   });
+
+  $: filteredPosts =
+    selectedCategory === "전체"
+      ? posts
+      : posts.filter((p) => p.category === selectedCategory);
 </script>
 
-<div class="min-h-screen bg-gray-50 dark:bg-gray-900 pb-24">
-  <!-- Header -->
+<div class="space-y-6 max-w-md mx-auto relative">
+  <!-- Header Card -->
   <header
-    class="bg-white dark:bg-gray-800 shadow-sm px-6 py-6 sticky top-0 z-10 transition-colors"
+    class="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 p-7 text-white shadow-xl space-y-4"
   >
-    <div class="flex justify-between items-center">
-      <div>
-        <h2
-          class="text-2xl font-black text-gray-900 dark:text-white tracking-tight"
-        >
-          가족 게시판
-        </h2>
-        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-          우리 가족의 소소한 이야기 공간
-        </p>
+    <div class="relative z-10 space-y-2">
+      <div class="flex justify-between items-center">
+        <span class="text-indigo-200 font-bold text-xs tracking-widest uppercase">
+          Family Board
+        </span>
+        <span class="text-xs bg-white/20 px-2.5 py-0.5 rounded-full font-bold">
+          총 {posts.length}개의 이야기
+        </span>
       </div>
-      <button
-        on:click={() => openWriteModal()}
-        class="bg-indigo-600 hover:bg-indigo-700 text-white p-3 rounded-full shadow-lg active:scale-95 transition-all"
-      >
-        <svg
-          class="w-6 h-6"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          ><path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-          ></path></svg
-        >
-      </button>
+      <h1 class="text-3xl font-black tracking-tight leading-tight">
+        우리 가족 게시판 📝
+      </h1>
+      <p class="text-xs text-indigo-100/80">
+        서로의 일상과 따뜻한 소식을 자유롭게 나눠보세요.
+      </p>
     </div>
+
+    <!-- Decor -->
+    <div class="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+    <div class="absolute -left-8 -bottom-8 w-32 h-32 bg-purple-400/20 rounded-full blur-2xl"></div>
   </header>
 
-  <!-- Post List -->
-  <main class="p-4 space-y-4">
+  <!-- Action: Write Post Button -->
+  <button
+    type="button"
+    on:click={() => openWriteModal()}
+    class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-3xl shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 font-black text-sm"
+  >
+    <span>✏️ 새 이야기 남기기</span>
+  </button>
+
+  <!-- Category Filter Pills -->
+  <div class="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+    <button
+      type="button"
+      on:click={() => (selectedCategory = "전체")}
+      class="px-3.5 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all {selectedCategory ===
+      '전체'
+        ? 'bg-indigo-600 text-white shadow-sm'
+        : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 border border-gray-100 dark:border-gray-700'}"
+    >
+      전체보기
+    </button>
+    {#each CATEGORIES as cat}
+      <button
+        type="button"
+        on:click={() => (selectedCategory = cat)}
+        class="px-3.5 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all {selectedCategory ===
+        cat
+          ? 'bg-indigo-600 text-white shadow-sm'
+          : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 border border-gray-100 dark:border-gray-700'}"
+      >
+        {CATEGORY_EMOJIS[cat] || ""} {cat}
+      </button>
+    {/each}
+  </div>
+
+  <!-- Post List Feed -->
+  <div class="space-y-3">
     {#if isLoading}
-      <div class="flex flex-col items-center justify-center py-10">
+      <div class="py-16 text-center">
         <Spinner label="게시글을 불러오는 중..." />
       </div>
-    {:else if posts.length === 0}
-      <div
-        class="flex flex-col items-center justify-center py-20 text-gray-400"
-      >
-        <span class="text-4xl mb-4">📝</span>
-        <p>아직 등록된 글이 없어요.</p>
-        <p class="text-sm">가장 먼저 글을 남겨보세요!</p>
+    {:else if filteredPosts.length === 0}
+      <div class="bg-white dark:bg-gray-800 rounded-3xl p-10 text-center shadow-sm border border-gray-100 dark:border-gray-700 text-gray-400">
+        <span class="text-4xl block mb-2">📮</span>
+        <p class="text-sm font-bold text-gray-600 dark:text-gray-300">등록된 글이 없습니다.</p>
+        <p class="text-xs text-gray-400 mt-1">상단의 '새 이야기 남기기'로 첫 글을 작성해보세요!</p>
       </div>
     {:else}
-      {#each posts as post (post.id)}
-        <!-- Card -->
-        <div
+      {#each filteredPosts as post (post.id)}
+        <button
+          type="button"
           on:click={() => openDetail(post)}
-          class="bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-sm active:scale-[0.99] transition-all cursor-pointer border border-gray-100 dark:border-gray-700"
-          in:slide={{ duration: 300 }}
+          class="w-full text-left bg-white dark:bg-gray-800 rounded-3xl p-5 shadow-sm border border-gray-100 dark:border-gray-700 space-y-3 active:scale-[0.99] transition-all group cursor-pointer"
         >
-          <div class="flex justify-between items-start mb-2">
-            <span
-              class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300"
-            >
-              {post.category}
+          <!-- Author & Meta -->
+          <div class="flex justify-between items-center">
+            <div class="flex items-center gap-2">
+              <span class="text-lg p-1.5 bg-gray-100 dark:bg-gray-700 rounded-xl leading-none">
+                {MEMBER_AVATARS[post.author] || "👤"}
+              </span>
+              <div>
+                <p class="text-xs font-black text-gray-900 dark:text-white leading-tight">
+                  {post.author}
+                </p>
+                <p class="text-[10px] text-gray-400 font-medium">
+                  {post.date}
+                </p>
+              </div>
+            </div>
+
+            <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-300">
+              {CATEGORY_EMOJIS[post.category] || "💬"} {post.category}
             </span>
-            <span class="text-xs text-gray-400">{post.date}</span>
           </div>
 
-          <h3
-            class="text-lg font-bold text-gray-900 dark:text-white mb-2 line-clamp-2 leading-snug"
-          >
-            {post.title}
-          </h3>
+          <!-- Title & Content Snippet -->
+          <div class="space-y-1">
+            <h3 class="text-base font-black text-gray-900 dark:text-white leading-snug line-clamp-1 group-hover:text-indigo-600 transition-colors">
+              {post.title}
+            </h3>
+            <p class="text-xs text-gray-600 dark:text-gray-300 line-clamp-2 leading-relaxed">
+              {post.content}
+            </p>
+          </div>
 
-          {#if post.image_url}
-            <span
-              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold {looksLikeImageUrl(post.image_url) ? 'bg-green-50 dark:bg-green-900/30 text-green-500 dark:text-green-300' : 'bg-blue-50 dark:bg-blue-900/30 text-blue-500 dark:text-blue-300'}"
-            >
-              {looksLikeImageUrl(post.image_url) ? '🖼️ 이미지' : '🔗 링크'}
-            </span>
+          <!-- Thumbnail if image exists -->
+          {#if post.image_url && looksLikeImageUrl(post.image_url)}
+            <div class="w-full h-36 bg-gray-100 dark:bg-gray-700/50 rounded-2xl overflow-hidden relative">
+              <img
+                src={post.image_url}
+                alt="미리보기"
+                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                loading="lazy"
+              />
+            </div>
           {/if}
 
-          <div
-            class="flex justify-between items-center text-xs text-gray-400 border-t border-gray-100 dark:border-gray-700 pt-3 mt-1"
-          >
-            <div class="flex items-center gap-2">
-              <span class="font-bold text-gray-600 dark:text-gray-300"
-                >by {post.author}</span
-              >
-            </div>
-            <div class="flex items-center gap-3">
-              <span class="flex items-center gap-1">
-                <svg
-                  class="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  ><path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                  ></path><path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                  ></path></svg
-                >
-                {post.view_count}
-              </span>
-            </div>
+          <!-- Footer Counts -->
+          <div class="pt-2 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center text-[11px] text-gray-400 font-bold">
+            <span class="flex items-center gap-1">
+              👁️ 조회 {post.view_count || 0}
+            </span>
+            <span class="text-indigo-500 font-bold group-hover:underline">
+              자세히 보기 →
+            </span>
           </div>
-        </div>
+        </button>
       {/each}
     {/if}
-  </main>
+  </div>
 
-  <!-- Write Modal -->
+  <!-- Write / Edit Modal -->
   {#if showWriteModal}
     <div
       class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4"
       transition:fade
     >
       <div
-        class="w-full max-w-lg bg-white dark:bg-gray-800 rounded-[2rem] p-6 shadow-2xl relative flex flex-col max-h-[90vh]"
+        class="w-full max-w-lg max-h-[90vh] flex flex-col bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-2xl relative space-y-4"
         transition:slide={{ axis: "y" }}
       >
-        <h2 class="text-xl font-black text-gray-900 dark:text-white mb-6">
-          {formData.id ? "글 수정하기" : "새 글 쓰기"}
-        </h2>
+        <div class="flex justify-between items-center shrink-0">
+          <h2 class="text-lg font-black text-gray-900 dark:text-white">
+            {formData.id ? "글 수정하기" : "새로운 이야기 작성"}
+          </h2>
+          <button
+            type="button"
+            on:click={() => (showWriteModal = false)}
+            class="p-2 bg-gray-100 dark:bg-gray-700 rounded-full text-xs font-bold"
+          >
+            ✕
+          </button>
+        </div>
 
-        <div class="space-y-4 overflow-y-auto flex-1 p-1">
+        <div class="space-y-3 overflow-y-auto flex-1 pr-1">
+          <!-- Category Select -->
           <div>
-            <label class="text-xs font-bold text-gray-400 ml-2 block mb-1"
-              >카테고리</label
-            >
-            <div class="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+            <label for="post-cat" class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1.5">
+              분류 선택
+            </label>
+            <div id="post-cat" class="flex gap-1.5 overflow-x-auto pb-1">
               {#each CATEGORIES as cat}
                 <button
-                  class="px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all {formData.category ===
-                  cat
-                    ? 'bg-indigo-600 text-white shadow-md transform scale-105'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}"
+                  type="button"
                   on:click={() => (formData.category = cat)}
+                  class="px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all {formData.category ===
+                  cat
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}"
                 >
-                  {cat}
+                  {CATEGORY_EMOJIS[cat]} {cat}
                 </button>
               {/each}
             </div>
           </div>
 
+          <!-- Title -->
           <div>
-            <label class="text-xs font-bold text-gray-400 ml-2 block mb-1"
-              >제목</label
-            >
+            <label for="post-title" class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1">
+              제목
+            </label>
             <input
+              id="post-title"
               type="text"
               bind:value={formData.title}
               placeholder="제목을 입력하세요"
-              class="w-full bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-3 font-bold outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+              class="w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-2xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-500 border border-gray-200 dark:border-gray-700"
             />
           </div>
 
+          <!-- Content -->
           <div>
-            <label class="text-xs font-bold text-gray-400 ml-2 block mb-1"
-              >내용</label
-            >
+            <label for="post-content" class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1">
+              내용
+            </label>
             <textarea
+              id="post-content"
               bind:value={formData.content}
-              placeholder="무슨 일이 있었나요?"
-              rows="6"
-              class="w-full bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-3 text-sm leading-relaxed outline-none focus:ring-2 focus:ring-indigo-500 transition-all resize-none"
+              placeholder="가족들과 나눌 이야기를 자유롭게 적어주세요..."
+              rows="5"
+              class="w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-2xl px-4 py-3 text-xs leading-relaxed outline-none focus:ring-2 focus:ring-indigo-500 border border-gray-200 dark:border-gray-700 resize-none"
             ></textarea>
           </div>
 
+          <!-- Image / Link URL -->
           <div>
-            <label class="text-xs font-bold text-gray-400 ml-2 block mb-1"
-              >이미지/URL (선택)</label
-            >
+            <label for="post-img" class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1">
+              사진 또는 링크 URL (선택)
+            </label>
             <input
+              id="post-img"
               type="text"
               bind:value={formData.image_url}
               placeholder="https://..."
-              class="w-full bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-3 text-xs outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+              class="w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-2xl px-4 py-2.5 text-xs outline-none focus:ring-2 focus:ring-indigo-500 border border-gray-200 dark:border-gray-700"
             />
           </div>
         </div>
 
-        <div class="flex gap-3 mt-6 shrink-0">
+        <div class="flex gap-2 shrink-0 pt-2">
           <button
+            type="button"
             on:click={() => (showWriteModal = false)}
-            class="flex-1 py-4 font-bold text-gray-500 bg-gray-100 dark:bg-gray-700 rounded-2xl"
-            >취소</button
+            class="flex-1 py-3.5 font-bold text-xs text-gray-500 bg-gray-100 dark:bg-gray-700 rounded-2xl active:scale-95"
           >
+            취소
+          </button>
           <button
+            type="button"
             on:click={savePost}
             disabled={isSubmitting}
-            class="flex-1 py-4 font-black text-white bg-indigo-600 rounded-2xl shadow-lg"
+            class="flex-1 py-3.5 font-black text-xs text-white bg-indigo-600 hover:bg-indigo-700 rounded-2xl shadow-md active:scale-95 disabled:opacity-40"
           >
-            {isSubmitting ? "저장 중..." : "등록하기"}
+            {isSubmitting ? "저장 중..." : "게시하기"}
           </button>
         </div>
       </div>
     </div>
   {/if}
 
-  <!-- Detail Modal -->
+  <!-- Detail View Modal with Comments -->
   {#if showDetailModal && currentPost}
     <div
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-2 sm:p-4"
       transition:fade
     >
       <div
-        class="w-full h-full sm:h-auto sm:max-w-2xl sm:max-h-[90vh] bg-white dark:bg-gray-800 sm:rounded-[2rem] flex flex-col relative overflow-hidden"
-        in:fly={{ y: 50, duration: 300 }}
+        class="w-full h-full sm:h-auto sm:max-w-md max-h-[92vh] bg-white dark:bg-gray-800 rounded-3xl shadow-2xl flex flex-col relative overflow-hidden"
+        in:fly={{ y: 30, duration: 250 }}
       >
-        <!-- Header Actions -->
-        <div
-          class="flex justify-between items-center p-4 border-b border-gray-100 dark:border-gray-700 shrink-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md sticky top-0 z-10"
-        >
+        <!-- Modal Top Bar -->
+        <div class="flex justify-between items-center p-4 border-b border-gray-100 dark:border-gray-700 shrink-0 bg-white dark:bg-gray-800">
           <button
+            type="button"
             on:click={() => (showDetailModal = false)}
-            class="p-2 -ml-2 text-gray-500 dark:text-gray-400"
+            class="p-2 -ml-2 text-gray-500 dark:text-gray-400 font-black text-sm"
           >
-            <svg
-              class="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              ><path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M15 19l-7-7 7-7"
-              ></path></svg
-            >
+            ← 닫기
           </button>
 
           {#if $currentUser === currentPost.author || $isAdmin}
-            <div class="flex gap-2">
+            <div class="flex gap-1.5">
               <button
+                type="button"
                 on:click={() => {
                   showDetailModal = false;
                   openWriteModal(currentPost);
                 }}
-                class="text-xs font-bold text-indigo-500 px-3 py-1.5 rounded-full bg-indigo-50 dark:bg-indigo-900/30"
-                >수정</button
+                class="text-xs font-bold text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-full bg-indigo-50 dark:bg-indigo-950/40"
               >
+                수정
+              </button>
               <button
+                type="button"
                 on:click={() => deletePost(currentPost.id)}
-                class="text-xs font-bold text-red-500 px-3 py-1.5 rounded-full bg-red-50 dark:bg-red-900/30"
-                >삭제</button
+                class="text-xs font-bold text-rose-600 dark:text-rose-400 px-3 py-1.5 rounded-full bg-rose-50 dark:bg-rose-950/40"
               >
+                삭제
+              </button>
             </div>
           {/if}
         </div>
 
-        <!-- Scrollable Content -->
-        <div class="flex-1 overflow-y-auto p-0">
-          <!-- Post Content -->
-          <div class="p-6">
-            <span
-              class="inline-block py-1 px-2 rounded bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300 text-xs font-bold mb-3"
-              >{currentPost.category}</span
-            >
-            <h1
-              class="text-2xl font-black text-gray-900 dark:text-white mb-4 leading-tight"
-            >
-              {currentPost.title}
-            </h1>
-
-            <div class="flex items-center gap-2 mb-6 text-xs text-gray-400">
-              <span class="font-bold text-gray-600 dark:text-gray-300"
-                >{currentPost.author}</span
-              >
-              <span>•</span>
-              <span>{currentPost.date}</span>
-              <span>•</span>
-              <span>조회 {currentPost.view_count + 1}</span>
-              <!-- Optimistic view count -->
+        <!-- Scrollable Article + Comments -->
+        <div class="flex-1 overflow-y-auto p-5 space-y-5">
+          <!-- Post Author Header -->
+          <div class="flex items-center gap-3">
+            <span class="text-2xl p-2 bg-indigo-50 dark:bg-indigo-950/40 rounded-2xl leading-none">
+              {MEMBER_AVATARS[currentPost.author] || "👤"}
+            </span>
+            <div>
+              <p class="text-sm font-black text-gray-900 dark:text-white">
+                {currentPost.author}
+              </p>
+              <p class="text-xs text-gray-400 font-medium">
+                {currentPost.date} · 조회 {currentPost.view_count + 1}
+              </p>
             </div>
+            <span class="ml-auto text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-300">
+              {CATEGORY_EMOJIS[currentPost.category] || "💬"} {currentPost.category}
+            </span>
+          </div>
 
+          <!-- Title & Content -->
+          <div class="space-y-3">
+            <h2 class="text-xl font-black text-gray-900 dark:text-white leading-snug">
+              {currentPost.title}
+            </h2>
+
+            <!-- Image if available -->
             {#if currentPost.image_url}
               {#if looksLikeImageUrl(currentPost.image_url) && !imageLoadFailed}
-                <!-- 이미지 URL: 이미지로 렌더링 시도 -->
-                <div class="mb-6">
+                <div class="rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-700">
                   {#if imageLoading}
-                    <div class="w-full h-48 bg-gray-100 dark:bg-gray-700 rounded-xl animate-pulse flex items-center justify-center">
-                      <span class="text-gray-400 text-sm">이미지 로딩중...</span>
+                    <div class="w-full h-48 animate-pulse flex items-center justify-center text-xs text-gray-400">
+                      이미지 로딩 중...
                     </div>
                   {/if}
                   <a href={currentPost.image_url} target="_blank" rel="noopener noreferrer">
                     <img
                       src={currentPost.image_url}
                       alt="첨부 이미지"
-                      class="max-w-full rounded-xl shadow-md cursor-pointer hover:opacity-90 transition-opacity"
+                      class="w-full max-h-72 object-contain rounded-2xl"
                       class:hidden={imageLoading}
                       on:error={handleImageError}
                       on:load={handleImageLoad}
@@ -498,116 +548,90 @@
                   </a>
                 </div>
               {:else}
-                <!-- 일반 URL 또는 이미지 로드 실패: 링크 버튼으로 표시 -->
                 <a
                   href={currentPost.image_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  class="inline-flex items-center gap-2 px-4 py-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl text-sm font-bold hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors mb-6 border border-blue-100 dark:border-blue-800"
+                  class="inline-flex items-center gap-1.5 px-4 py-2.5 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-2xl text-xs font-bold border border-blue-200 dark:border-blue-800"
                 >
-                  🔗 첨부 링크 열기
-                  <svg
-                    class="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    ><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                    ></path></svg
-                  >
+                  🔗 첨부 링크 열기 ↗
                 </a>
               {/if}
             {/if}
 
-            <div
-              class="text-gray-700 dark:text-gray-200 leading-relaxed whitespace-pre-line text-sm md:text-base"
-            >
+            <p class="text-sm text-gray-700 dark:text-gray-200 leading-relaxed whitespace-pre-line">
               {currentPost.content}
-            </div>
+            </p>
           </div>
 
           <!-- Comments Section -->
-          <div class="bg-gray-50 dark:bg-gray-900/50 p-6 min-h-[300px]">
-            <h3
-              class="font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2"
-            >
-              댓글 <span
-                class="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-[10px] px-1.5 rounded"
-                >{comments.length}</span
-              >
-            </h3>
+          <div class="pt-4 border-t border-gray-100 dark:border-gray-700 space-y-3">
+            <h4 class="text-xs font-black text-gray-900 dark:text-white flex items-center gap-1.5">
+              <span>💬 댓글</span>
+              <span class="text-indigo-600 font-bold">({comments.length})</span>
+            </h4>
 
-            <div class="space-y-4 mb-20">
-              {#if isCommentLoading}
-                <div class="flex justify-center py-6">
-                  <div
-                    class="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"
-                  ></div>
-                </div>
-              {:else if comments.length === 0}
-                <p class="text-sm text-gray-400 text-center py-6">
-                  첫 댓글을 남겨보세요!
-                </p>
-              {:else}
+            {#if isCommentLoading}
+              <div class="py-4 text-center">
+                <Spinner label="댓글 불러오는 중..." />
+              </div>
+            {:else if comments.length === 0}
+              <p class="text-xs text-gray-400 text-center py-4 bg-gray-50 dark:bg-gray-900 rounded-2xl">
+                첫 번째 따뜻한 댓글을 남겨보세요! ✨
+              </p>
+            {:else}
+              <div class="space-y-2.5">
                 {#each comments as comment}
-                  <div class="flex gap-3">
-                    <div
-                      class="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-xs font-bold text-indigo-600 dark:text-indigo-300 shrink-0"
-                    >
-                      {comment.author[0]}
-                    </div>
-                    <div class="flex-1">
-                      <div
-                        class="bg-white dark:bg-gray-800 p-3 rounded-2xl rounded-tl-none shadow-sm relative group"
-                      >
-                        <div class="flex justify-between items-start mb-1">
-                          <span
-                            class="text-xs font-bold text-gray-900 dark:text-white"
-                            >{comment.author}</span
-                          >
-                          <span class="text-[10px] text-gray-400"
-                            >{comment.date}</span
-                          >
-                        </div>
-                        <p class="text-sm text-gray-600 dark:text-gray-300">
-                          {comment.content}
-                        </p>
-
-                        {#if $currentUser === comment.author || $isAdmin}
-                          <button
-                            on:click={() => deleteComment(comment.id)}
-                            class="absolute right-2 bottom-2 text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all text-xs"
-                            >삭제</button
-                          >
-                        {/if}
+                  <div class="flex gap-2 items-start">
+                    <span class="text-base p-1 bg-gray-100 dark:bg-gray-700 rounded-xl leading-none shrink-0">
+                      {MEMBER_AVATARS[comment.author] || "👤"}
+                    </span>
+                    <div class="flex-1 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-2xl space-y-1 relative group">
+                      <div class="flex justify-between items-center">
+                        <span class="text-xs font-black text-gray-800 dark:text-gray-200">
+                          {comment.author}
+                        </span>
+                        <span class="text-[10px] text-gray-400">
+                          {comment.date}
+                        </span>
                       </div>
+                      <p class="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">
+                        {comment.content}
+                      </p>
+
+                      {#if $currentUser === comment.author || $isAdmin}
+                        <button
+                          type="button"
+                          on:click={() => deleteComment(comment.id)}
+                          class="absolute right-2.5 top-2.5 text-gray-400 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+                          title="삭제"
+                        >
+                          ✕
+                        </button>
+                      {/if}
                     </div>
                   </div>
                 {/each}
-              {/if}
-            </div>
+              </div>
+            {/if}
           </div>
         </div>
 
-        <!-- Comment Input (Fixed) -->
-        <div
-          class="p-4 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 shrink-0"
-        >
+        <!-- Sticky Comment Input Bar -->
+        <div class="p-3 bg-gray-50 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-700 shrink-0">
           <div class="flex gap-2">
             <input
               type="text"
               bind:value={commentContent}
-              placeholder="댓글을 입력하세요..."
-              class="flex-1 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white px-4 py-3 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+              placeholder="댓글을 남겨보세요..."
+              class="flex-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-4 py-2.5 rounded-2xl text-xs outline-none focus:ring-2 focus:ring-indigo-500 border border-gray-200 dark:border-gray-700"
               on:keypress={(e) => e.key === "Enter" && addComment()}
             />
             <button
+              type="button"
               on:click={addComment}
               disabled={!commentContent.trim() || isCommentSubmitting}
-              class="bg-indigo-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white px-4 rounded-xl font-bold text-sm transition-all"
+              class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white font-black text-xs rounded-2xl transition-all active:scale-95"
             >
               전송
             </button>
