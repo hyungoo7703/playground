@@ -268,7 +268,7 @@
   }
 </script>
 
-<div class="space-y-6 max-w-md mx-auto">
+<div class="space-y-6 max-w-md mx-auto pb-36">
 
   <header
     in:fade={{ duration: 800 }}
@@ -569,8 +569,8 @@
         <input
           type="text"
           bind:value={newKnowledgeText}
-          placeholder="예: 엄마는 매운 음식 못 드심, 분리수거는 화요일 밤"
-          class="flex-1 px-3.5 py-2.5 bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-xl text-xs sm:text-sm border border-indigo-100 dark:border-indigo-900/60 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-inner"
+          placeholder="예: 엄마 매운음식 못드심, 분리수거 화요일"
+          class="flex-1 min-w-0 px-3.5 py-2.5 bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-xl text-xs sm:text-sm border border-indigo-100 dark:border-indigo-900/60 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-inner"
         />
         <button
           type="submit"
