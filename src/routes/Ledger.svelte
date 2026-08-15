@@ -296,34 +296,93 @@
     return sum + (isNaN(n) ? 0 : n);
   }, 0);
 
-  async function shareSettlement() {
-    if (unsettledAmount === 0) return alert("미정산 내역이 없습니다! 🎉");
+  // Nudge Push State
+  let showNudgeModal = false;
+  let isSendingNudge = {};
+  let isBatchSendingNudge = false;
 
-    let message = `[${displayMonth}월 장부 정산 알림] 💸\n아직 ${unsettledAmount.toLocaleString()}원이 미정산 상태입니다!\n\n`;
+  // Only unsettled items with type === "이체"
+  $: unsettledTransfers = filteredItems.filter(
+    (i) => (!i.is_settled || i.is_settled === "FALSE") && i.type === "이체",
+  );
 
-    unsettledItems.forEach((item) => {
-      message += `• ${item.giver} → ${item.receiver} : ${formatAmount(item.amount)}원 (${item.title})\n`;
-    });
-
-    message += `\n빠른 정산 부탁드립니다! 😘`;
-
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: "장부 정산 알림",
-          text: message,
-        });
-      } catch (err) {
-        console.log("Error sharing:", err);
+  // Group unsettled transfers by 'giver' (주는 사람)
+  $: debtorsList = Object.values(
+    unsettledTransfers.reduce((acc, item) => {
+      const giver = item.giver || "미지정";
+      if (!acc[giver]) {
+        acc[giver] = {
+          giver,
+          totalAmount: 0,
+          items: [],
+        };
       }
-    } else {
-      try {
-        await navigator.clipboard.writeText(message);
-        alert("정산 메시지가 복사되었습니다!");
-      } catch (err) {
-        alert("복사 실패");
-      }
+      acc[giver].totalAmount += parseFloat(item.amount) || 0;
+      acc[giver].items.push(item);
+      return acc;
+    }, {}),
+  );
+
+  function openNudgeModal() {
+    if (!$isAdmin) return alert("관리자만 독촉할 수 있습니다.");
+    if (debtorsList.length === 0) {
+      return alert("현재 미정산된 이체 내역이 없습니다! 🎉");
     }
+    showNudgeModal = true;
+  }
+
+  async function sendNudgePush(debtor) {
+    isSendingNudge = { ...isSendingNudge, [debtor.giver]: true };
+
+    const title = `[${displayMonth}월 장부 이체 알림] 💸`;
+    const body = `${debtor.giver}님, ${displayMonth}월 미정산 이체 ${debtor.totalAmount.toLocaleString()}원(${debtor.items.length}건)이 있습니다. 확인 후 정산해주세요! 🙏`;
+
+    try {
+      const res = await api.sendPushNotification({
+        target_user: debtor.giver,
+        title,
+        body,
+        url: `${window.location.origin}${window.location.pathname}#/ledger`,
+      });
+
+      if (res && res.success) {
+        alert(`${debtor.giver}님에게 푸쉬 알림을 성공적으로 보냈습니다! 🚀`);
+      } else {
+        alert(`발송 결과: ${res?.message || "완료"}`);
+      }
+    } catch (e) {
+      alert("푸쉬 발송 중 오류가 발생했습니다: " + e.message);
+    } finally {
+      isSendingNudge = { ...isSendingNudge, [debtor.giver]: false };
+    }
+  }
+
+  async function sendAllNudgePush() {
+    if (
+      !confirm(
+        `미정산 이체가 있는 모든 가족(${debtorsList.length}명)에게 푸쉬 알림을 보낼까요?`,
+      )
+    )
+      return;
+    isBatchSendingNudge = true;
+
+    let successCount = 0;
+    for (const debtor of debtorsList) {
+      const title = `[${displayMonth}월 장부 이체 알림] 💸`;
+      const body = `${debtor.giver}님, ${displayMonth}월 미정산 이체 ${debtor.totalAmount.toLocaleString()}원(${debtor.items.length}건)이 있습니다. 확인 후 정산해주세요! 🙏`;
+      const res = await api.sendPushNotification({
+        target_user: debtor.giver,
+        title,
+        body,
+        url: `${window.location.origin}${window.location.pathname}#/ledger`,
+      });
+      if (res && res.success) successCount++;
+    }
+
+    isBatchSendingNudge = false;
+    alert(
+      `총 ${debtorsList.length}명 중 ${successCount}명에게 푸쉬 알림 발송 완료! 🚀`,
+    );
   }
 </script>
 
@@ -359,13 +418,15 @@
           </button>
         </div>
 
-        <button
-          type="button"
-          on:click={shareSettlement}
-          class="text-xs bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-2xl font-bold backdrop-blur-md active:scale-95 transition-all flex items-center gap-1.5 border border-white/20"
-        >
-          <span>📢</span> 독촉하기
-        </button>
+        {#if $isAdmin}
+          <button
+            type="button"
+            on:click={openNudgeModal}
+            class="text-xs bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-2xl font-bold backdrop-blur-md active:scale-95 transition-all flex items-center gap-1.5 border border-white/20"
+          >
+            <span>📢</span> 독촉하기
+          </button>
+        {/if}
       </div>
 
       <!-- Tier 2: Unsettled Big Hero -->
@@ -373,6 +434,7 @@
         <span class="text-indigo-200 text-xs font-bold uppercase tracking-widest block">
           {displayMonth}월 미정산 금액
         </span>
+
         <div class="flex items-baseline justify-center gap-1">
           <h1 class="text-4xl font-black tracking-tight text-white">
             {unsettledAmount.toLocaleString()}
@@ -733,8 +795,104 @@
   {/if}
 
 
+  <!-- Nudge Push Modal (이체 기록 한정, 주는 사람별 선택 푸쉬) -->
+  {#if showNudgeModal}
+    <div
+      class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      transition:fade
+    >
+      <div
+        class="w-full max-w-sm max-h-[85vh] flex flex-col bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-2xl relative space-y-4"
+        transition:slide={{ duration: 250, axis: "y" }}
+      >
+        <div class="flex justify-between items-center shrink-0">
+          <div>
+            <h2 class="text-lg font-black text-gray-900 dark:text-white flex items-center gap-1.5">
+              📢 이체 독촉 푸쉬 발송
+            </h2>
+            <p class="text-[11px] text-gray-400">
+              미정산 이체 내역이 있는 '주는 사람'에게 푸쉬를 보냅니다.
+            </p>
+          </div>
+          <button
+            type="button"
+            on:click={() => (showNudgeModal = false)}
+            class="p-2 bg-gray-100 dark:bg-gray-700 rounded-full text-xs font-bold"
+          >
+            ✕
+          </button>
+        </div>
+
+        <!-- All Givers Batch Send Button -->
+        {#if debtorsList.length > 1}
+          <button
+            type="button"
+            on:click={sendAllNudgePush}
+            disabled={isBatchSendingNudge}
+            class="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-2xl font-black text-xs shadow-md active:scale-95 transition-all disabled:opacity-40 flex items-center justify-center gap-2"
+          >
+            <span>⚡</span>
+            <span>{isBatchSendingNudge ? "일괄 발송 중..." : `모두에게 한 번에 푸쉬 보내기 (${debtorsList.length}명)`}</span>
+          </button>
+        {/if}
+
+        <!-- Debtors List -->
+        <div class="flex-1 overflow-y-auto space-y-3 pr-1">
+          {#each debtorsList as debtor}
+            <div class="bg-gray-50 dark:bg-gray-900 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 space-y-3">
+              <!-- Giver Header -->
+              <div class="flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                  <span class="text-xl p-1.5 bg-white dark:bg-gray-800 rounded-xl leading-none shadow-sm">
+                    {debtor.giver === "엄마" ? "👩" : debtor.giver === "아빠" ? "👨" : debtor.giver === "범수" ? "👦" : "🧑"}
+                  </span>
+                  <div>
+                    <p class="text-xs font-black text-gray-900 dark:text-white leading-tight">
+                      {debtor.giver} (주는 사람)
+                    </p>
+                    <p class="text-[10px] text-gray-400">
+                      미정산 이체 {debtor.items.length}건
+                    </p>
+                  </div>
+                </div>
+
+                <span class="text-sm font-black text-rose-600 dark:text-rose-400">
+                  {debtor.totalAmount.toLocaleString()}원
+                </span>
+              </div>
+
+              <!-- Unsettled items preview -->
+              <div class="space-y-1 bg-white dark:bg-gray-800 p-2.5 rounded-xl border border-gray-100 dark:border-gray-700 text-[11px]">
+                {#each debtor.items as it}
+                  <div class="flex justify-between items-center text-gray-600 dark:text-gray-300">
+                    <span class="truncate max-w-[170px]">• {it.title} ({it.date.slice(5)})</span>
+                    <span class="font-bold text-gray-800 dark:text-gray-200">
+                      {Number(it.amount).toLocaleString()}원
+                    </span>
+                  </div>
+                {/each}
+              </div>
+
+              <!-- Send Button -->
+              <button
+                type="button"
+                on:click={() => sendNudgePush(debtor)}
+                disabled={isSendingNudge[debtor.giver]}
+                class="w-full py-2.5 bg-rose-500 hover:bg-rose-600 disabled:opacity-40 text-white rounded-xl text-xs font-bold active:scale-95 transition-all shadow-sm flex items-center justify-center gap-1.5"
+              >
+                <span>🔔</span>
+                <span>{isSendingNudge[debtor.giver] ? "푸쉬 발송 중..." : `${debtor.giver}에게 푸쉬 알림 발송`}</span>
+              </button>
+            </div>
+          {/each}
+        </div>
+      </div>
+    </div>
+  {/if}
+
   <!-- Floating Add Button for Admin -->
   {#if $isAdmin}
+
     <button
       type="button"
       on:click={() => openAddForm()}

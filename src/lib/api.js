@@ -97,6 +97,8 @@ export const api = {
 
     // Push Notifications
     savePushDevice: (data) => fetchFromGAS('savePushDevice', data),
+    sendPushNotification: (data) => fetchFromGAS('sendPushNotification', data),
 };
+
 
 
