@@ -51,32 +51,11 @@
   let viewAsUser = USERS.includes($currentUser) ? $currentUser : "아빠";
   let showOnlyMine = false;
 
-  // Fixed Rules State (Simplified: Day, Title, Amount, Giver, Receiver)
+  // Fixed Rules State (Cleaned up: No manual input clutter)
   let rules = [];
   let showRuleModal = false;
   let isRuleSubmitting = false;
-  let newRuleDay = 25;
-  let newRuleTitle = "범수 정기입금(생활비 + 투자)";
-  let newRuleAmount = "";
-  let newRuleGiver = "범수";
-  let newRuleReceiver = "엄마";
   let isBatchSubmitting = false;
-
-  const RULE_PRESETS = [
-    { title: "범수 정기입금(생활비 + 투자)", giver: "범수", receiver: "엄마" },
-  ];
-
-
-  function applyPreset(preset) {
-    newRuleTitle = preset.title;
-    newRuleGiver = preset.giver;
-    newRuleReceiver = preset.receiver;
-  }
-
-  function addRuleAmount(val) {
-    const current = cleanAmount(newRuleAmount);
-    newRuleAmount = String(current + val);
-  }
 
   onMount(() => {
     loadLedger();
@@ -95,25 +74,25 @@
     isLoading = false;
   }
 
-  async function handleAddRule() {
-    const ruleAmount = cleanAmount(newRuleAmount);
-    if (!newRuleTitle || !ruleAmount)
-      return alert("내용과 금액을 입력해주세요.");
+  async function handleQuickAddDefaultRule() {
+    const inputAmount = prompt("매월 이체할 금액(원)을 입력해주세요:", "500000");
+    if (!inputAmount) return;
+
+    const ruleAmount = cleanAmount(inputAmount);
+    if (!ruleAmount) return alert("올바른 금액을 입력해주세요.");
+
     isRuleSubmitting = true;
     const payload = {
-      day: newRuleDay || 1,
-      title: newRuleTitle,
+      day: 25,
+      title: "범수 정기입금(생활비 + 투자)",
       amount: ruleAmount,
-      giver: newRuleGiver,
-      receiver: newRuleReceiver,
+      giver: "범수",
+      receiver: "엄마",
       type: "이체",
     };
     const res = await api.addRule(payload);
-    if (res.success) {
-      newRuleTitle = "";
-      newRuleAmount = "";
-    } else {
-      alert("고정 내역 추가 실패: " + res.message);
+    if (!res.success) {
+      alert("규칙 등록 실패: " + res.message);
     }
     const r = await api.getRules();
     if (r.success) rules = r.rules;
@@ -121,6 +100,7 @@
   }
 
   async function handleDeleteRule(id) {
+
     if (!confirm("고정 내역을 삭제하시겠습니까?")) return;
     const res = await api.deleteRule(id);
     if (res.success) {
@@ -695,14 +675,22 @@
         </div>
 
         <!-- Rules List (Scrollable) -->
-        <div class="flex-1 overflow-y-auto space-y-2 pr-1 min-h-[120px]">
+        <div class="flex-1 overflow-y-auto space-y-2 pr-1 min-h-[140px]">
           {#if rules.length === 0}
-            <div class="text-center py-6 text-gray-400 text-xs">
-              아직 등록된 고정 이체 규칙이 없습니다.<br />아래 폼에서 쉽게 등록해보세요!
+            <div class="text-center py-8 text-gray-400 text-xs bg-gray-50 dark:bg-gray-900 rounded-2xl space-y-3 p-4">
+              <p>아직 등록된 고정 이체 규칙이 없습니다.</p>
+              <button
+                type="button"
+                on:click={handleQuickAddDefaultRule}
+                disabled={isRuleSubmitting}
+                class="w-full py-3 bg-gray-900 hover:bg-black dark:bg-white dark:text-gray-900 text-white rounded-xl text-xs font-black shadow-sm active:scale-95 transition-all"
+              >
+                + '범수 정기입금(생활비 + 투자)' 등록하기
+              </button>
             </div>
           {:else}
             {#each rules as rule}
-              <div class="bg-gray-50 dark:bg-gray-900 p-3 rounded-2xl flex justify-between items-center border border-gray-100 dark:border-gray-700">
+              <div class="bg-gray-50 dark:bg-gray-900 p-4 rounded-2xl flex justify-between items-center border border-gray-100 dark:border-gray-700">
                 <div>
                   <div class="flex items-center gap-1.5">
                     <span class="text-[10px] bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-black px-1.5 py-0.5 rounded">
@@ -712,8 +700,8 @@
                       {rule.title}
                     </span>
                   </div>
-                  <p class="text-xs font-black text-indigo-600 dark:text-indigo-400 mt-1">
-                    {formatAmount(rule.amount)}원 <span class="text-[11px] text-gray-400 font-normal">({rule.giver} → {rule.receiver})</span>
+                  <p class="text-sm font-black text-indigo-600 dark:text-indigo-400 mt-1">
+                    {formatAmount(rule.amount)}원 <span class="text-xs text-gray-400 font-normal">({rule.giver} → {rule.receiver})</span>
                   </p>
                 </div>
                 <button
@@ -726,109 +714,24 @@
                 </button>
               </div>
             {/each}
+
+            <!-- Quick Add Button if not already registered -->
+            {#if !rules.some(r => r.title.includes("범수 정기입금"))}
+              <button
+                type="button"
+                on:click={handleQuickAddDefaultRule}
+                disabled={isRuleSubmitting}
+                class="w-full py-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl text-xs font-bold transition-all active:scale-95 border border-dashed border-gray-300 dark:border-gray-600"
+              >
+                + '범수 정기입금(생활비 + 투자)' 추가 등록하기
+              </button>
+            {/if}
           {/if}
-        </div>
-
-        <!-- Super Intuitive New Rule Creator -->
-        <div class="shrink-0 p-3.5 bg-gray-50 dark:bg-gray-900 rounded-2xl space-y-2.5 border border-gray-100 dark:border-gray-700">
-          <!-- Preset Chips -->
-          <div class="flex gap-1 overflow-x-auto pb-1 scrollbar-none">
-            {#each RULE_PRESETS as preset}
-              <button
-                type="button"
-                on:click={() => applyPreset(preset)}
-                class="px-2 py-1 bg-white dark:bg-gray-800 text-[10px] font-bold text-gray-600 dark:text-gray-300 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 whitespace-nowrap border border-gray-200 dark:border-gray-700"
-              >
-                + {preset.title}
-              </button>
-            {/each}
-          </div>
-
-          <div class="flex gap-1.5 items-center">
-            <div class="flex items-center gap-1 bg-white dark:bg-gray-800 px-2 py-1.5 rounded-xl border border-gray-200 dark:border-gray-700">
-              <span class="text-[10px] text-gray-400 font-bold whitespace-nowrap">매월</span>
-              <input
-                type="number"
-                min="1"
-                max="31"
-                bind:value={newRuleDay}
-                class="w-8 text-center text-xs font-black bg-transparent text-gray-900 dark:text-white outline-none"
-              />
-              <span class="text-[10px] text-gray-400 font-bold">일</span>
-            </div>
-            <input
-              type="text"
-              bind:value={newRuleTitle}
-              placeholder="내역 이름 (예: 엄마 용돈)"
-              class="flex-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 rounded-xl text-xs font-bold outline-none border border-gray-200 dark:border-gray-700"
-            />
-          </div>
-
-          <!-- Amount with quick buttons -->
-          <div class="space-y-1">
-            <div class="flex gap-1.5 items-center">
-              <input
-                type="text"
-                bind:value={newRuleAmount}
-                placeholder="금액 입력"
-                class="flex-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 rounded-xl text-xs font-black outline-none border border-gray-200 dark:border-gray-700"
-              />
-              <span class="text-xs text-gray-400 font-bold">원</span>
-            </div>
-            <div class="flex gap-1">
-              <button
-                type="button"
-                on:click={() => addRuleAmount(50000)}
-                class="flex-1 py-1 bg-white dark:bg-gray-800 text-[10px] font-bold text-gray-600 dark:text-gray-300 rounded-lg border border-gray-200 dark:border-gray-700"
-              >
-                +5만
-              </button>
-              <button
-                type="button"
-                on:click={() => addRuleAmount(100000)}
-                class="flex-1 py-1 bg-white dark:bg-gray-800 text-[10px] font-bold text-gray-600 dark:text-gray-300 rounded-lg border border-gray-200 dark:border-gray-700"
-              >
-                +10만
-              </button>
-              <button
-                type="button"
-                on:click={() => addRuleAmount(300000)}
-                class="flex-1 py-1 bg-white dark:bg-gray-800 text-[10px] font-bold text-gray-600 dark:text-gray-300 rounded-lg border border-gray-200 dark:border-gray-700"
-              >
-                +30만
-              </button>
-            </div>
-          </div>
-
-          <!-- Sender -> Receiver -->
-          <div class="grid grid-cols-[1fr_auto_1fr] gap-1.5 items-center">
-            <select
-              bind:value={newRuleGiver}
-              class="bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-2 py-1.5 rounded-xl text-xs font-bold outline-none border border-gray-200 dark:border-gray-700"
-            >
-              {#each USERS as u}<option value={u}>{u}</option>{/each}
-            </select>
-            <span class="text-gray-400 text-xs font-bold">→</span>
-            <select
-              bind:value={newRuleReceiver}
-              class="bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-2 py-1.5 rounded-xl text-xs font-bold outline-none border border-gray-200 dark:border-gray-700"
-            >
-              {#each USERS as u}<option value={u}>{u}</option>{/each}
-            </select>
-          </div>
-
-          <button
-            type="button"
-            on:click={handleAddRule}
-            disabled={isRuleSubmitting}
-            class="w-full py-2.5 bg-gray-900 hover:bg-black dark:bg-white dark:text-gray-900 text-white rounded-xl text-xs font-black active:scale-95 transition-all shadow-sm"
-          >
-            {isRuleSubmitting ? "저장 중..." : "+ 고정 규칙 등록"}
-          </button>
         </div>
       </div>
     </div>
   {/if}
+
 
   <!-- Floating Add Button for Admin -->
   {#if $isAdmin}
