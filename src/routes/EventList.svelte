@@ -241,44 +241,34 @@
     isSendingEventPush = true;
 
     const { title, body } = currentPushPreview;
-    const targets = ["아빠", "엄마", "현구", "범수"];
-    let successCount = 0;
-    let serverMessages = [];
 
-    // 현재 기기 로컬 알림 즉시 팝업
-    showLocalNotification(title, { body });
+    try {
+      // 가족 전체(all)에게 1회 일괄 발송
+      const res = await api.sendPushNotification({
+        target_user: "all",
+        title,
+        body,
+        url: `${window.location.origin}${window.location.pathname}#/events`,
+      });
 
-    for (const target of targets) {
-      try {
-        const res = await api.sendPushNotification({
-          target_user: target,
-          title,
-          body,
-          url: `${window.location.origin}${window.location.pathname}#/events`,
-        });
-        if (res && res.success) {
-          successCount++;
-        } else if (res && res.message) {
-          serverMessages.push(`${target}: ${res.message}`);
-        }
-      } catch (e) {
-        serverMessages.push(`${target}: ${e.message}`);
+      isSendingEventPush = false;
+      showEventPushModal = false;
+
+      if (res && res.success) {
+        alert(
+          `🚀 가족 전체 푸쉬 알림 발송 완료!\n\n📢 ${title}\n💬 "${body}"\n\n📌 발송 결과: ${res.message || res.count + "개 기기로 전송되었습니다."}`,
+        );
+      } else {
+        alert(
+          `[알림 발송 안내]\n${res?.message || "등록된 기기가 없습니다."}\n\n※ 부모님 스마트폰에서 사이트를 한 번 새로고침하여 기기가 등록되었는지 확인해주세요!`,
+        );
       }
-    }
-
-    isSendingEventPush = false;
-    showEventPushModal = false;
-
-    if (serverMessages.length > 0 && successCount === 0) {
-      alert(
-        `[알림 발송 상태]\n서버 응답: ${serverMessages[0]}\n\n※ 상대방 기기가 '설정' 화면에서 '알림 허용 및 기기 등록'을 완료했는지 확인해주세요!`,
-      );
-    } else {
-      alert(
-        `가족 전체에게 푸쉬 알림을 발송했습니다! 🚀\n\n📢 ${title}\n💬 "${body}"`,
-      );
+    } catch (e) {
+      isSendingEventPush = false;
+      alert("푸쉬 발송 중 오류가 발생했습니다: " + e.message);
     }
   }
+
 
 
   function getDDayLabel(dateStr) {
@@ -349,46 +339,53 @@
   <!-- Admin Exclusive: Family Schedule Push & Add Event -->
   {#if $isAdmin}
     <div class="space-y-2.5">
+      <!-- Top Schedule Push Banner Card -->
       <button
         type="button"
         on:click={openEventPushModal}
-        class="w-full p-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:to-pink-700 text-white rounded-3xl shadow-lg active:scale-[0.98] transition-all flex items-center justify-between gap-3 text-left"
+        class="w-full p-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:to-pink-700 text-white rounded-3xl shadow-lg active:scale-[0.98] transition-all text-left block relative overflow-hidden"
       >
-        <div class="flex items-center gap-3">
-          <span class="text-2xl p-2 bg-white/20 rounded-2xl backdrop-blur-md shrink-0">
-            🔔
-          </span>
-          <div class="min-w-0">
-            <div class="flex items-center gap-1.5">
-              <span class="text-xs font-black tracking-wide">가족 전체에게 일정 푸쉬 보내기</span>
-              <span class="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-bold">나만 가능</span>
-            </div>
-            {#if nearestUpcomingEvent}
-              {@const prev = generateEventPushMessage(nearestUpcomingEvent)}
-              <p class="text-[11px] text-pink-100 font-medium truncate mt-0.5">
-                미리보기: "{prev.body}"
-              </p>
-            {:else}
-              <p class="text-[11px] text-pink-100 font-medium truncate mt-0.5">
-                다가오는 일정 알림을 보냅니다
-              </p>
-            {/if}
+        <div class="flex items-center justify-between gap-2 mb-2">
+          <div class="flex items-center gap-2">
+            <span class="text-base p-1.5 bg-white/20 rounded-xl leading-none">🔔</span>
+            <span class="text-xs font-black tracking-wide">가족 전체 일정 푸쉬 알림</span>
           </div>
+          <span class="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-bold">나만 가능</span>
         </div>
-        <span class="text-xs bg-white text-indigo-700 px-3 py-1.5 rounded-xl font-black shrink-0 shadow-sm">
-          발송 ➔
-        </span>
+
+        {#if nearestUpcomingEvent}
+          {@const prev = generateEventPushMessage(nearestUpcomingEvent)}
+          <div class="bg-black/20 rounded-2xl p-2.5 flex items-center justify-between gap-2">
+            <p class="text-[11px] text-pink-100 font-medium truncate">
+              "{prev.body}"
+            </p>
+            <span class="text-[10px] bg-white text-indigo-700 px-2.5 py-1 rounded-lg font-black shrink-0 shadow-sm">
+              발송 ➔
+            </span>
+          </div>
+        {:else}
+          <div class="bg-black/20 rounded-2xl p-2.5 flex items-center justify-between gap-2">
+            <p class="text-[11px] text-pink-100 font-medium truncate">
+              다가오는 일정 알림을 가족에게 보냅니다
+            </p>
+            <span class="text-[10px] bg-white text-indigo-700 px-2.5 py-1 rounded-lg font-black shrink-0 shadow-sm">
+              발송 ➔
+            </span>
+          </div>
+        {/if}
       </button>
 
+      <!-- Add New Event Button -->
       <button
         type="button"
         on:click={openAddModal}
-        class="w-full py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 font-black text-xs"
+        class="w-full py-3.5 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 font-black text-xs"
       >
         <span>➕ 새 가족 일정 추가하기</span>
       </button>
     </div>
   {/if}
+
 
 
   <!-- Category Filter Pills -->
