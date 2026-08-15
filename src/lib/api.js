@@ -89,4 +89,8 @@ export const api = {
     // Attendance
     getAttendance: () => fetchFromGAS('getAttendance'),
     addAttendance: (data) => fetchFromGAS('addAttendance', data),
+
+    // AI Config
+    getAiConfig: () => fetchFromGAS('getAiConfig'),
 };
+
