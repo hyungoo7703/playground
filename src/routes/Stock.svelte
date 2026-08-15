@@ -194,11 +194,10 @@
   const POPULAR_STOCKS = [
     { name: "삼성전자", emoji: "📱" },
     { name: "현대차", emoji: "🚗" },
-    { name: "SK하이닉스", emoji: "💾" },
-    { name: "맥쿼리인프라", emoji: "🌲" },
-    { name: "카카오", emoji: "💬" },
-    { name: "NAVER", emoji: "🔍" },
+    { name: "갤럭시아머니트리", emoji: "🌲" },
+    { name: "슈프리마에이치큐", emoji: "🛡️" },
   ];
+
 </script>
 
 <div class="space-y-6 max-w-md mx-auto">
@@ -258,20 +257,21 @@
           <span class="text-xs font-black text-gray-800 dark:text-gray-200">어떤 주식을 사셨나요?</span>
         </div>
 
-        <div class="grid grid-cols-3 gap-2">
+        <div class="grid grid-cols-2 gap-2">
           {#each POPULAR_STOCKS as stock}
             <button
               type="button"
               on:click={() => (newStock.name = stock.name)}
-              class="p-2.5 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all border {newStock.name === stock.name
-                ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-500 font-black'
+              class="p-3 rounded-2xl flex items-center justify-center gap-2 transition-all border {newStock.name === stock.name
+                ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-500 font-black shadow-sm'
                 : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold'}"
             >
-              <span class="text-lg">{stock.emoji}</span>
-              <span class="text-xs">{stock.name}</span>
+              <span class="text-xl leading-none">{stock.emoji}</span>
+              <span class="text-xs truncate">{stock.name}</span>
             </button>
           {/each}
         </div>
+
 
         <input
           type="text"
