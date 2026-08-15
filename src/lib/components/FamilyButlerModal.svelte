@@ -289,7 +289,7 @@ ${eventsStr}
 
               <!-- Message Bubble -->
               <div
-                class="chat-bubble px-4 py-3 rounded-2xl leading-relaxed break-words shadow-sm text-xs sm:text-sm {msg.role === 'user'
+                class="chat-bubble px-4 py-3 rounded-2xl leading-relaxed break-words shadow-sm text-[14px] sm:text-[15px] {msg.role === 'user'
                   ? 'bg-indigo-600 text-white rounded-br-none font-medium'
                   : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-100 dark:border-gray-700/80 rounded-bl-none'}"
               >
@@ -299,7 +299,7 @@ ${eventsStr}
                       <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                       <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
                     </svg>
-                    <span class="font-bold text-xs">
+                    <span class="font-bold text-sm">
                       패밀리봇이 답변 작성 중... ✍️
                     </span>
                   </div>
@@ -326,12 +326,12 @@ ${eventsStr}
             on:keydown={handleKeydown}
             disabled={isStreaming}
             placeholder="우리 가족 일정, 가계부, 저녁 메뉴, 주말 계획 등 무엇이든 물어보세요..."
-            class="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-2xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 border border-transparent dark:border-gray-700 transition-all disabled:opacity-50"
+            class="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-2xl text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 border border-transparent dark:border-gray-700 transition-all disabled:opacity-50"
           />
           <button
             type="submit"
             disabled={isStreaming || !inputText.trim()}
-            class="px-4 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white rounded-2xl text-xs sm:text-sm font-black shadow-md active:scale-95 transition-all shrink-0 flex items-center justify-center min-w-[56px]"
+            class="px-4 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white rounded-2xl text-sm font-black shadow-md active:scale-95 transition-all shrink-0 flex items-center justify-center min-w-[56px]"
           >
             {#if isStreaming}
               <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -357,8 +357,18 @@ ${eventsStr}
     scrollbar-width: none;
   }
 
+  .markdown-content {
+    font-size: 14.5px;
+    line-height: 1.68;
+  }
+  @media (min-width: 640px) {
+    .markdown-content {
+      font-size: 15.5px;
+    }
+  }
+
   .markdown-content :global(p) {
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.55rem;
   }
   .markdown-content :global(p:last-child) {
     margin-bottom: 0;
@@ -372,30 +382,30 @@ ${eventsStr}
   }
   .markdown-content :global(ul) {
     list-style-type: disc;
-    padding-left: 1.2rem;
-    margin-bottom: 0.5rem;
+    padding-left: 1.25rem;
+    margin-bottom: 0.55rem;
   }
   .markdown-content :global(ol) {
     list-style-type: decimal;
-    padding-left: 1.2rem;
-    margin-bottom: 0.5rem;
+    padding-left: 1.25rem;
+    margin-bottom: 0.55rem;
   }
   .markdown-content :global(li) {
-    margin-bottom: 0.2rem;
+    margin-bottom: 0.25rem;
   }
   .markdown-content :global(h1),
   .markdown-content :global(h2),
   .markdown-content :global(h3),
   .markdown-content :global(h4) {
     font-weight: 800;
-    margin-top: 0.6rem;
-    margin-bottom: 0.3rem;
+    margin-top: 0.75rem;
+    margin-bottom: 0.35rem;
   }
   .markdown-content :global(code) {
     background: rgba(0, 0, 0, 0.06);
     padding: 0.15rem 0.35rem;
     border-radius: 0.25rem;
-    font-size: 0.85em;
+    font-size: 0.88em;
   }
   :global(.dark) .markdown-content :global(code) {
     background: rgba(255, 255, 255, 0.1);
