@@ -277,14 +277,6 @@ ${eventsStr}
       <!-- Top App Bar -->
       <div class="px-4 sm:px-5 py-3.5 sm:py-4 bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 text-white flex items-center justify-between shadow-md shrink-0 pt-[max(0.875rem,env(safe-area-inset-top))]">
         <div class="flex items-center gap-3">
-          <button
-            type="button"
-            on:click={handleClose}
-            class="sm:hidden p-2 -ml-1 text-white/90 hover:text-white hover:bg-white/10 rounded-xl transition-all font-bold text-lg flex items-center justify-center"
-            title="뒤로 가기"
-          >
-            ←
-          </button>
           <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-lg sm:text-xl shadow-inner border border-white/20">
             🤖
           </div>
