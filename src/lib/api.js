@@ -92,5 +92,9 @@ export const api = {
 
     // AI Config
     getAiConfig: () => fetchFromGAS('getAiConfig'),
+
+    // Push Notifications
+    savePushDevice: (data) => fetchFromGAS('savePushDevice', data),
 };
+
 

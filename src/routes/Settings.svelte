@@ -10,7 +10,8 @@
   } from "../lib/aiApi.js";
   import {
     getNotificationPermission,
-    requestNotificationPermission,
+    registerPushDevice,
+    autoRegisterPushIfGranted,
     sendTestNotification,
     isNotificationSupported,
   } from "../lib/notification.js";
@@ -27,6 +28,7 @@
   let notiPermission = "default";
   let notiMessage = "";
   let isSendingNoti = false;
+  let isRegisteringNoti = false;
 
   onMount(() => {
     // 1. AI 설정 불러오기
@@ -37,8 +39,11 @@
       isConnected = true;
     }
 
-    // 2. 알림 권한 상태 확인
+    // 2. 알림 권한 상태 확인 및 이미 허용된 경우 자동 기기 등록
     notiPermission = getNotificationPermission();
+    if (notiPermission === "granted") {
+      autoRegisterPushIfGranted();
+    }
   });
 
   // AI 서버에서 설정 동기화
@@ -90,18 +95,23 @@
     aiMessage = "💾 AI 설정이 로컬스토리지에 저장되었습니다.";
   }
 
-  // 알림 권한 요청
+  // 알림 권한 요청 및 기기 등록
   async function handleRequestNotification() {
+    isRegisteringNoti = true;
+    notiMessage = "알림 권한 요청 및 기기 등록 중...";
+
     try {
-      const permission = await requestNotificationPermission();
-      notiPermission = permission;
-      if (permission === "granted") {
-        notiMessage = "🔔 알림 권한이 허용되었습니다! 아래 버튼으로 테스트해보세요.";
-      } else if (permission === "denied") {
+      const result = await registerPushDevice();
+      notiPermission = result.permission;
+      if (result.success) {
+        notiMessage = "🔔 알림 권한 허용 및 구글 시트에 기기 등록이 완료되었습니다!";
+      } else if (result.permission === "denied") {
         notiMessage = "🚫 알림 권한이 차단되었습니다. 브라우저 사이트 설정에서 권한을 변경해주세요.";
       }
     } catch (e) {
-      notiMessage = `알림 오류: ${e.message}`;
+      notiMessage = `알림 등록 오류: ${e.message}`;
+    } finally {
+      isRegisteringNoti = false;
     }
   }
 

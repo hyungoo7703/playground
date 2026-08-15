@@ -27,6 +27,8 @@
   import Menu from "../routes/Menu.svelte";
   import Login from "../routes/Login.svelte";
 
+  import { autoRegisterPushIfGranted } from "./notification.js";
+
   const location = useLocation();
 
   // 로그인 상태 및 경로 체크 함수 (백틱 사용하여 경로 수정)
@@ -52,6 +54,10 @@
   onMount(() => {
     checkAuth();
 
+    if ($isLoggedIn) {
+      autoRegisterPushIfGranted();
+    }
+
     window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
     window.addEventListener("appinstalled", onAppInstalled);
 
@@ -60,6 +66,7 @@
       window.removeEventListener("appinstalled", onAppInstalled);
     };
   });
+
 
   // 로그인 여부나 경로가 바뀔 때마다 체크
   $: $isLoggedIn, $location.pathname, checkAuth();
