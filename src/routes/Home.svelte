@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import { fade, fly } from "svelte/transition";
   import { navigate } from "svelte-routing";
-  import { base } from "../lib/store.js";
+  import { base, isAdmin } from "../lib/store.js";
   import { api } from "../lib/api.js";
   import { formatDate } from "../lib/utils.js";
   import { readCache, writeCache } from "../lib/cache.js";
@@ -19,6 +19,10 @@
     weekday: "long",
   });
 
+  // AI Knowledge custom notes (Admin only management)
+  let aiKnowledgeList = [];
+  let newKnowledgeText = "";
+  let isAddingKnowledge = false;
 
   // Stock summary widget
   let stockCount = 0;
@@ -83,6 +87,20 @@
 
     const cachedStocks = readCache("stocks");
     if (cachedStocks) applyStocks(cachedStocks);
+
+    // AI 맞춤 지식 캐시 먼저 렌더 (SWR)
+    const cachedKnowledge = readCache("ai_knowledge");
+    if (cachedKnowledge && Array.isArray(cachedKnowledge)) {
+      aiKnowledgeList = cachedKnowledge;
+    }
+
+    // AI 맞춤 지식 비동기 갱신
+    api.getManagement("ai_knowledge").then((res) => {
+      if (res && res.success && Array.isArray(res.data)) {
+        aiKnowledgeList = res.data.map((item) => (typeof item === "string" ? item : item.value)).filter(Boolean);
+        writeCache("ai_knowledge", aiKnowledgeList);
+      }
+    }).catch(() => {});
 
     // 주식 데이터 비동기 갱신
     api.getStocks().then((res) => {
@@ -209,6 +227,36 @@
       else break;
     }
     attendanceStreak = streak;
+  }
+
+  async function handleAddKnowledge() {
+    const text = newKnowledgeText.trim();
+    if (!text || isAddingKnowledge) return;
+    isAddingKnowledge = true;
+
+    // Optimistic UI update
+    aiKnowledgeList = [...aiKnowledgeList, text];
+    writeCache("ai_knowledge", aiKnowledgeList);
+    newKnowledgeText = "";
+
+    try {
+      await api.addManagement("ai_knowledge", text);
+    } catch (e) {
+      console.error("AI 지식 추가 실패:", e);
+    } finally {
+      isAddingKnowledge = false;
+    }
+  }
+
+  async function handleDeleteKnowledge(itemToDelete) {
+    aiKnowledgeList = aiKnowledgeList.filter((item) => item !== itemToDelete);
+    writeCache("ai_knowledge", aiKnowledgeList);
+
+    try {
+      await api.deleteManagement("ai_knowledge", itemToDelete);
+    } catch (e) {
+      console.error("AI 지식 삭제 실패:", e);
+    }
   }
 
   function navigateTo(page) {
@@ -477,6 +525,64 @@
     </p>
   </section>
 
+  <!-- Admin Only: AI Custom Knowledge Management -->
+  {#if $isAdmin}
+    <section class="p-5 bg-gradient-to-br from-indigo-50/90 via-purple-50/60 to-pink-50/40 dark:from-gray-800/90 dark:via-indigo-950/40 dark:to-gray-900 rounded-[2rem] border border-indigo-100 dark:border-indigo-900/50 shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <div class="flex items-center gap-2">
+          <span class="text-base">🔒</span>
+          <h3 class="font-black text-xs sm:text-sm text-indigo-950 dark:text-indigo-200">
+            AI 집사용 가족 메모 (관리자 전용)
+          </h3>
+        </div>
+        <span class="text-[10px] bg-indigo-100 dark:bg-indigo-900/80 text-indigo-700 dark:text-indigo-300 font-bold px-2 py-0.5 rounded-full">
+          {aiKnowledgeList.length}개 저장됨
+        </span>
+      </div>
+      <p class="text-[11px] text-gray-500 dark:text-gray-400 mb-3 leading-relaxed">
+        가족 취향(엄마 매운거 X), TMI, 집 규칙을 적어두면 AI가 답변할 때 기억하고 맞춤 대답해줘요!
+      </p>
+
+      <!-- Knowledge Tag Chips List -->
+      <div class="flex flex-wrap gap-1.5 mb-3">
+        {#if aiKnowledgeList.length === 0}
+          <p class="text-xs text-gray-400 dark:text-gray-500 py-1">등록된 맞춤 메모가 없습니다. 아래에서 추가해보세요!</p>
+        {:else}
+          {#each aiKnowledgeList as item}
+            <div class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-xs font-bold rounded-xl border border-indigo-100 dark:border-indigo-800/60 shadow-sm">
+              <span>💡 {item}</span>
+              <button
+                type="button"
+                on:click={() => handleDeleteKnowledge(item)}
+                class="text-gray-400 hover:text-red-500 transition-colors p-0.5 rounded ml-0.5"
+                title="메모 삭제"
+              >
+                ✕
+              </button>
+            </div>
+          {/each}
+        {/if}
+      </div>
+
+      <!-- Add Input Form -->
+      <form on:submit|preventDefault={handleAddKnowledge} class="flex gap-2">
+        <input
+          type="text"
+          bind:value={newKnowledgeText}
+          placeholder="예: 엄마는 매운 음식 못 드심, 분리수거는 화요일 밤"
+          class="flex-1 px-3.5 py-2.5 bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-xl text-xs sm:text-sm border border-indigo-100 dark:border-indigo-900/60 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-inner"
+        />
+        <button
+          type="submit"
+          disabled={!newKnowledgeText.trim() || isAddingKnowledge}
+          class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white rounded-xl text-xs sm:text-sm font-black shadow-md active:scale-95 transition-all shrink-0"
+        >
+          {isAddingKnowledge ? "저장 중..." : "추가"}
+        </button>
+      </form>
+    </section>
+  {/if}
+
   <!-- Floating AI Butler Button -->
   <button
     type="button"
@@ -515,6 +621,7 @@
     {attendanceStreak}
     {stockCount}
     {stockTotalAmount}
+    {aiKnowledgeList}
   />
 </div>
 
