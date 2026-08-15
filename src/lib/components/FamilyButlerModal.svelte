@@ -23,16 +23,15 @@
   let messages = [];
   let inputText = "";
   let isStreaming = false;
-  let currentSearchQuery = "";
   let chatContainer;
 
   const QUICK_PROMPTS = [
     { label: "📅 이달 주요 일정", prompt: "이번 달 우리 가족 주요 일정과 중요한 약속들 한눈에 요약해줘!" },
-    { label: "💰 가계부 미정산", prompt: "이번 달 가계부 미정산 내역이나 정산 현황이 어떻게 돼? 누가 누구한테 줄 게 있어?" },
+    { label: "💰 가계부 정산 현황", prompt: "이번 달 가계부 미정산 내역이나 정산 현황이 어떻게 돼? 누가 누구한테 줄 게 있어?" },
     { label: "🎂 D-Day 챙기기", prompt: "현재 다가오는 D-Day 기념일 정보랑 챙길 팁 알려줘!" },
-    { label: "🍽️ 오늘 뭐 먹지?", prompt: "오늘 가족들과 함께 먹을 맛있는 저녁 메뉴 추천해줘! (간단 레시피도)" },
-    { label: "🌤️ 오늘 날씨 & 뉴스", prompt: "오늘 날씨와 주요 트렌드 소식 가볍게 브리핑해줘!" },
-    { label: "✨ 오늘의 응원", prompt: "오늘 하루 우리 가족 모두 힘낼 수 있는 따뜻하고 유쾌한 덕담 한마디 해줘!" },
+    { label: "🍽️ 오늘 저녁 뭐 먹지?", prompt: "오늘 가족들과 함께 먹을 맛있는 저녁 메뉴 추천해줘! (간단 레시피도)" },
+    { label: "🚗 주말 가족 나들이", prompt: "가족들과 함께 가기 좋은 주말 나들이나 휴식 아이디어 추천해줘!" },
+    { label: "✨ 오늘의 가족 응원", prompt: "오늘 하루 우리 가족 모두 힘낼 수 있는 따뜻하고 유쾌한 덕담 한마디 해줘!" },
   ];
 
   // 챗봇 열릴 때 초기 안내 메시지 세팅
@@ -48,7 +47,7 @@
     messages = [
       {
         role: "model",
-        content: `안녕하세요 ${userName}님! 저는 우리 가족 전용 AI 집사 <strong>패밀리봇</strong>이에요 🏡✨<br/>${dDayIntro}<br/>이번 달 일정, 가계부 미정산, 날씨나 메뉴 추천 등 무엇이든 물어보세요!`,
+        content: `안녕하세요 ${userName}님! 저는 우리 가족 전용 AI 집사 <strong>패밀리봇</strong>이에요 🏡✨<br/>${dDayIntro}<br/>이번 달 일정, 가계부 미정산, 오늘 저녁 메뉴 추천이나 가족 대화 등 무엇이든 물어보세요!`,
       },
     ];
   }
@@ -102,8 +101,8 @@ ${eventsStr}
 
 [답변 원칙]
 1. [가족 데이터 질의]: 가족의 일정, 가계부 금액/미정산, D-Day, 기념일 등에 대해 물어보면 위의 [우리 가족 이번 달 실시간 현황] 데이터를 정확하게 인용해서 답변해. (미정산 금액은 원 단위로 정확하게 표기해줘!)
-2. [외부/실시간 질의]: 날씨, 뉴스, 맛집, 요리 레시피, 상식 등 외부 정보는 인터넷 검색 도구를 활용하여 최신의 유용한 정보를 친절히 안내해줘.
-3. 모바일 화면에서 보기 편하도록 적절한 줄바꿈과 이모지(📅, 🎂, 💰, 🍽️, 🌤️ 등)를 사용해 가독성 좋고 깔끔하게 작성해.
+2. [일상 & 추천 질의]: 저녁 메뉴, 요리 레시피, 주말 나들이, 생활 꿀팁, 가족 간의 재미있는 대화 소재나 따뜻한 응원을 센스 있고 실용적으로 제안해줘.
+3. 모바일 화면에서 보기 편하도록 적절한 줄바꿈과 이모지(📅, 🎂, 💰, 🍽️, 🚗, ✨ 등)를 사용해 가독성 좋고 깔끔하게 작성해.
 4. 너무 장황하지 않게 핵심 위주로 명확하고 위트 있게 답변해.`;
   }
 
@@ -119,7 +118,6 @@ ${eventsStr}
     if (!query || isStreaming) return;
 
     inputText = "";
-    currentSearchQuery = "";
 
     // 1. 사용자 메시지 추가
     messages = [...messages, { role: "user", content: query }];
@@ -129,7 +127,7 @@ ${eventsStr}
     const aiMsgIndex = messages.length;
     messages = [
       ...messages,
-      { role: "model", content: "", searchQueries: [], sources: [] },
+      { role: "model", content: "" },
     ];
     isStreaming = true;
 
@@ -154,18 +152,8 @@ ${eventsStr}
         messages: recentMessages,
         systemInstruction,
         stream: true,
-        onChunk: (chunk, fullText, meta = {}) => {
+        onChunk: (chunk, fullText) => {
           messages[aiMsgIndex].content = fullText;
-
-          if (meta.searchQueries && meta.searchQueries.length > 0) {
-            messages[aiMsgIndex].searchQueries = meta.searchQueries;
-            currentSearchQuery = meta.searchQueries.join(", ");
-          }
-
-          if (meta.sources && meta.sources.length > 0) {
-            messages[aiMsgIndex].sources = meta.sources;
-          }
-
           messages = [...messages];
           scrollToBottom();
         },
@@ -185,7 +173,6 @@ ${eventsStr}
       messages = [...messages];
     } finally {
       isStreaming = false;
-      currentSearchQuery = "";
       await scrollToBottom();
     }
   }
@@ -231,7 +218,7 @@ ${eventsStr}
                 실시간
               </span>
             </div>
-            <p class="text-[11px] text-indigo-200 mt-1">이달 일정 · 가계부 · 실시간 검색</p>
+            <p class="text-[11px] text-indigo-200 mt-1">이달 일정 · 가계부 정산 · 가족 대화 & 레시피</p>
           </div>
         </div>
 
@@ -284,52 +271,24 @@ ${eventsStr}
                 </div>
               {/if}
 
-              <div class="space-y-2">
-                <!-- Search Query Badge (if AI used Google search) -->
-                {#if msg.searchQueries && msg.searchQueries.length > 0}
-                  <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-[11px] text-blue-600 dark:text-blue-300 font-bold shadow-sm">
-                    <span>🔍</span>
-                    <span>실시간 검색: "{msg.searchQueries.join(', ')}"</span>
+              <!-- Message Bubble -->
+              <div
+                class="px-4 py-3 rounded-2xl leading-relaxed whitespace-pre-wrap break-words shadow-sm text-xs sm:text-sm {msg.role === 'user'
+                  ? 'bg-indigo-600 text-white rounded-br-none font-medium'
+                  : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-100 dark:border-gray-700/80 rounded-bl-none'}"
+              >
+                {#if !msg.content && isStreaming && idx === messages.length - 1}
+                  <div class="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 py-1">
+                    <svg class="animate-spin h-4 w-4 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                    </svg>
+                    <span class="font-bold text-xs">
+                      패밀리봇이 답변 작성 중... ✍️
+                    </span>
                   </div>
-                {/if}
-
-                <!-- Message Bubble -->
-                <div
-                  class="px-4 py-3 rounded-2xl leading-relaxed whitespace-pre-wrap break-words shadow-sm text-xs sm:text-sm {msg.role === 'user'
-                    ? 'bg-indigo-600 text-white rounded-br-none font-medium'
-                    : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-100 dark:border-gray-700/80 rounded-bl-none'}"
-                >
-                  {#if !msg.content && isStreaming && idx === messages.length - 1}
-                    <div class="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 py-1">
-                      <svg class="animate-spin h-4 w-4 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-                      </svg>
-                      <span class="font-bold text-xs">
-                        {currentSearchQuery ? `인터넷 검색 중... 🔍` : `패밀리봇이 답변 작성 중... ✍️`}
-                      </span>
-                    </div>
-                  {:else}
-                    {@html msg.content}
-                  {/if}
-                </div>
-
-                <!-- Web Sources Chips -->
-                {#if msg.sources && msg.sources.length > 0}
-                  <div class="flex flex-wrap items-center gap-1.5 pt-1">
-                    <span class="text-[10px] text-gray-400 font-bold">🌐 출처:</span>
-                    {#each msg.sources.slice(0, 3) as src}
-                      <a
-                        href={src.uri}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 hover:underline max-w-[140px] truncate"
-                        title={src.title || src.uri}
-                      >
-                        {src.title || "웹사이트"}
-                      </a>
-                    {/each}
-                  </div>
+                {:else}
+                  {@html msg.content}
                 {/if}
               </div>
             </div>
@@ -348,7 +307,7 @@ ${eventsStr}
             bind:value={inputText}
             on:keydown={handleKeydown}
             disabled={isStreaming}
-            placeholder="우리 가족 일정, 가계부, 날씨, 레시피 등 무엇이든 물어보세요..."
+            placeholder="우리 가족 일정, 가계부, 저녁 메뉴, 주말 계획 등 무엇이든 물어보세요..."
             class="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-2xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 border border-transparent dark:border-gray-700 transition-all disabled:opacity-50"
           />
           <button
