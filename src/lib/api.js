@@ -57,6 +57,8 @@ export const api = {
     getEvents: () => fetchFromGAS('getEvents'),
     addEvent: (data) => fetchFromGAS('addEvent', data),
     updateEvent: (data) => fetchFromGAS('updateEvent', data),
+    deleteEvent: (id) => fetchFromGAS('deleteEvent', { id }),
+
 
     // Rules
     getRules: () => fetchFromGAS('getRules'),
