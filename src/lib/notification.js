@@ -3,7 +3,8 @@ import { api } from "./api.js";
 
 // VAPID 공개키 (W3C Web Push 표준 구독용)
 export const VAPID_PUBLIC_KEY =
-  "BKRtKA5eDKo1RjjYghcIbfoLryuHK2twsFIzRMjJ0As_nFGmqC2rgq3KN0KsJIXEIWOOQ0eVXMFGh_RAEegEFvo";
+  "BGeGiyayCG4MhCDeb_iPDzfgXb4D8E9pDLNsQREuq0bvCjcyphhTuaqaFuSSnpC0Uc7pRlGnk5QBKyjClRIFVqo";
+
 
 // URL-safe Base64를 Uint8Array로 변환
 function urlBase64ToUint8Array(base64String) {
