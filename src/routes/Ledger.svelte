@@ -4,8 +4,8 @@
   import { api } from "../lib/api.js";
   import { formatDate } from "../lib/utils.js";
   import { readCache, writeCache } from "../lib/cache.js";
-  import { navigate } from "svelte-routing";
-  import { base, currentUser, isAdmin } from "../lib/store.js";
+  import { currentUser, isAdmin } from "../lib/store.js";
+  import Spinner from "../lib/components/Spinner.svelte";
 
   let ledgerItems = [];
   let isLoading = true;
@@ -16,7 +16,7 @@
   let formData = {
     id: null,
     date: formatDate(new Date()),
-    type: "이체", // 이체 위주
+    type: "이체",
     title: "",
     amount: "",
     giver: "나",
@@ -28,7 +28,6 @@
   const TYPES = ["이체", "지출", "수입"];
 
   async function loadLedger() {
-    // 캐시 먼저 그리고, 뒤에서 갱신 (SWR)
     const cached = readCache("ledger");
     if (cached) {
       ledgerItems = cached.sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -49,7 +48,6 @@
     isLoading = false;
   }
 
-  // User State — 글로벌 store ($currentUser, $isAdmin) 사용
   let viewAsUser = USERS.includes($currentUser) ? $currentUser : "아빠";
   let showOnlyMine = false;
 
@@ -62,8 +60,8 @@
   let newRuleAmount = "";
   let newRuleGiver = "나";
   let newRuleReceiver = "가족";
-  let newRuleTotalMonths = ""; // 할부 총 개월 수
-  let newRuleStartMonth = formatDate(new Date()).slice(0, 7); // 시작 월 (YYYY-MM)
+  let newRuleTotalMonths = "";
+  let newRuleStartMonth = formatDate(new Date()).slice(0, 7);
   let isBatchSubmitting = false;
 
   onMount(() => {
@@ -133,22 +131,21 @@
 
     isBatchSubmitting = true;
 
-    // Create items for current viewed month
     const newItems = [];
     rules.forEach((rule) => {
       let finalTitle = rule.title;
 
-      // Installment / Duration logic
       if (rule.start_month) {
         const [startYear, startMonth] = rule.start_month.split("-").map(Number);
-        const monthsPassed = (displayYear - startYear) * 12 + (displayMonth - startMonth);
+        const monthsPassed =
+          (displayYear - startYear) * 12 + (displayMonth - startMonth);
         const currentInstallment = monthsPassed + 1;
 
-        if (currentInstallment < 1) return; // Not started yet
+        if (currentInstallment < 1) return;
 
         if (rule.total_months) {
           const total = parseInt(rule.total_months);
-          if (currentInstallment > total) return; // Ended
+          if (currentInstallment > total) return;
           finalTitle = `[${currentInstallment}/${total}회차] ${rule.title}`;
         } else {
           finalTitle = `[${currentInstallment}회차] ${rule.title}`;
@@ -157,15 +154,14 @@
 
       const y = displayYear;
       const m = String(displayMonth).padStart(2, "0");
-      // Clamp to the month's last day so a day-31 rule doesn't roll over into next month
       const lastDay = new Date(displayYear, displayMonth, 0).getDate();
       const dayNum = Math.min(parseInt(rule.day || 1), lastDay);
       const d = String(dayNum).padStart(2, "0");
 
-      // Skip rules already applied to this month (prevents duplicates on re-click)
       const alreadyExists = ledgerItems.some(
         (item) =>
-          item.title === finalTitle && String(item.date).startsWith(`${y}-${m}`),
+          item.title === finalTitle &&
+          String(item.date).startsWith(`${y}-${m}`),
       );
       if (alreadyExists) return;
 
@@ -218,8 +214,8 @@
     showForm = true;
   }
 
-  // Strip commas/units so "10,000" doesn't get parsed as 10 downstream
-  const cleanAmount = (v) => parseFloat(String(v).replace(/[^\d.-]/g, "")) || 0;
+  const cleanAmount = (v) =>
+    parseFloat(String(v).replace(/[^\d.-]/g, "")) || 0;
 
   async function handleSubmit() {
     const amount = cleanAmount(formData.amount);
@@ -231,7 +227,6 @@
 
     const payload = { ...formData, amount };
 
-    // Add day field for backend consistency
     if (payload.date) {
       payload.day = new Date(payload.date).getDate();
     }
@@ -256,7 +251,7 @@
 
     const res = await api.deleteLedger(id);
     if (res.success) {
-      alert("삭제되었습니다.");
+      showForm = false;
       loadLedger();
     } else {
       alert("삭제 실패: " + res.message);
@@ -264,15 +259,6 @@
   }
 
   async function toggleSettle(item) {
-    if (
-      !confirm(
-        item.is_settled
-          ? "정산 취소 처리하시겠습니까?"
-          : "정산 완료 처리하시겠습니까?",
-      )
-    )
-      return;
-
     const res = await api.settleLedger({
       id: item.id,
       is_settled: !item.is_settled,
@@ -285,18 +271,14 @@
     }
   }
 
-  // Helper to safely format amount
   function formatAmount(amt) {
     const num = parseFloat(amt);
-    // If it's a valid number and the string is purely numeric (or minimal formatting), format it
-    // Check if regex matches pure number to avoid formatting "50%" as "50"
     if (!isNaN(num) && String(amt).match(/^[\d\.\-]+$/)) {
       return num.toLocaleString();
     }
     return amt;
   }
 
-  // Date Filter State
   let currentDate = new Date();
   $: displayYear = currentDate.getFullYear();
   $: displayMonth = currentDate.getMonth() + 1;
@@ -317,7 +299,6 @@
     );
   }
 
-  // Filter items by month
   $: filteredItems = ledgerItems.filter((item) => {
     const d = new Date(item.date);
     const isMonthMatch =
@@ -330,27 +311,23 @@
     return true;
   });
 
-  // Calculate totals from filtered items
   $: totalAmount = filteredItems.reduce((sum, item) => {
     const n = parseFloat(item.amount);
     return sum + (isNaN(n) ? 0 : n);
   }, 0);
 
-  $: unsettledAmount = filteredItems
-    .filter((i) => !i.is_settled)
-    .reduce((sum, item) => {
-      const n = parseFloat(item.amount);
-      return sum + (isNaN(n) ? 0 : n);
-    }, 0);
+  $: unsettledItems = filteredItems.filter((i) => !i.is_settled);
+  $: unsettledAmount = unsettledItems.reduce((sum, item) => {
+    const n = parseFloat(item.amount);
+    return sum + (isNaN(n) ? 0 : n);
+  }, 0);
 
   async function shareSettlement() {
     if (unsettledAmount === 0) return alert("미정산 내역이 없습니다! 🎉");
 
-    const debts = filteredItems.filter((i) => !i.is_settled);
-
     let message = `[${displayMonth}월 장부 정산 알림] 💸\n아직 ${unsettledAmount.toLocaleString()}원이 미정산 상태입니다!\n\n`;
 
-    debts.forEach((item) => {
+    unsettledItems.forEach((item) => {
       message += `• ${item.giver} → ${item.receiver} : ${formatAmount(item.amount)}원 (${item.title})\n`;
     });
 
@@ -376,246 +353,226 @@
   }
 </script>
 
-<div class="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
-  <!-- Header -->
+<div class="space-y-6 max-w-md mx-auto relative">
+  <!-- Header Card -->
   <header
-    class="bg-indigo-600 px-6 pt-12 pb-20 rounded-b-[2.5rem] shadow-lg relative overflow-hidden"
+    class="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 p-7 text-white shadow-xl space-y-5"
   >
-    <div class="relative z-10">
-      <div class="flex justify-between items-start mb-6">
-        <!-- User Selector (Admin Check) -->
-        <div class="flex flex-col gap-2">
+    <div class="relative z-10 space-y-4">
+      <!-- Tier 1: Month Nav & Nudge Button -->
+      <div class="flex justify-between items-center">
+        <div class="flex items-center gap-2 bg-black/20 rounded-2xl px-3 py-1.5 backdrop-blur-md">
+          <button
+            type="button"
+            on:click={prevMonth}
+            class="text-indigo-200 hover:text-white active:scale-75 transition-all p-1"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <span class="text-white font-black text-sm tracking-wider">
+            {displayYear}.{String(displayMonth).padStart(2, "0")}
+          </span>
+          <button
+            type="button"
+            on:click={nextMonth}
+            class="text-indigo-200 hover:text-white active:scale-75 transition-all p-1"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+
+        <button
+          type="button"
+          on:click={shareSettlement}
+          class="text-xs bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-2xl font-bold backdrop-blur-md active:scale-95 transition-all flex items-center gap-1.5 border border-white/20"
+        >
+          <span>📢</span> 독촉하기
+        </button>
+      </div>
+
+      <!-- Tier 2: Unsettled Big Hero -->
+      <div class="text-center py-2 space-y-1">
+        <span class="text-indigo-200 text-xs font-bold uppercase tracking-widest block">
+          {displayMonth}월 미정산 금액
+        </span>
+        <div class="flex items-baseline justify-center gap-1">
+          <h1 class="text-4xl font-black tracking-tight text-white">
+            {unsettledAmount.toLocaleString()}
+          </h1>
+          <span class="text-lg font-bold text-indigo-200">원</span>
+        </div>
+        <p class="text-[11px] text-indigo-300 font-medium">
+          총 이체 예정 {totalAmount.toLocaleString()}원 · 미정산 {unsettledItems.length}건
+        </p>
+      </div>
+
+      <!-- Tier 3: Filters & Rules Button -->
+      <div class="flex items-center justify-between gap-2 pt-2 border-t border-white/15">
+        <div class="flex items-center gap-1.5">
           <select
             bind:value={viewAsUser}
             disabled={!$isAdmin}
-            class="bg-indigo-500/50 text-indigo-100 text-xs font-bold py-1 px-2 rounded-lg border-none outline-none backdrop-blur-sm disabled:opacity-80 disabled:cursor-not-allowed"
+            class="bg-black/25 text-indigo-100 text-xs font-bold py-1.5 px-2.5 rounded-xl border-none outline-none backdrop-blur-md"
           >
             {#each USERS as u}<option value={u}>{u}</option>{/each}
           </select>
           <button
+            type="button"
             on:click={() => (showOnlyMine = !showOnlyMine)}
-            class="text-[10px] font-bold px-2 py-1 rounded-lg transition-all border {showOnlyMine
-              ? 'bg-white text-indigo-600 border-white'
-              : 'bg-transparent text-indigo-300 border-indigo-400/50 hover:bg-indigo-500/30'}"
+            class="text-xs font-bold px-2.5 py-1.5 rounded-xl transition-all border {showOnlyMine
+              ? 'bg-white text-indigo-700 border-white shadow-sm'
+              : 'bg-black/20 text-indigo-200 border-transparent hover:bg-black/30'}"
           >
             내 내역만
           </button>
         </div>
 
-        <div
-          class="flex items-center gap-4 bg-indigo-500/50 rounded-full px-4 py-1.5 backdrop-blur-sm"
-        >
+        {#if $isAdmin}
           <button
-            on:click={prevMonth}
-            class="text-indigo-200 hover:text-white active:scale-75 transition-all"
+            type="button"
+            on:click={openRuleModal}
+            class="px-2.5 py-1.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold text-xs active:scale-95 transition-all shadow-sm"
           >
-            <svg
-              class="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              ><path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M15 19l-7-7 7-7"
-              ></path></svg
-            >
+            📌 고정내역
           </button>
-          <span class="text-white font-bold text-sm tracking-widest"
-            >{displayYear}.{String(displayMonth).padStart(2, "0")}</span
-          >
-          <button
-            on:click={nextMonth}
-            class="text-indigo-200 hover:text-white active:scale-75 transition-all"
-          >
-            <svg
-              class="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              ><path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 5l7 7-7 7"
-              ></path></svg
-            >
-          </button>
-        </div>
-
-        <div class="flex items-center gap-2">
-          {#if $isAdmin}
-            <button
-              on:click={openRuleModal}
-              class="p-2 bg-pink-500 text-white rounded-xl shadow-lg font-bold text-xs active:scale-95 transition-all whitespace-nowrap"
-            >
-              고정내역
-            </button>
-          {/if}
-        </div>
+        {/if}
       </div>
-
-      <div class="text-white text-center mt-4">
-        <div class="flex items-center justify-center gap-2 mb-1">
-          <p class="text-indigo-200 text-sm font-bold">
-            {displayMonth}월 미정산 금액 (추산)
-          </p>
-          <button
-            on:click={shareSettlement}
-            class="text-[10px] bg-white text-indigo-600 px-2 py-0.5 rounded-full font-bold shadow-md active:scale-95 transition-all flex items-center gap-1"
-          >
-            <span>📢</span> 독촉하기
-          </button>
-        </div>
-        <h1 class="text-4xl font-black">
-          {unsettledAmount.toLocaleString()}
-          <span class="text-xl font-normal">원</span>
-        </h1>
-        <p class="text-indigo-300 text-xs mt-2">
-          총 이체 예정: {totalAmount.toLocaleString()}원
-        </p>
-      </div>
-
-      <!-- New Item Button Floating or specific? User kept standard Add button removed in diff? No, I need to restore standard Add button or replace "Manage"? 
-           User wants "Admin manages rules", but "Regular members can check off". Regular members might still strictly need to Add AD-HOC items? 
-           Usually yes. I'll Put the + button back for everyone, floating or somewhere.
-           In my previous replace, I removed the Left Button div. I will put User Select Left, Date Center, Add Right.
-           And "Manage" button somewhere else? Or maybe "User Select" -> If Admin -> Show "Manage" besides "+"?
-           Let's put "Manage" next to "+" if admin.
-       -->
     </div>
 
-    <!-- Add Button (Standard) -->
-
-    <!-- Decorative -->
-    <div
-      class="absolute right-0 top-0 w-64 h-64 bg-indigo-500/30 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"
-    ></div>
-    <div
-      class="absolute left-0 bottom-0 w-48 h-48 bg-purple-500/30 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"
-    ></div>
+    <!-- Decor -->
+    <div class="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+    <div class="absolute -left-10 -bottom-10 w-40 h-40 bg-purple-400/20 rounded-full blur-2xl"></div>
   </header>
 
-  <!-- Content -->
-  <main class="px-5 -mt-10 relative z-20 space-y-4">
+  <!-- Items List -->
+  <div class="space-y-3">
     {#if isLoading && !showRuleModal}
-      <div class="flex flex-col items-center justify-center py-20 space-y-4">
-        <div
-          class="animate-spin rounded-full h-10 w-10 border-4 border-indigo-200 border-t-indigo-600"
-        ></div>
-        <p class="text-gray-500 font-bold animate-pulse">
-          장부를 불러오고 있습니다...
-        </p>
+      <div class="flex flex-col items-center justify-center py-16">
+        <Spinner label="장부를 불러오는 중..." />
       </div>
     {:else if filteredItems.length === 0}
-      <div
-        class="bg-white dark:bg-gray-800 rounded-3xl p-10 text-center shadow-sm"
-      >
-        <p class="text-gray-400">
-          내역이 없습니다.<br />새로운 내역을 추가해보세요!
-        </p>
+      <div class="bg-white dark:bg-gray-800 rounded-3xl p-10 text-center shadow-sm border border-gray-100 dark:border-gray-700 text-gray-400">
+        <span class="text-4xl block mb-2">💸</span>
+        <p class="text-sm font-bold text-gray-600 dark:text-gray-300">내역이 없습니다.</p>
+        <p class="text-xs text-gray-400 mt-1">우측 하단의 '+' 버튼으로 새 내역을 추가해보세요!</p>
       </div>
     {:else}
       {#each filteredItems as item (item.id)}
         <div
-          class="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm active:scale-[0.99] transition-all relative overflow-hidden group"
+          class="bg-white dark:bg-gray-800 rounded-3xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex justify-between items-center gap-3 active:scale-[0.99] transition-all relative overflow-hidden group"
         >
-          <!-- Status Line -->
+          <!-- Left Color Bar -->
           <div
             class="absolute left-0 top-0 bottom-0 w-1.5 {item.is_settled
               ? 'bg-gray-200 dark:bg-gray-700'
-              : 'bg-pink-500'}"
+              : 'bg-rose-500'}"
           ></div>
 
-          <div class="pl-3 flex justify-between items-center">
-            <div
-              class="flex-1 {$isAdmin ? 'cursor-pointer' : ''}"
-              on:click={() => $isAdmin && openEditForm(item)}
-            >
-              <div class="flex items-center gap-2 mb-1">
-                <span
-                  class="text-[10px] font-bold px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
-                >
-                  {new Date(item.date).getDate()}일
-                </span>
-                <span class="text-[10px] font-bold text-indigo-500"
-                  >{item.type}</span
-                >
-              </div>
-              <h3
-                class="font-bold text-gray-900 dark:text-gray-100 {item.is_settled
-                  ? 'line-through opacity-50'
-                  : ''}"
-              >
-                {item.title}
-              </h3>
-              <div class="flex items-center gap-1 text-xs text-gray-400 mt-1">
-                <span>{item.giver}</span>
-                <span>→</span>
-                <span>{item.receiver}</span>
-              </div>
+          <!-- Item Details -->
+          <div
+            class="pl-2 flex-1 {$isAdmin ? 'cursor-pointer' : ''}"
+            on:click={() => $isAdmin && openEditForm(item)}
+          >
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-[10px] font-black px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                {new Date(item.date).getDate()}일
+              </span>
+              <span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400">
+                {item.type}
+              </span>
             </div>
 
-            <div class="flex flex-col items-end gap-2 text-right">
-              <span
-                class="font-black text-lg {item.is_settled
-                  ? 'text-gray-400'
-                  : 'text-gray-900 dark:text-white'}"
-              >
-                {formatAmount(item.amount)}
-              </span>
-              <!-- Toggle Settle Button -->
-              <button
-                on:click|stopPropagation={() => toggleSettle(item)}
-                class="text-[10px] font-bold px-3 py-1.5 rounded-full border transition-colors
-                  {item.is_settled
-                  ? 'border-gray-200 text-gray-400 bg-gray-50'
-                  : 'border-pink-200 text-pink-500 bg-pink-50 hover:bg-pink-100'}"
-              >
-                {item.is_settled ? "정산완료" : "미정산"}
-              </button>
+            <h3
+              class="font-black text-sm text-gray-900 dark:text-white {item.is_settled
+                ? 'line-through opacity-50'
+                : ''}"
+            >
+              {item.title}
+            </h3>
+
+            <div class="flex items-center gap-1.5 text-xs font-bold text-gray-400 mt-0.5">
+              <span>{item.giver}</span>
+              <span class="text-gray-300">→</span>
+              <span>{item.receiver}</span>
+              {#if $isAdmin}
+                <span class="text-[10px] text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity ml-1">
+                  ✏️ 수정
+                </span>
+              {/if}
             </div>
+          </div>
+
+          <!-- Amount & Settle Toggle -->
+          <div class="flex flex-col items-end gap-1.5 text-right">
+            <span
+              class="font-black text-base {item.is_settled
+                ? 'text-gray-400 dark:text-gray-500'
+                : 'text-gray-900 dark:text-white'}"
+            >
+              {formatAmount(item.amount)}<span class="text-xs font-normal">원</span>
+            </span>
+
+            <button
+              type="button"
+              on:click|stopPropagation={() => toggleSettle(item)}
+              class="text-xs font-bold px-3 py-1.5 rounded-full border transition-all active:scale-90 {item.is_settled
+                ? 'border-gray-200 text-gray-400 bg-gray-50 dark:bg-gray-700/50 dark:border-gray-600'
+                : 'border-rose-200 text-rose-600 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800'}"
+            >
+              {item.is_settled ? "✓ 정산완료" : "⏳ 미정산"}
+            </button>
           </div>
         </div>
       {/each}
     {/if}
-  </main>
+  </div>
 
-  <!-- Add/Edit Modal (existing) -->
+  <!-- Add/Edit Modal -->
   {#if showForm}
-    <!-- ... same as before ... -->
     <div
       class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4"
       transition:fade
     >
       <div
-        class="w-full max-w-sm bg-white dark:bg-gray-800 rounded-[2rem] p-6 shadow-2xl relative"
+        class="w-full max-w-sm max-h-[85vh] overflow-y-auto bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-2xl relative space-y-4"
         transition:slide={{ duration: 300, axis: "y" }}
       >
-        <!-- ... form content needs to be preserved ... -->
-        <h2 class="text-xl font-black text-gray-900 dark:text-white mb-6">
-          {formData.id ? "내역 수정" : "새로운 내역"}
-        </h2>
-        <div class="space-y-4">
-          <div class="grid grid-cols-2 gap-3">
+        <div class="flex justify-between items-center">
+          <h2 class="text-lg font-black text-gray-900 dark:text-white">
+            {formData.id ? "내역 수정" : "새로운 내역 등록"}
+          </h2>
+          {#if formData.id}
+            <button
+              type="button"
+              on:click={() => handleDelete(formData.id)}
+              class="text-rose-500 text-xs font-bold p-1"
+            >
+              삭제
+            </button>
+          {/if}
+        </div>
+
+        <div class="space-y-3">
+          <div class="grid grid-cols-2 gap-2">
             <div>
-              <label class="text-xs font-bold text-gray-400 ml-2 block mb-1"
-                >날짜</label
-              >
+              <label for="ledger-date" class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1">날짜</label>
               <input
+                id="ledger-date"
                 type="date"
                 bind:value={formData.date}
-                class="w-full bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-3 text-sm font-bold outline-none ring-2 ring-transparent focus:ring-indigo-500 transition-all border-none"
+                class="w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-xl px-3 py-2.5 text-xs font-bold outline-none border border-gray-200 dark:border-gray-700"
               />
             </div>
             <div>
-              <label class="text-xs font-bold text-gray-400 ml-2 block mb-1"
-                >분류</label
-              >
+              <label for="ledger-type" class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1">분류</label>
               <select
+                id="ledger-type"
                 bind:value={formData.type}
-                class="w-full bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-3 text-sm font-bold outline-none ring-2 ring-transparent focus:ring-indigo-500 transition-all border-none"
+                class="w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-xl px-3 py-2.5 text-xs font-bold outline-none border border-gray-200 dark:border-gray-700"
               >
                 {#each TYPES as t}<option value={t}>{t}</option>{/each}
               </select>
@@ -623,307 +580,220 @@
           </div>
 
           <div>
-            <label class="text-xs font-bold text-gray-400 ml-2 block mb-1"
-              >내용</label
-            >
+            <label for="ledger-title" class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1">내용</label>
             <input
+              id="ledger-title"
               type="text"
               bind:value={formData.title}
-              placeholder="어디서 무엇을 썼나요?"
-              class="w-full bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-3 font-bold outline-none ring-2 ring-transparent focus:ring-indigo-500 transition-all border-none"
+              placeholder="예: 마트 장보기, 관리비 등"
+              class="w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-xl px-3.5 py-3 font-bold text-sm outline-none border border-gray-200 dark:border-gray-700"
             />
           </div>
 
           <div>
-            <label class="text-xs font-bold text-gray-400 ml-2 block mb-1"
-              >금액</label
-            >
+            <label for="ledger-amount" class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1">금액 (원)</label>
             <input
+              id="ledger-amount"
               type="text"
               bind:value={formData.amount}
-              placeholder="예: 50000"
-              class="w-full bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-3 text-xl font-black outline-none ring-2 ring-transparent focus:ring-indigo-500 transition-all border-none"
+              placeholder="0"
+              class="w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-xl px-3.5 py-3 text-lg font-black outline-none border border-gray-200 dark:border-gray-700"
             />
           </div>
 
           <div class="grid grid-cols-[1fr_auto_1fr] gap-2 items-center">
             <div>
-              <label class="text-xs font-bold text-gray-400 ml-2 block mb-1"
-                >누가</label
-              >
+              <label for="ledger-giver" class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1">누가</label>
               <select
+                id="ledger-giver"
                 bind:value={formData.giver}
-                class="w-full bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-3 text-sm font-bold outline-none border-none"
+                class="w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-xl px-3 py-2.5 text-xs font-bold outline-none border border-gray-200 dark:border-gray-700"
               >
                 {#each USERS as u}<option value={u}>{u}</option>{/each}
               </select>
             </div>
-            <span class="text-gray-300 font-bold mt-5">→</span>
+            <span class="text-gray-400 font-bold mt-5">→</span>
             <div>
-              <label class="text-xs font-bold text-gray-400 ml-2 block mb-1"
-                >누구에게</label
-              >
+              <label for="ledger-receiver" class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1">누구에게</label>
               <select
+                id="ledger-receiver"
                 bind:value={formData.receiver}
-                class="w-full bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-3 text-sm font-bold outline-none border-none"
+                class="w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-xl px-3 py-2.5 text-xs font-bold outline-none border border-gray-200 dark:border-gray-700"
               >
                 {#each USERS as u}<option value={u}>{u}</option>{/each}
               </select>
             </div>
           </div>
 
-          <div
-            class="flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-700 rounded-xl"
-            on:click={() => (formData.is_settled = !formData.is_settled)}
+          <label
+            class="flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-900 rounded-2xl cursor-pointer border border-gray-200 dark:border-gray-700"
           >
-            <div
-              class="w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors {formData.is_settled
-                ? 'bg-indigo-500 border-indigo-500'
-                : 'border-gray-300'}"
-            >
-              {#if formData.is_settled}
-                <svg
-                  class="w-3 h-3 text-white"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  stroke-width="4"
-                  ><path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    d="M5 13l4 4L19 7"
-                  /></svg
-                >
-              {/if}
-            </div>
-            <span class="text-sm font-bold text-gray-600 dark:text-gray-300"
-              >정산 완료 처리</span
-            >
-          </div>
+            <input
+              type="checkbox"
+              bind:checked={formData.is_settled}
+              class="w-4 h-4 text-indigo-600 rounded"
+            />
+            <span class="text-xs font-bold text-gray-700 dark:text-gray-300">정산 완료 처리</span>
+          </label>
         </div>
 
-        <div class="flex gap-3 mt-8">
+        <div class="flex gap-2 pt-2">
           <button
+            type="button"
             on:click={() => (showForm = false)}
-            class="flex-1 py-4 font-bold text-gray-500 bg-gray-100 rounded-2xl active:scale-95 transition-all"
-            >취소</button
+            class="flex-1 py-3.5 font-bold text-xs text-gray-500 bg-gray-100 dark:bg-gray-700 rounded-2xl active:scale-95 transition-all"
           >
+            취소
+          </button>
           <button
+            type="button"
             on:click={handleSubmit}
             disabled={isSubmitting}
-            class="flex-1 py-4 font-black text-white bg-indigo-600 rounded-2xl shadow-lg shadow-indigo-500/30 active:scale-95 transition-all"
+            class="flex-1 py-3.5 font-black text-xs text-white bg-indigo-600 hover:bg-indigo-700 rounded-2xl shadow-md active:scale-95 transition-all"
           >
             {isSubmitting ? "저장 중..." : "저장하기"}
           </button>
         </div>
-
-        {#if formData.id}
-          <button
-            on:click={() => handleDelete(formData.id)}
-            class="absolute top-6 right-6 text-red-400 text-xs font-bold"
-            >삭제</button
-          >
-        {/if}
       </div>
     </div>
   {/if}
 
-  <!-- Rules Management Modal (Admin Only) -->
+  <!-- Rules Management Modal -->
   {#if showRuleModal}
     <div
       class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4"
       transition:fade
     >
       <div
-        class="w-full max-w-sm h-[85vh] flex flex-col bg-white dark:bg-gray-800 rounded-[2rem] p-6 shadow-2xl relative"
+        class="w-full max-w-sm max-h-[85vh] flex flex-col bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-2xl relative space-y-4"
         transition:slide={{ duration: 300, axis: "y" }}
       >
-        <div class="flex justify-between items-center mb-6 shrink-0">
+        <div class="flex justify-between items-center shrink-0">
           <div>
-            <h2
-              class="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2"
-            >
+            <h2 class="text-lg font-black text-gray-900 dark:text-white flex items-center gap-1.5">
               📌 고정 내역 관리
             </h2>
-            <p class="text-xs text-gray-400">관리자 전용 기능입니다.</p>
+            <p class="text-[11px] text-gray-400">매월 반복되는 지출/이체 규칙</p>
           </div>
           <button
+            type="button"
             on:click={() => (showRuleModal = false)}
-            class="p-2 bg-gray-100 dark:bg-gray-700 rounded-full"
+            class="p-2 bg-gray-100 dark:bg-gray-700 rounded-full text-xs"
           >
-            <svg
-              class="w-5 h-5 text-gray-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              ><path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"
-              ></path></svg
-            >
+            ✕
           </button>
         </div>
 
-        <!-- Batch Apply Section -->
-        <div
-          class="shrink-0 mb-6 bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-2xl"
-        >
-          <h3
-            class="text-sm font-bold text-indigo-900 dark:text-indigo-200 mb-2"
-          >
-            이번 달({displayMonth}월) 장부로 가져오기
-          </h3>
-          <p class="text-xs text-indigo-700/70 dark:text-indigo-300 mb-3">
-            등록된 {rules.length}개의 규칙을 현재 보고 있는 월의 내역으로 일괄
-            등록합니다.
+        <!-- Batch Apply -->
+        <div class="shrink-0 bg-indigo-50 dark:bg-indigo-950/40 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-800 space-y-2">
+          <p class="text-xs font-bold text-indigo-900 dark:text-indigo-200">
+            {displayMonth}월 장부로 일괄 가져오기
           </p>
           <button
+            type="button"
             on:click={applyRulesToMonth}
             disabled={isBatchSubmitting}
-            class="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg active:scale-95 transition-all"
+            class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md active:scale-95 transition-all"
           >
-            {isBatchSubmitting
-              ? "등록 중..."
-              : `📋 ${displayMonth}월 장부에 일괄 추가`}
+            {isBatchSubmitting ? "등록 중..." : `📋 ${displayMonth}월 장부에 일괄 적용`}
           </button>
         </div>
 
-        <div class="flex-1 overflow-y-auto space-y-3 mb-6">
+        <!-- Rules List -->
+        <div class="flex-1 overflow-y-auto space-y-2 pr-1">
           {#if rules.length === 0}
-            <div class="text-center py-10 text-gray-400 text-sm">
-              우측 하단 폼을 통해<br />고정 내역을 등록해주세요.
+            <div class="text-center py-8 text-gray-400 text-xs">
+              등록된 고정 내역이 없습니다.
             </div>
           {:else}
             {#each rules as rule}
-              <div
-                class="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl flex justify-between items-center"
-              >
+              <div class="bg-gray-50 dark:bg-gray-900 p-3 rounded-2xl flex justify-between items-center border border-gray-100 dark:border-gray-700">
                 <div>
-                  <div class="flex items-center gap-2">
-                    <span
-                      class="text-[10px] bg-gray-200 dark:bg-gray-600 px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-300 whitespace-nowrap"
-                      >매월 {rule.day}일</span
-                    >
-                    <h4 class="font-bold text-gray-900 dark:text-white text-sm">
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-[10px] bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded font-bold text-gray-600 dark:text-gray-300">
+                      매월 {rule.day}일
+                    </span>
+                    <span class="font-bold text-xs text-gray-900 dark:text-white">
                       {rule.title}
-                    </h4>
+                    </span>
                   </div>
-                  {#if rule.start_month}
-                    <p class="text-[10px] font-bold text-pink-500 mt-1">
-                      ⏳ 할부: {rule.start_month}부터 {#if rule.total_months}{rule.total_months}개월{:else}계속{/if}
-                    </p>
-                  {/if}
-                  <p class="text-xs text-indigo-500 mt-0.5">
-                    {formatAmount(rule.amount)} ({rule.giver} → {rule.receiver})
+                  <p class="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 mt-0.5">
+                    {formatAmount(rule.amount)}원 ({rule.giver} → {rule.receiver})
                   </p>
                 </div>
                 <button
+                  type="button"
                   on:click={() => handleDeleteRule(rule.id)}
-                  class="p-2 text-gray-400 hover:text-red-500 bg-white dark:bg-gray-600 rounded-lg shadow-sm"
+                  class="p-1.5 text-gray-400 hover:text-rose-500 transition-colors text-xs"
+                  title="삭제"
                 >
-                  <svg
-                    class="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    ><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    ></path></svg
-                  >
+                  🗑️
                 </button>
               </div>
             {/each}
           {/if}
         </div>
 
-        <div
-          class="shrink-0 p-4 bg-gray-50 dark:bg-gray-700/30 rounded-2xl space-y-3 border-t border-gray-100 dark:border-gray-700"
-        >
-          <div class="flex gap-2">
-            <div class="w-20">
-              <input
-                type="number"
-                min="1"
-                max="31"
-                bind:value={newRuleDay}
-                placeholder="일"
-                class="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-3 rounded-xl text-sm font-bold outline-none text-center"
-              />
-            </div>
-            <div class="flex-1">
-              <input
-                type="text"
-                bind:value={newRuleTitle}
-                placeholder="내역 이름"
-                class="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-4 py-3 rounded-xl text-sm font-bold outline-none"
-              />
-            </div>
+        <!-- New Rule Form -->
+        <div class="shrink-0 p-3 bg-gray-50 dark:bg-gray-900 rounded-2xl space-y-2 border border-gray-100 dark:border-gray-700">
+          <div class="flex gap-1.5">
+            <input
+              type="number"
+              min="1"
+              max="31"
+              bind:value={newRuleDay}
+              placeholder="일"
+              class="w-14 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-2 py-2 rounded-xl text-xs font-bold text-center outline-none border border-gray-200 dark:border-gray-700"
+            />
+            <input
+              type="text"
+              bind:value={newRuleTitle}
+              placeholder="내역 이름"
+              class="flex-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 rounded-xl text-xs font-bold outline-none border border-gray-200 dark:border-gray-700"
+            />
           </div>
-          <div class="flex gap-2 items-center">
+          <div class="flex gap-1.5">
             <input
               type="text"
               bind:value={newRuleAmount}
-              placeholder="금액"
-              class="flex-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-4 py-3 rounded-xl text-sm font-bold outline-none"
+              placeholder="금액(원)"
+              class="flex-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 rounded-xl text-xs font-bold outline-none border border-gray-200 dark:border-gray-700"
             />
-            <span class="text-xs text-gray-400 font-bold">원</span>
           </div>
-
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block text-[10px] font-bold text-gray-400 mb-1 ml-1">할부 시작 월 (YYYY-MM)</label>
-              <input
-                type="month"
-                bind:value={newRuleStartMonth}
-                class="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-4 py-2.5 rounded-xl text-xs font-bold outline-none"
-              />
-            </div>
-            <div>
-              <label class="block text-[10px] font-bold text-gray-400 mb-1 ml-1">총 개월 수 (빈칸=무한)</label>
-              <input
-                type="number"
-                bind:value={newRuleTotalMonths}
-                placeholder="무한"
-                class="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-4 py-2.5 rounded-xl text-xs font-bold outline-none"
-              />
-            </div>
-          </div>
-
-          <div class="grid grid-cols-[1fr_auto_1fr] gap-2 items-center">
+          <div class="grid grid-cols-[1fr_auto_1fr] gap-1.5 items-center">
             <select
               bind:value={newRuleGiver}
-              class="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 rounded-xl text-xs font-bold outline-none"
+              class="bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-2 py-1.5 rounded-xl text-xs font-bold outline-none border border-gray-200 dark:border-gray-700"
             >
               {#each USERS as u}<option value={u}>{u}</option>{/each}
             </select>
-            <span class="text-gray-300">→</span>
+            <span class="text-gray-400 text-xs">→</span>
             <select
               bind:value={newRuleReceiver}
-              class="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 rounded-xl text-xs font-bold outline-none"
+              class="bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-2 py-1.5 rounded-xl text-xs font-bold outline-none border border-gray-200 dark:border-gray-700"
             >
               {#each USERS as u}<option value={u}>{u}</option>{/each}
             </select>
           </div>
           <button
+            type="button"
             on:click={handleAddRule}
             disabled={isRuleSubmitting}
-            class="w-full py-3 bg-black text-white dark:bg-white dark:text-black rounded-xl font-bold shadow-lg active:scale-95 transition-all"
+            class="w-full py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-xs font-black active:scale-95 transition-all shadow-sm"
           >
-            {isRuleSubmitting ? "저장 중..." : "+ 규칙 추가"}
+            {isRuleSubmitting ? "저장 중..." : "+ 고정 규칙 추가"}
           </button>
         </div>
       </div>
     </div>
   {/if}
+
+  <!-- Floating Add Button for Admin -->
   {#if $isAdmin}
     <button
+      type="button"
       on:click={() => openAddForm()}
-      class="fixed bottom-24 right-6 w-14 h-14 bg-indigo-600 text-white rounded-full shadow-2xl flex items-center justify-center text-3xl font-light z-40 hover:scale-110 active:scale-90 transition-all"
+      class="fixed bottom-24 right-6 w-14 h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-2xl flex items-center justify-center text-3xl font-light z-40 active:scale-90 transition-all border-2 border-white/20"
       transition:fade
     >
       +
