@@ -5,7 +5,9 @@
   import { formatDate } from "../lib/utils.js";
   import { readCache, writeCache } from "../lib/cache.js";
   import { currentUser, isAdmin } from "../lib/store.js";
+  import { showLocalNotification } from "../lib/notification.js";
   import Spinner from "../lib/components/Spinner.svelte";
+
 
   let ledgerItems = [];
   let isLoading = true;
@@ -352,6 +354,9 @@
     const title = `[${displayMonth}월 장부 이체 알림] 💸`;
     const body = `${debtor.giver}님, ${displayMonth}월 미정산 이체 ${debtor.totalAmount.toLocaleString()}원(${debtor.items.length}건)이 있습니다. 확인 후 정산해주세요! 🙏`;
 
+    // 현재 기기 로컬 알림 즉시 팝업
+    showLocalNotification(title, { body });
+
     try {
       const res = await api.sendPushNotification({
         target_user: debtor.giver,
@@ -363,7 +368,9 @@
       if (res && res.success) {
         alert(`${debtor.giver}님에게 푸쉬 알림을 성공적으로 보냈습니다! 🚀`);
       } else {
-        alert(`발송 결과: ${res?.message || "완료"}`);
+        alert(
+          `[알림 발송 상태]\n서버 응답: ${res?.message || "기기 미등록"}\n\n※ ${debtor.giver}님의 기기에서 '설정' ➔ '알림 권한 허용 및 기기 등록'을 완료했는지 확인해주세요!`,
+        );
       }
     } catch (e) {
       alert("푸쉬 발송 중 오류가 발생했습니다: " + e.message);
@@ -382,23 +389,46 @@
     isBatchSendingNudge = true;
 
     let successCount = 0;
+    let serverMessages = [];
+
+    // 로컬 알림 즉시 팝업
+    showLocalNotification(`[${displayMonth}월 장부 이체 알림] 💸`, {
+      body: `가족들에게 미정산 이체 정산 알림을 발송 중입니다.`,
+    });
+
     for (const debtor of debtorsList) {
       const title = `[${displayMonth}월 장부 이체 알림] 💸`;
       const body = `${debtor.giver}님, ${displayMonth}월 미정산 이체 ${debtor.totalAmount.toLocaleString()}원(${debtor.items.length}건)이 있습니다. 확인 후 정산해주세요! 🙏`;
-      const res = await api.sendPushNotification({
-        target_user: debtor.giver,
-        title,
-        body,
-        url: `${window.location.origin}${window.location.pathname}#/ledger`,
-      });
-      if (res && res.success) successCount++;
+      try {
+        const res = await api.sendPushNotification({
+          target_user: debtor.giver,
+          title,
+          body,
+          url: `${window.location.origin}${window.location.pathname}#/ledger`,
+        });
+        if (res && res.success) {
+          successCount++;
+        } else if (res && res.message) {
+          serverMessages.push(`${debtor.giver}: ${res.message}`);
+        }
+      } catch (e) {
+        serverMessages.push(`${debtor.giver}: ${e.message}`);
+      }
     }
 
     isBatchSendingNudge = false;
-    alert(
-      `총 ${debtorsList.length}명 중 ${successCount}명에게 푸쉬 알림 발송 완료! 🚀`,
-    );
+
+    if (serverMessages.length > 0 && successCount === 0) {
+      alert(
+        `[알림 발송 상태]\n서버 응답: ${serverMessages[0]}\n\n※ 상대방 기기가 '설정' 화면에서 '알림 허용 및 기기 등록'을 완료했는지 확인해주세요!`,
+      );
+    } else {
+      alert(
+        `총 ${debtorsList.length}명 중 ${successCount}명에게 푸쉬 알림 발송 완료! 🚀`,
+      );
+    }
   }
+
 </script>
 
 <div class="space-y-6 max-w-md mx-auto relative">

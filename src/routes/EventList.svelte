@@ -168,6 +168,8 @@
     }
   }
 
+  import { showLocalNotification } from "../lib/notification.js";
+
   // Push Notification State (Admin only)
   let showEventPushModal = false;
   let selectedPushEventId = null;
@@ -241,6 +243,10 @@
     const { title, body } = currentPushPreview;
     const targets = ["아빠", "엄마", "현구", "범수"];
     let successCount = 0;
+    let serverMessages = [];
+
+    // 현재 기기 로컬 알림 즉시 팝업
+    showLocalNotification(title, { body });
 
     for (const target of targets) {
       try {
@@ -250,18 +256,30 @@
           body,
           url: `${window.location.origin}${window.location.pathname}#/events`,
         });
-        if (res && res.success) successCount++;
+        if (res && res.success) {
+          successCount++;
+        } else if (res && res.message) {
+          serverMessages.push(`${target}: ${res.message}`);
+        }
       } catch (e) {
-        console.error(e);
+        serverMessages.push(`${target}: ${e.message}`);
       }
     }
 
     isSendingEventPush = false;
     showEventPushModal = false;
-    alert(
-      `가족 전체에게 푸쉬 알림을 발송했습니다! 🚀\n\n📢 ${title}\n💬 "${body}"`,
-    );
+
+    if (serverMessages.length > 0 && successCount === 0) {
+      alert(
+        `[알림 발송 상태]\n서버 응답: ${serverMessages[0]}\n\n※ 상대방 기기가 '설정' 화면에서 '알림 허용 및 기기 등록'을 완료했는지 확인해주세요!`,
+      );
+    } else {
+      alert(
+        `가족 전체에게 푸쉬 알림을 발송했습니다! 🚀\n\n📢 ${title}\n💬 "${body}"`,
+      );
+    }
   }
+
 
   function getDDayLabel(dateStr) {
     const today = new Date();
