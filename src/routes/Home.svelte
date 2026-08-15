@@ -267,36 +267,6 @@
     </button>
   {/if}
 
-  <!-- AI Family Butler Interactive Card -->
-  <section in:fly={{ y: 20, duration: 400 }}>
-    <button
-      type="button"
-      on:click={() => (isButlerOpen = true)}
-      class="w-full flex items-center justify-between p-5 bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 text-white rounded-[2rem] shadow-xl border border-white/20 active:scale-[0.98] transition-all overflow-hidden relative group text-left"
-    >
-      <div class="relative z-10">
-        <div class="flex items-center gap-2 mb-1">
-          <span class="text-[10px] bg-white/20 backdrop-blur-md text-white font-black px-2 py-0.5 rounded-full border border-white/20">
-            패밀리봇 24H
-          </span>
-          <span class="text-[10px] text-indigo-200 font-bold">실시간 맞춤 비서</span>
-        </div>
-        <h3 class="font-black text-lg text-white">
-          우리집 AI 집사에게 물어보기 ✨
-        </h3>
-        <p class="text-xs text-indigo-100/90 mt-1">
-          이달 일정 · 가계부 정산 · 오늘 저녁 메뉴
-        </p>
-      </div>
-
-      <div class="relative z-10 w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-2xl shadow-inner border border-white/30 group-hover:scale-110 transition-transform shrink-0">
-        🤖
-      </div>
-
-      <div class="absolute -right-6 -bottom-6 w-28 h-28 bg-white/10 rounded-full blur-2xl"></div>
-    </button>
-  </section>
-
   <!-- Attendance Widget -->
   <section in:fly={{ y: 20, duration: 400 }}>
     <button
@@ -492,7 +462,7 @@
   <button
     type="button"
     on:click={() => (isButlerOpen = true)}
-    class="fixed bottom-24 right-5 sm:right-8 z-40 bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white pl-3.5 pr-4 py-3 rounded-full shadow-2xl flex items-center gap-2 border-2 border-white/20 active:scale-95 transition-all group"
+    class="fixed bottom-24 right-5 sm:right-8 z-50 bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white pl-3.5 pr-4 py-3 rounded-full shadow-2xl flex items-center gap-2 border-2 border-white/20 active:scale-95 transition-all group"
     aria-label="우리집 AI 집사 열기"
     in:fade={{ duration: 400 }}
   >
