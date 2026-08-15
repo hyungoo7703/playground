@@ -7,12 +7,6 @@
   import { formatDate } from "../lib/utils.js";
   import { readCache, writeCache } from "../lib/cache.js";
 
-  import {
-    getNotificationPermission,
-    registerPushDevice,
-    isNotificationSupported,
-  } from "../lib/notification.js";
-
   let monthlyEvents = [];
   let isLoading = true;
   const userName = localStorage.getItem("userName") || "가족";
@@ -40,32 +34,12 @@
   let attendanceStreak = 0;
   let attendanceLoaded = false;
 
-  // Notification Banner State
-  let notiPermission = "default";
-  let isEnablingNoti = false;
-
-  async function handleEnablePush() {
-    isEnablingNoti = true;
-    try {
-      const res = await registerPushDevice();
-      notiPermission = getNotificationPermission();
-      if (res && res.success) {
-        alert("가족 알림이 성공적으로 켜졌습니다! 🎉");
-      }
-    } catch (e) {
-      alert("알림 설정 중 오류가 발생했습니다: " + e.message);
-    } finally {
-      isEnablingNoti = false;
-    }
-  }
 
 
 
   onMount(async () => {
-    // 0. Notification Permission Check
-    notiPermission = getNotificationPermission();
-
     // 1. D-Day Check
+
 
     const storedDDay = localStorage.getItem("dDayEvent");
     let event = null;
@@ -243,37 +217,8 @@
     ></div>
   </header>
 
-  <!-- Friendly Notification Permission Banner for Parents / Family -->
-  {#if notiPermission === "default"}
-    <section
-      in:fly={{ y: -10 }}
-      class="p-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/40 rounded-3xl border border-amber-200 dark:border-amber-800/60 shadow-sm flex items-center justify-between gap-3"
-    >
-      <div class="flex items-center gap-3">
-        <span class="text-2xl p-2 bg-white dark:bg-gray-800 rounded-2xl shadow-sm leading-none shrink-0">
-          🔔
-        </span>
-        <div>
-          <h4 class="text-xs font-black text-amber-950 dark:text-amber-200">
-            가족 알림 켜기
-          </h4>
-          <p class="text-[11px] text-amber-800/80 dark:text-amber-300 font-medium mt-0.5">
-            일정과 소식을 스마트폰 알림으로 바로 받아보세요!
-          </p>
-        </div>
-      </div>
-      <button
-        type="button"
-        on:click={handleEnablePush}
-        disabled={isEnablingNoti}
-        class="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl font-black text-xs shadow-md active:scale-95 transition-all shrink-0 disabled:opacity-40"
-      >
-        {isEnablingNoti ? "연결 중..." : "알림 켜기"}
-      </button>
-    </section>
-  {/if}
-
   <!-- D-Day Banner -->
+
 
   {#if dDayEvent}
     {@const [dDayMain, ...dDaySubs] = dDayEvent.title.split("(")}
