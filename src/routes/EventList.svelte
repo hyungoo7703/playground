@@ -7,11 +7,12 @@
   import { readCache, writeCache } from "../lib/cache.js";
   import Spinner from "../lib/components/Spinner.svelte";
 
-  let events = [];
-  let isLoading = true;
+  let events = readCache("events") || [];
+  let isLoading = events.length === 0;
 
   // Selected Category Filter
   let selectedCategory = "전체";
+
 
   // Form State
   let showFormModal = false;
@@ -347,36 +348,29 @@
       <button
         type="button"
         on:click={openEventPushModal}
-        class="w-full p-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:to-pink-700 text-white rounded-3xl shadow-lg active:scale-[0.98] transition-all text-left block relative overflow-hidden"
+        class="w-full p-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:to-pink-700 text-white rounded-3xl shadow-lg active:scale-[0.98] transition-all text-left block"
       >
         <div class="flex items-center justify-between gap-2 mb-2">
           <div class="flex items-center gap-2">
             <span class="text-base p-1.5 bg-white/20 rounded-xl leading-none">🔔</span>
             <span class="text-xs font-black tracking-wide">가족 전체 일정 푸쉬 알림</span>
           </div>
-          <span class="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-bold">나만 가능</span>
+          <span class="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-bold shrink-0">나만 가능</span>
         </div>
 
-        {#if nearestUpcomingEvent}
-          {@const prev = generateEventPushMessage(nearestUpcomingEvent)}
-          <div class="bg-black/20 rounded-2xl p-2.5 flex items-center justify-between gap-2">
-            <p class="text-[11px] text-pink-100 font-medium truncate">
+        <div class="bg-black/20 rounded-2xl p-2.5 flex items-center justify-between gap-2">
+          <p class="text-[11px] text-pink-100 font-medium truncate flex-1 min-w-0">
+            {#if nearestUpcomingEvent}
+              {@const prev = generateEventPushMessage(nearestUpcomingEvent)}
               "{prev.body}"
-            </p>
-            <span class="text-[10px] bg-white text-indigo-700 px-2.5 py-1 rounded-lg font-black shrink-0 shadow-sm">
-              발송 ➔
-            </span>
-          </div>
-        {:else}
-          <div class="bg-black/20 rounded-2xl p-2.5 flex items-center justify-between gap-2">
-            <p class="text-[11px] text-pink-100 font-medium truncate">
+            {:else}
               다가오는 일정 알림을 가족에게 보냅니다
-            </p>
-            <span class="text-[10px] bg-white text-indigo-700 px-2.5 py-1 rounded-lg font-black shrink-0 shadow-sm">
-              발송 ➔
-            </span>
-          </div>
-        {/if}
+            {/if}
+          </p>
+          <span class="text-[10px] bg-white text-indigo-700 px-2.5 py-1 rounded-lg font-black shrink-0 shadow-sm">
+            발송 ➔
+          </span>
+        </div>
       </button>
 
       <!-- Add New Event Button -->
@@ -389,6 +383,7 @@
       </button>
     </div>
   {/if}
+
 
 
 
