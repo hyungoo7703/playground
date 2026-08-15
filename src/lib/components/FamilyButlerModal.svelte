@@ -1,5 +1,5 @@
 <script>
-  import { onMount, tick } from "svelte";
+  import { onMount, onDestroy, tick } from "svelte";
   import { fade, fly } from "svelte/transition";
   import { marked } from "marked";
   import { askAIChat } from "../aiApi.js";
@@ -52,6 +52,21 @@
     { label: "✨ 오늘의 가족 응원", prompt: "오늘 하루 우리 가족 모두 힘낼 수 있는 따뜻하고 유쾌한 덕담 한마디 해줘!" },
   ];
 
+  // Lock body scroll when modal is open to prevent background scrolling confusion
+  $: if (typeof document !== "undefined") {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+  }
+
+  onDestroy(() => {
+    if (typeof document !== "undefined") {
+      document.body.style.overflow = "";
+    }
+  });
+
   // 챗봇 열릴 때 초기 안내 메시지 세팅
   $: if (isOpen && messages.length === 0) {
     initGreeting();
@@ -65,7 +80,7 @@
     messages = [
       {
         role: "model",
-        content: `안녕하세요 **${userName}**님! 저는 우리 가족 전용 AI 집사 **패밀리봇**이에요 🏡✨\n${dDayIntro}\n이번 달 일정, 가계부 미정산, 오늘 저녁 메뉴 추천이나 가족 대화 등 무엇이든 물어보세요!`,
+        content: `안녕하세요 **${userName}**님! 저는 우리 가족 전용 AI 집사 **패밀리봇**이에요 🏡✨\n${dDayIntro}\n이번 달 일정, 가계부 미정산, 실시간 날씨/뉴스, 오늘 저녁 요리 추천 등 무엇이든 물어보세요!`,
       },
     ];
   }
@@ -211,34 +226,42 @@ ${eventsStr}
 </script>
 
 {#if isOpen}
-  <!-- Backdrop -->
+  <!-- Full Screen on Mobile, Centered Modal on Tablet/Desktop -->
   <div
-    class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm transition-opacity flex items-end sm:items-center justify-center p-0 sm:p-4"
-    transition:fade={{ duration: 200 }}
+    class="fixed inset-0 z-50 bg-black/60 sm:backdrop-blur-sm transition-opacity flex items-center justify-center p-0 sm:p-4"
+    transition:fade={{ duration: 150 }}
     on:click|self={onClose}
     on:keydown={(e) => e.key === 'Escape' && onClose()}
     role="presentation"
   >
-    <!-- Bottom Sheet Modal Content -->
+    <!-- Main Chat Window (100% full height on mobile, 720px on desktop) -->
     <div
-      class="w-full max-w-lg h-[84vh] sm:h-[680px] bg-white dark:bg-gray-900 rounded-t-[2.5rem] sm:rounded-[2rem] shadow-2xl flex flex-col overflow-hidden border border-gray-100 dark:border-gray-800"
-      transition:fly={{ y: 300, duration: 250 }}
+      class="w-full h-full sm:h-[720px] sm:max-w-xl bg-white dark:bg-gray-900 rounded-none sm:rounded-[2rem] shadow-2xl flex flex-col overflow-hidden sm:border border-gray-100 dark:border-gray-800"
+      transition:fly={{ y: 150, duration: 200 }}
     >
-      <!-- Header -->
-      <div class="px-5 py-4 bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 text-white flex items-center justify-between shadow-md shrink-0">
+      <!-- Top App Bar -->
+      <div class="px-4 sm:px-5 py-3.5 sm:py-4 bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 text-white flex items-center justify-between shadow-md shrink-0 pt-[max(0.875rem,env(safe-area-inset-top))]">
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-xl shadow-inner border border-white/20">
+          <button
+            type="button"
+            on:click={onClose}
+            class="sm:hidden p-2 -ml-1 text-white/90 hover:text-white hover:bg-white/10 rounded-xl transition-all font-bold text-lg flex items-center justify-center"
+            title="뒤로 가기"
+          >
+            ←
+          </button>
+          <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-lg sm:text-xl shadow-inner border border-white/20">
             🤖
           </div>
           <div>
             <div class="flex items-center gap-2">
-              <h3 class="font-black text-base leading-none">우리집 AI 집사</h3>
+              <h3 class="font-black text-sm sm:text-base leading-none">우리집 AI 집사</h3>
               <span class="text-[10px] bg-emerald-400 text-emerald-950 font-black px-2 py-0.5 rounded-full flex items-center gap-1">
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-900 animate-ping"></span>
                 실시간
               </span>
             </div>
-            <p class="text-[11px] text-indigo-200 mt-1">이달 일정 · 가계부 정산 · 실시간 날씨 & 뉴스 · 레시피</p>
+            <p class="text-[10.5px] sm:text-[11px] text-indigo-200 mt-1">이달 일정 · 가계부 정산 · 실시간 날씨 & 뉴스 · 레시피</p>
           </div>
         </div>
 
@@ -255,7 +278,7 @@ ${eventsStr}
           <button
             type="button"
             on:click={onClose}
-            class="p-2 text-white/80 hover:text-white hover:bg-white/20 rounded-xl transition-all text-sm font-bold w-9 h-9 flex items-center justify-center"
+            class="p-2 text-white/80 hover:text-white hover:bg-white/20 rounded-xl transition-all text-sm font-bold w-9 h-9 hidden sm:flex items-center justify-center"
             title="닫기"
           >
             ✕
@@ -277,14 +300,14 @@ ${eventsStr}
         {/each}
       </div>
 
-      <!-- Messages Area -->
+      <!-- Messages Area (Full Height Scrollable) -->
       <div
         bind:this={chatContainer}
-        class="flex-1 p-4 overflow-y-auto space-y-4 text-sm bg-gray-50/50 dark:bg-gray-900/50"
+        class="flex-1 p-4 overflow-y-auto overscroll-contain space-y-4 bg-gray-50/50 dark:bg-gray-900/50"
       >
         {#each messages as msg, idx}
           <div class="flex flex-col {msg.role === 'user' ? 'items-end' : 'items-start'}">
-            <div class="flex items-end gap-2 max-w-[90%] {msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}">
+            <div class="flex items-end gap-2 max-w-[92%] sm:max-w-[85%] {msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}">
               {#if msg.role === 'model'}
                 <div class="w-7 h-7 rounded-xl bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 flex items-center justify-center text-xs shrink-0 mb-1 shadow-sm font-bold">
                   🤖
@@ -318,8 +341,8 @@ ${eventsStr}
         {/each}
       </div>
 
-      <!-- Input Area -->
-      <div class="p-3 sm:p-4 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 shrink-0">
+      <!-- Bottom Input Area (Safe Area Aware) -->
+      <div class="p-3 sm:p-4 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <form
           on:submit|preventDefault={() => handleSend()}
           class="flex items-center gap-2"
@@ -329,7 +352,7 @@ ${eventsStr}
             bind:value={inputText}
             on:keydown={handleKeydown}
             disabled={isStreaming}
-            placeholder="우리 가족 일정, 가계부, 저녁 메뉴, 주말 계획 등 무엇이든 물어보세요..."
+            placeholder="우리 가족 일정, 가계부, 날씨, 오늘 저녁 요리 등 물어보세요..."
             class="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-2xl text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 border border-transparent dark:border-gray-700 transition-all disabled:opacity-50"
           />
           <button
