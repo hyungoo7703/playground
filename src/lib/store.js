@@ -22,9 +22,10 @@ const _d = (s, k) => {
   return r;
 };
 export const GAS_URL = _d(
-  "GBNZFhJXAh1DUUREGxFXFwhCAQ0IA1FfXxlACgYLHxQCFU4sZlRJUVRUMy4YGAUePgMEG3ABe2N1MjMyAhJDMVZaG3VRYlh+WykBEgR8UiMUTlxKQm51AD8QPSpjETlZfmR+R2NsWSABFigCAxkITg==",
+  "GBNZFhJXAh1DUUREGxFXFwhCAQ0IA1FfXxlACgYLHxQCFU4sZlRJUVRXBwgfREpuPhI4FG1WYgFuWDM/Ox5lFCMlSmMGd0JJHR8cQFZEKC0XQGF1RwVpWjo/IAlMFCIDVGQGZEFbEVZIJFQCAxkITg==",
   "pg-fam-2026-key"
 );
+
 export const APP_SECRET = _d("FgZASxsqTwBUA3t1HxEJKj5vIFU=", "pg-fam-2026-key");
 
 const getSaveData = () => {
