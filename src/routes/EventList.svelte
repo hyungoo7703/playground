@@ -242,6 +242,9 @@
 
     const { title, body } = currentPushPreview;
 
+    // 현재 발송 기기 화면에 즉시 로컬 알림 배너 팝업
+    showLocalNotification(title, { body });
+
     try {
       // 가족 전체(all)에게 1회 일괄 발송
       const res = await api.sendPushNotification({
@@ -250,6 +253,7 @@
         body,
         url: `${window.location.origin}${window.location.pathname}#/events`,
       });
+
 
       isSendingEventPush = false;
       showEventPushModal = false;
