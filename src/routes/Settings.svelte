@@ -78,7 +78,7 @@
     const res = await testAiConnection(aiUrl);
     if (res.success) {
       aiStatus = "success";
-      aiMessage = `🟢 연결 성공! 모델: ${res.data?.defaultModel || "gemini-2.0-flash"} (정상 가동 중)`;
+      aiMessage = `🟢 연결 성공! 모델: ${res.data?.defaultModel || "gemini-3.7-flash"} (정상 가동 중)`;
       isConnected = true;
     } else {
       aiStatus = "error";
