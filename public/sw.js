@@ -1,5 +1,5 @@
 // sw.js
-const CACHE_NAME = "family-playground-v1";
+const CACHE_NAME = "family-playground-v2";
 const PRECACHE_URLS = [
   "./",
   "./index.html",
@@ -20,63 +20,70 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) =>
+      .then((cacheNames) =>
         Promise.all(
-          keys
-            .filter((key) => key !== CACHE_NAME)
-            .map((key) => caches.delete(key))
+          cacheNames
+            .filter((name) => name !== CACHE_NAME)
+            .map((name) => caches.delete(name))
         )
       )
-      .then(() => clients.claim())
+      .then(() => self.clients.claim())
   );
 });
 
+// fetch 이벤트 (Network First 전략으로 최신 파일 우선 로드)
 self.addEventListener("fetch", (event) => {
-  const url = event.request.url;
+  // POST 등 비-GET 요청은 캐싱하지 않음
+  if (event.request.method !== "GET") return;
 
-  // GAS API 요청은 서비스 워커가 개입하지 않음
-  if (url.includes("script.google.com")) {
-    return;
-  }
+  // chrome-extension 등 비-http 스키마 제외
+  if (!event.request.url.startsWith("http")) return;
 
-  // Network-First 전략: 네트워크 우선, 실패 시 캐시 사용
   event.respondWith(
     fetch(event.request)
-      .then((response) => {
-        // 정상 응답이면 캐시에 저장 후 반환
-        if (response && response.status === 200) {
-          const responseClone = response.clone();
+      .then((networkResponse) => {
+        if (
+          networkResponse &&
+          networkResponse.status === 200 &&
+          networkResponse.type === "basic"
+        ) {
+          const responseClone = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, responseClone);
           });
         }
-        return response;
+        return networkResponse;
       })
-      .catch(() => {
-        // 네트워크 실패 시 캐시에서 검색
-        return caches.match(event.request).then((cachedResponse) => {
-          if (cachedResponse) {
-            return cachedResponse;
-          }
-          return new Response("오프라인 상태입니다.", {
-            status: 503,
-            headers: { "Content-Type": "text/plain; charset=utf-8" },
-          });
+      .catch(async () => {
+        const cachedResponse = await caches.match(event.request);
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        if (event.request.mode === "navigate") {
+          return caches.match("./index.html");
+        }
+        return new Response("Network error", {
+          status: 408,
+          headers: { "Content-Type": "text/plain" },
         });
       })
   );
 });
 
-// 푸시 알림 클릭 시 앱 열기 / 포커스
+// 알림 클릭 이벤트 핸들러
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
-  const urlToOpen = event.notification.data?.url || "./";
+  const urlToOpen =
+    (event.notification.data && event.notification.data.url) || "./";
 
   event.waitUntil(
-    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-      for (const client of clientList) {
-        if (client.url && "focus" in client) {
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
+      for (let client of windowClients) {
+        if ("focus" in client) {
+          if ("navigate" in client && urlToOpen !== "./") {
+            client.navigate(urlToOpen);
+          }
           return client.focus();
         }
       }
@@ -87,26 +94,25 @@ self.addEventListener("notificationclick", (event) => {
   );
 });
 
-// 백그라운드 원격 푸시 수신 (VAPID/WebPush 확장용)
+// 백그라운드 원격 푸시 수신 (커플앱 구조 기반 bulletproof 핸들러)
 self.addEventListener("push", (event) => {
-  let title = "가족 놀이터";
-  let options = {
-    body: "새로운 알림이 도착했습니다.",
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { body: event.data ? event.data.text() : "" };
+  }
+
+  const title = data.title || "가족 놀이터 🔔";
+  const options = {
+    body: data.body || "새로운 가족 알림이 도착했습니다.",
     icon: "./icon-192x192.png",
     badge: "./icon-192x192.png",
     vibrate: [100, 50, 100],
+    data: {
+      url: data.url || (data.data && data.data.url) || "./",
+    },
   };
-
-  if (event.data) {
-    try {
-      const data = event.data.json();
-      title = data.title || title;
-      options = { ...options, ...data };
-    } catch {
-      options.body = event.data.text();
-    }
-  }
 
   event.waitUntil(self.registration.showNotification(title, options));
 });
-
