@@ -19,10 +19,6 @@
     weekday: "long",
   });
 
-  // Ledger summary (bottom card)
-  let monthCount = 0;
-  let monthUnsettled = 0;
-  let ledgerLoaded = false;
 
   // Stock summary widget
   let stockCount = 0;
@@ -157,13 +153,36 @@
       .sort((a, b) => a.date.localeCompare(b.date)); // Use string sort for consistency
   }
 
+  let monthCount = 0;
+  let monthUnsettledCount = 0;
+  let monthUnsettledAmount = 0;
+  let monthTotalAmount = 0;
+  let monthUnsettledItems = [];
+  let ledgerLoaded = false;
+
   function applyLedger(ledger) {
     const ym = formatDate(new Date()).slice(0, 7);
-    const monthItems = ledger.filter((i) => String(i.date).startsWith(ym));
+    const monthItems = (ledger || []).filter((i) => String(i.date).startsWith(ym));
     monthCount = monthItems.length;
-    monthUnsettled = monthItems.filter(
+    const unsettled = monthItems.filter(
       (i) => !i.is_settled || i.is_settled === "FALSE",
-    ).length;
+    );
+    monthUnsettledCount = unsettled.length;
+    monthUnsettledAmount = unsettled.reduce(
+      (sum, i) => sum + (parseFloat(String(i.amount).replace(/[^\d.-]/g, "")) || 0),
+      0,
+    );
+    monthTotalAmount = monthItems.reduce(
+      (sum, i) => sum + (parseFloat(String(i.amount).replace(/[^\d.-]/g, "")) || 0),
+      0,
+    );
+    monthUnsettledItems = unsettled.map((i) => ({
+      title: i.title,
+      amount: i.amount,
+      giver: i.giver,
+      receiver: i.receiver,
+      date: i.date,
+    }));
     ledgerLoaded = true;
   }
 
@@ -441,8 +460,8 @@
         </h3>
         {#if ledgerLoaded}
           <p class="text-xs text-gray-400 mt-1">
-            총 {monthCount}건{monthUnsettled > 0
-              ? ` · 미정산 ${monthUnsettled}건`
+            총 {monthCount}건{monthUnsettledCount > 0
+              ? ` · 미정산 ${monthUnsettledCount}건 (${monthUnsettledAmount.toLocaleString()}원)`
               : " · 모두 정산 완료 ✨"}
           </p>
         {:else}
@@ -488,7 +507,10 @@
     {dDayEvent}
     {dDayDiff}
     {monthCount}
-    {monthUnsettled}
+    {monthUnsettledCount}
+    {monthUnsettledAmount}
+    {monthTotalAmount}
+    {monthUnsettledItems}
     {todayCheckedIn}
     {attendanceStreak}
     {stockCount}

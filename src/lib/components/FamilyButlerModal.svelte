@@ -11,7 +11,10 @@
   export let dDayEvent = null;
   export let dDayDiff = null;
   export let monthCount = 0;
-  export let monthUnsettled = 0;
+  export let monthUnsettledCount = 0;
+  export let monthUnsettledAmount = 0;
+  export let monthTotalAmount = 0;
+  export let monthUnsettledItems = [];
   export let todayCheckedIn = false;
   export let attendanceStreak = 0;
   export let stockCount = 0;
@@ -20,13 +23,15 @@
   let messages = [];
   let inputText = "";
   let isStreaming = false;
+  let currentSearchQuery = "";
   let chatContainer;
 
   const QUICK_PROMPTS = [
     { label: "📅 이달 주요 일정", prompt: "이번 달 우리 가족 주요 일정과 중요한 약속들 한눈에 요약해줘!" },
-    { label: "💰 가계부 미정산", prompt: "이번 달 가계부 미정산 내역이나 정산 현황이 어떻게 돼?" },
-    { label: "🎂 D-Day 챙기기", prompt: "현재 다가오는 D-Day 기념일 정보랑 준비 팁 알려줘!" },
+    { label: "💰 가계부 미정산", prompt: "이번 달 가계부 미정산 내역이나 정산 현황이 어떻게 돼? 누가 누구한테 줄 게 있어?" },
+    { label: "🎂 D-Day 챙기기", prompt: "현재 다가오는 D-Day 기념일 정보랑 챙길 팁 알려줘!" },
     { label: "🍽️ 오늘 뭐 먹지?", prompt: "오늘 가족들과 함께 먹을 맛있는 저녁 메뉴 추천해줘! (간단 레시피도)" },
+    { label: "🌤️ 오늘 날씨 & 뉴스", prompt: "오늘 날씨와 주요 트렌드 소식 가볍게 브리핑해줘!" },
     { label: "✨ 오늘의 응원", prompt: "오늘 하루 우리 가족 모두 힘낼 수 있는 따뜻하고 유쾌한 덕담 한마디 해줘!" },
   ];
 
@@ -43,7 +48,7 @@
     messages = [
       {
         role: "model",
-        content: `안녕하세요 ${userName}님! 저는 우리 가족 전용 AI 집사 <strong>패밀리봇</strong>이에요 🏡✨<br/>${dDayIntro}<br/>이번 달 일정, 가계부 정산, 저녁 메뉴나 궁금한 점 무엇이든 편하게 물어보세요!`,
+        content: `안녕하세요 ${userName}님! 저는 우리 가족 전용 AI 집사 <strong>패밀리봇</strong>이에요 🏡✨<br/>${dDayIntro}<br/>이번 달 일정, 가계부 미정산, 날씨나 메뉴 추천 등 무엇이든 물어보세요!`,
       },
     ];
   }
@@ -63,8 +68,13 @@
       ? `${dDayEvent.title} (날짜: ${dDayEvent.date}, D-${dDayDiff === 0 ? "DAY" : dDayDiff}일)`
       : "설정된 D-Day 없음";
 
-    // 가계부 요약
-    const ledgerStr = `이달 등록 내역 ${monthCount}건, 미정산 금액 약 ${monthUnsettled.toLocaleString()}원`;
+    // 가계부 요약 (건수 + 금액 정확히 분리)
+    let unsettledDetail = "";
+    if (monthUnsettledItems && monthUnsettledItems.length > 0) {
+      unsettledDetail = "\n  * 미정산 세부항목:\n" + monthUnsettledItems.map(i => `    - ${i.title}: ${Number(i.amount).toLocaleString()}원 (${i.giver} → ${i.receiver}, ${i.date})`).join("\n");
+    }
+
+    const ledgerStr = `이달 등록 내역 총 ${monthCount}건 (총 이체/지출 예정액: 약 ${monthTotalAmount.toLocaleString()}원), 미정산 내역: ${monthUnsettledCount}건 (총 미정산액: 약 ${monthUnsettledAmount.toLocaleString()}원)${unsettledDetail}`;
 
     // 출석/자산
     const attendanceStr = todayCheckedIn
@@ -90,11 +100,11 @@ ${eventsStr}
 - 출석 현황: ${attendanceStr}
 - 자산/주식: ${stockStr}
 
-[답변 가이드라인]
-1. 가족의 일정, 가계부, D-Day, 기념일 등에 대해 물어보면 위의 [우리 가족 이번 달 실시간 현황] 데이터를 적극 참고해서 정확하고 다정하게 답변해.
-2. 저녁 메뉴, 요리 레시피, 주말 나들이, 생활 꿀팁, 가족 대화 주제 등도 실용적이고 따뜻하게 추천해줘.
-3. 모바일 화면에서 보기 편하도록 적절한 줄바꿈과 이모지(📅, 🎂, 💰, 🍽️ 등)를 사용해 가독성 좋고 깔끔하게 작성해.
-4. 필요 이상으로 너무 길게 늘어놓지 말고 핵심 위주로 명확하고 위트 있게 답변해.`;
+[답변 원칙]
+1. [가족 데이터 질의]: 가족의 일정, 가계부 금액/미정산, D-Day, 기념일 등에 대해 물어보면 위의 [우리 가족 이번 달 실시간 현황] 데이터를 정확하게 인용해서 답변해. (미정산 금액은 원 단위로 정확하게 표기해줘!)
+2. [외부/실시간 질의]: 날씨, 뉴스, 맛집, 요리 레시피, 상식 등 외부 정보는 인터넷 검색 도구를 활용하여 최신의 유용한 정보를 친절히 안내해줘.
+3. 모바일 화면에서 보기 편하도록 적절한 줄바꿈과 이모지(📅, 🎂, 💰, 🍽️, 🌤️ 등)를 사용해 가독성 좋고 깔끔하게 작성해.
+4. 너무 장황하지 않게 핵심 위주로 명확하고 위트 있게 답변해.`;
   }
 
   async function scrollToBottom() {
@@ -109,6 +119,7 @@ ${eventsStr}
     if (!query || isStreaming) return;
 
     inputText = "";
+    currentSearchQuery = "";
 
     // 1. 사용자 메시지 추가
     messages = [...messages, { role: "user", content: query }];
@@ -116,7 +127,10 @@ ${eventsStr}
 
     // 2. AI 응답 슬롯 준비
     const aiMsgIndex = messages.length;
-    messages = [...messages, { role: "model", content: "" }];
+    messages = [
+      ...messages,
+      { role: "model", content: "", searchQueries: [], sources: [] },
+    ];
     isStreaming = true;
 
     try {
@@ -124,15 +138,14 @@ ${eventsStr}
 
       // 슬라이딩 윈도우: 최근 8개 대화만 전달하여 토큰 절약
       const recentMessages = messages
-        .slice(0, -1) // 방금 추가한 빈 AI 메시지 제외
-        .filter(m => m.content && !m.content.includes("패밀리봇이에요 🏡")) // 초기 인사 제외
+        .slice(0, -1)
+        .filter(m => m.content && !m.content.includes("패밀리봇이에요 🏡"))
         .slice(-8)
         .map(m => ({
           role: m.role === "model" ? "model" : "user",
-          content: m.content.replace(/<[^>]*>/g, ""), // HTML 태그 제거
+          content: m.content.replace(/<[^>]*>/g, ""),
         }));
 
-      // 최소 1개 메시지 보장
       if (recentMessages.length === 0) {
         recentMessages.push({ role: "user", content: query });
       }
@@ -141,18 +154,29 @@ ${eventsStr}
         messages: recentMessages,
         systemInstruction,
         stream: true,
-        onChunk: (chunk, fullText) => {
+        onChunk: (chunk, fullText, meta = {}) => {
           messages[aiMsgIndex].content = fullText;
+
+          if (meta.searchQueries && meta.searchQueries.length > 0) {
+            messages[aiMsgIndex].searchQueries = meta.searchQueries;
+            currentSearchQuery = meta.searchQueries.join(", ");
+          }
+
+          if (meta.sources && meta.sources.length > 0) {
+            messages[aiMsgIndex].sources = meta.sources;
+          }
+
           messages = [...messages];
           scrollToBottom();
         },
       });
     } catch (err) {
       console.error("AI 챗봇 통신 오류:", err);
-      messages[aiMsgIndex].content = `앗, AI 집사와 연결 중 오류가 발생했어요 😢\n(${err.message || "설정 화면에서 AI 서버 주소를 확인해주세요."})`;
+      messages[aiMsgIndex].content = `앗, AI 집사와 연결 중 오류가 발생했어요 😢\n(${err.message || "잠시 후 다시 시도해주세요."})`;
       messages = [...messages];
     } finally {
       isStreaming = false;
+      currentSearchQuery = "";
       await scrollToBottom();
     }
   }
@@ -181,7 +205,7 @@ ${eventsStr}
   >
     <!-- Bottom Sheet Modal Content -->
     <div
-      class="w-full max-w-lg h-[82vh] sm:h-[650px] bg-white dark:bg-gray-900 rounded-t-[2.5rem] sm:rounded-[2rem] shadow-2xl flex flex-col overflow-hidden border border-gray-100 dark:border-gray-800"
+      class="w-full max-w-lg h-[84vh] sm:h-[680px] bg-white dark:bg-gray-900 rounded-t-[2.5rem] sm:rounded-[2rem] shadow-2xl flex flex-col overflow-hidden border border-gray-100 dark:border-gray-800"
       transition:fly={{ y: 300, duration: 250 }}
     >
       <!-- Header -->
@@ -193,11 +217,12 @@ ${eventsStr}
           <div>
             <div class="flex items-center gap-2">
               <h3 class="font-black text-base leading-none">우리집 AI 집사</h3>
-              <span class="text-[10px] bg-emerald-400/90 text-emerald-950 font-black px-2 py-0.5 rounded-full">
+              <span class="text-[10px] bg-emerald-400 text-emerald-950 font-black px-2 py-0.5 rounded-full flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-900 animate-ping"></span>
                 실시간
               </span>
             </div>
-            <p class="text-[11px] text-indigo-200 mt-1">이달 일정 & 가계부 맞춤 비서</p>
+            <p class="text-[11px] text-indigo-200 mt-1">이달 일정 · 가계부 · 실시간 검색</p>
           </div>
         </div>
 
@@ -239,36 +264,68 @@ ${eventsStr}
       <!-- Messages Area -->
       <div
         bind:this={chatContainer}
-        class="flex-1 p-4 overflow-y-auto space-y-3.5 text-sm bg-gray-50/50 dark:bg-gray-900/50"
+        class="flex-1 p-4 overflow-y-auto space-y-4 text-sm bg-gray-50/50 dark:bg-gray-900/50"
       >
-        {#each messages as msg}
+        {#each messages as msg, idx}
           <div class="flex flex-col {msg.role === 'user' ? 'items-end' : 'items-start'}">
-            <div class="flex items-end gap-2 max-w-[88%] {msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}">
+            <div class="flex items-end gap-2 max-w-[90%] {msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}">
               {#if msg.role === 'model'}
                 <div class="w-7 h-7 rounded-xl bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 flex items-center justify-center text-xs shrink-0 mb-1 shadow-sm font-bold">
                   🤖
                 </div>
               {/if}
 
-              <div
-                class="px-4 py-2.5 rounded-2xl leading-relaxed whitespace-pre-wrap break-words shadow-sm text-xs sm:text-sm {msg.role === 'user'
-                  ? 'bg-indigo-600 text-white rounded-br-none'
-                  : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-100 dark:border-gray-700/80 rounded-bl-none'}"
-              >
-                {@html msg.content || (isStreaming ? '<span class="animate-pulse">답변 작성 중... ✍️</span>' : '')}
+              <div class="space-y-2">
+                <!-- Search Query Badge (if AI used Google search) -->
+                {#if msg.searchQueries && msg.searchQueries.length > 0}
+                  <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-[11px] text-blue-600 dark:text-blue-300 font-bold shadow-sm">
+                    <span>🔍</span>
+                    <span>실시간 검색: "{msg.searchQueries.join(', ')}"</span>
+                  </div>
+                {/if}
+
+                <!-- Message Bubble -->
+                <div
+                  class="px-4 py-3 rounded-2xl leading-relaxed whitespace-pre-wrap break-words shadow-sm text-xs sm:text-sm {msg.role === 'user'
+                    ? 'bg-indigo-600 text-white rounded-br-none font-medium'
+                    : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-100 dark:border-gray-700/80 rounded-bl-none'}"
+                >
+                  {#if !msg.content && isStreaming && idx === messages.length - 1}
+                    <div class="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 py-1">
+                      <svg class="animate-spin h-4 w-4 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                      </svg>
+                      <span class="font-bold text-xs">
+                        {currentSearchQuery ? `인터넷 검색 중... 🔍` : `패밀리봇이 답변 작성 중... ✍️`}
+                      </span>
+                    </div>
+                  {:else}
+                    {@html msg.content}
+                  {/if}
+                </div>
+
+                <!-- Web Sources Chips -->
+                {#if msg.sources && msg.sources.length > 0}
+                  <div class="flex flex-wrap items-center gap-1.5 pt-1">
+                    <span class="text-[10px] text-gray-400 font-bold">🌐 출처:</span>
+                    {#each msg.sources.slice(0, 3) as src}
+                      <a
+                        href={src.uri}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 hover:underline max-w-[140px] truncate"
+                        title={src.title || src.uri}
+                      >
+                        {src.title || "웹사이트"}
+                      </a>
+                    {/each}
+                  </div>
+                {/if}
               </div>
             </div>
           </div>
         {/each}
-
-        {#if isStreaming && messages[messages.length - 1]?.role === 'user'}
-          <div class="flex items-center gap-2 text-xs text-gray-400">
-            <div class="w-6 h-6 rounded-xl bg-indigo-100 dark:bg-indigo-900/60 flex items-center justify-center text-xs">
-              🤖
-            </div>
-            <span class="animate-pulse">패밀리봇이 생각 중이에요... ⏳</span>
-          </div>
-        {/if}
       </div>
 
       <!-- Input Area -->
@@ -282,13 +339,13 @@ ${eventsStr}
             bind:value={inputText}
             on:keydown={handleKeydown}
             disabled={isStreaming}
-            placeholder="우리 가족에 대해 무엇이든 물어보세요..."
+            placeholder="우리 가족 일정, 가계부, 날씨, 레시피 등 무엇이든 물어보세요..."
             class="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-2xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 border border-transparent dark:border-gray-700 transition-all disabled:opacity-50"
           />
           <button
             type="submit"
             disabled={isStreaming || !inputText.trim()}
-            class="px-4 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white rounded-2xl text-xs sm:text-sm font-black shadow-md active:scale-95 transition-all shrink-0 flex items-center justify-center"
+            class="px-4 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white rounded-2xl text-xs sm:text-sm font-black shadow-md active:scale-95 transition-all shrink-0 flex items-center justify-center min-w-[56px]"
           >
             {#if isStreaming}
               <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

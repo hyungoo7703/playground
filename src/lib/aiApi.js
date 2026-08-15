@@ -121,9 +121,15 @@ export async function askAIChat({
 
           try {
             const parsed = JSON.parse(dataStr);
-            if (parsed.text) {
-              fullText += parsed.text;
-              if (onChunk) onChunk(parsed.text, fullText);
+            if (parsed.text !== undefined || parsed.searchQueries || parsed.sources) {
+              const deltaText = parsed.text || "";
+              fullText += deltaText;
+              if (onChunk) {
+                onChunk(deltaText, fullText, {
+                  searchQueries: parsed.searchQueries,
+                  sources: parsed.sources,
+                });
+              }
             }
           } catch (e) {
             // JSON 파싱 무시
