@@ -65,6 +65,11 @@
   let newRuleGiver = "범수";
   let newRuleReceiver = "엄마";
 
+  // Async Action Loading Feedback States
+  let settlingId = null;
+  let isDeleting = false;
+  let deletingRuleId = null;
+
   onMount(() => {
     loadLedger();
   });
@@ -117,14 +122,20 @@
 
 
   async function handleDeleteRule(id) {
-
     if (!confirm("고정 내역을 삭제하시겠습니까?")) return;
-    const res = await api.deleteRule(id);
-    if (res.success) {
-      const r = await api.getRules();
-      if (r.success) rules = r.rules;
-    } else {
-      alert("삭제 실패: " + res.message);
+    deletingRuleId = id;
+    try {
+      const res = await api.deleteRule(id);
+      if (res.success) {
+        const r = await api.getRules();
+        if (r.success) rules = r.rules;
+      } else {
+        alert("삭제 실패: " + res.message);
+      }
+    } catch (e) {
+      alert("삭제 중 오류가 발생했습니다.");
+    } finally {
+      deletingRuleId = null;
     }
   }
 
@@ -240,25 +251,40 @@
   async function handleDelete(id) {
     if (!confirm("정말 삭제하시겠습니까?")) return;
 
-    const res = await api.deleteLedger(id);
-    if (res.success) {
-      showForm = false;
-      loadLedger();
-    } else {
-      alert("삭제 실패: " + res.message);
+    isDeleting = true;
+    try {
+      const res = await api.deleteLedger(id);
+      if (res.success) {
+        showForm = false;
+        await loadLedger();
+      } else {
+        alert("삭제 실패: " + res.message);
+      }
+    } catch (e) {
+      alert("삭제 중 오류가 발생했습니다.");
+    } finally {
+      isDeleting = false;
     }
   }
 
   async function toggleSettle(item) {
-    const res = await api.settleLedger({
-      id: item.id,
-      is_settled: !item.is_settled,
-    });
+    if (settlingId) return;
+    settlingId = item.id;
+    try {
+      const res = await api.settleLedger({
+        id: item.id,
+        is_settled: !item.is_settled,
+      });
 
-    if (res.success) {
-      loadLedger();
-    } else {
-      alert("정산 처리 실패: " + (res.message || "알 수 없는 오류"));
+      if (res.success) {
+        await loadLedger();
+      } else {
+        alert("정산 처리 실패: " + (res.message || "알 수 없는 오류"));
+      }
+    } catch (e) {
+      alert("정산 처리 중 오류가 발생했습니다.");
+    } finally {
+      settlingId = null;
     }
   }
 
@@ -592,12 +618,21 @@
 
             <button
               type="button"
+              disabled={settlingId === item.id}
               on:click|stopPropagation={() => toggleSettle(item)}
-              class="text-xs font-bold px-3 py-1.5 rounded-full border transition-all active:scale-90 {item.is_settled
+              class="inline-flex items-center justify-center min-w-[76px] text-xs font-bold px-3 py-1.5 rounded-full border transition-all active:scale-90 {settlingId === item.id ? 'opacity-60 cursor-not-allowed' : ''} {item.is_settled
                 ? 'border-gray-200 text-gray-400 bg-gray-50 dark:bg-gray-700/50 dark:border-gray-600'
                 : 'border-rose-200 text-rose-600 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800'}"
             >
-              {item.is_settled ? "✓ 정산완료" : "⏳ 미정산"}
+              {#if settlingId === item.id}
+                <svg class="animate-spin -ml-0.5 mr-1 h-3 w-3 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                </svg>
+                <span>처리중</span>
+              {:else}
+                <span>{item.is_settled ? "✓ 정산완료" : "⏳ 미정산"}</span>
+              {/if}
             </button>
           </div>
         </div>
@@ -622,10 +657,19 @@
           {#if formData.id}
             <button
               type="button"
+              disabled={isDeleting || isSubmitting}
               on:click={() => handleDelete(formData.id)}
-              class="text-rose-500 text-xs font-bold p-1"
+              class="text-rose-500 hover:text-rose-600 disabled:opacity-40 text-xs font-bold p-1 flex items-center gap-1"
             >
-              삭제
+              {#if isDeleting}
+                <svg class="animate-spin h-3 w-3 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                </svg>
+                <span>삭제 중...</span>
+              {:else}
+                <span>삭제</span>
+              {/if}
             </button>
           {/if}
         </div>
@@ -798,11 +842,19 @@
                 </div>
                 <button
                   type="button"
+                  disabled={deletingRuleId === rule.id}
                   on:click={() => handleDeleteRule(rule.id)}
-                  class="p-2 text-gray-400 hover:text-rose-500 transition-colors text-xs"
+                  class="p-2 text-gray-400 hover:text-rose-500 disabled:opacity-40 transition-colors text-xs flex items-center justify-center min-w-[28px]"
                   title="삭제"
                 >
-                  🗑️
+                  {#if deletingRuleId === rule.id}
+                    <svg class="animate-spin h-3.5 w-3.5 text-rose-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                    </svg>
+                  {:else}
+                    🗑️
+                  {/if}
                 </button>
               </div>
             {/each}

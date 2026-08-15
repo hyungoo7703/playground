@@ -21,6 +21,7 @@
   let newCategory = "일반";
   let isSubmitting = false;
   let editingId = null;
+  let deletingId = null;
 
   // Active D-Day state
   let currentDDayId = null;
@@ -141,6 +142,7 @@
 
   async function handleDelete(id) {
     if (!confirm("정말 이 일정을 삭제하시겠습니까?")) return;
+    deletingId = id;
     try {
       const res = await api.deleteEvent(id);
       if (res.success) {
@@ -154,6 +156,8 @@
       }
     } catch {
       alert("통신 오류가 발생했습니다.");
+    } finally {
+      deletingId = null;
     }
   }
 
@@ -507,11 +511,19 @@
               </button>
               <button
                 type="button"
+                disabled={deletingId === event.id}
                 on:click={() => handleDelete(event.id)}
-                class="p-2 bg-gray-100 hover:bg-rose-50 dark:bg-gray-700 dark:hover:bg-rose-950 text-gray-400 hover:text-rose-500 rounded-xl text-xs font-bold transition-all"
+                class="p-2 bg-gray-100 hover:bg-rose-50 dark:bg-gray-700 dark:hover:bg-rose-950 text-gray-400 hover:text-rose-500 disabled:opacity-40 rounded-xl text-xs font-bold transition-all flex items-center justify-center min-w-[32px]"
                 title="삭제"
               >
-                🗑️
+                {#if deletingId === event.id}
+                  <svg class="animate-spin h-3.5 w-3.5 text-rose-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                  </svg>
+                {:else}
+                  🗑️
+                {/if}
               </button>
             {/if}
           </div>
