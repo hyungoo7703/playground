@@ -103,7 +103,8 @@
   onMount(fetchEvents);
 </script>
 
-<div class="p-4 max-w-md mx-auto space-y-6 pb-24">
+<div class="max-w-md mx-auto space-y-6">
+
   <div class="flex items-center justify-between">
     <h2 class="text-2xl font-black text-gray-900 dark:text-white">가족 일정</h2>
     {#if editingId}

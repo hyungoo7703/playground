@@ -133,22 +133,23 @@
   });
 </script>
 
-<div class="px-4 py-8 max-w-md mx-auto space-y-8 pb-32">
-  <div class="flex justify-center gap-2 mb-4">
+<div class="max-w-md mx-auto space-y-6">
+  <div class="flex justify-center gap-2">
     <button
       on:click={() => switchMode("menu")}
-      class="px-4 py-2 rounded-xl font-bold transition-all {spinMode === 'menu'
-        ? 'bg-indigo-600 text-white shadow-lg'
-        : 'bg-slate-100 text-slate-400'}">메뉴 고르기</button
+      class="px-4 py-2 rounded-2xl font-bold text-xs transition-all {spinMode === 'menu'
+        ? 'bg-indigo-600 text-white shadow-md'
+        : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'}">🍽️ 메뉴 고르기</button
     >
     <button
       on:click={() => switchMode("whoPay")}
-      class="px-4 py-2 rounded-xl font-bold transition-all {spinMode ===
+      class="px-4 py-2 rounded-2xl font-bold text-xs transition-all {spinMode ===
       'whoPay'
-        ? 'bg-green-600 text-white shadow-lg'
-        : 'bg-slate-100 text-slate-400'}">밥값 내기 💸</button
+        ? 'bg-emerald-600 text-white shadow-md'
+        : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'}">💸 밥값 내기</button
     >
   </div>
+
 
   <header class="text-center space-y-2">
     <h2

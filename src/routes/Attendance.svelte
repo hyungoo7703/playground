@@ -471,7 +471,8 @@
     });
 </script>
 
-<div class="px-4 py-6 space-y-6 max-w-md mx-auto pb-20">
+<div class="space-y-6 max-w-md mx-auto">
+
     <!-- Header -->
     <header
         class="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-amber-500 via-orange-500 to-rose-500 p-8 text-white shadow-2xl"

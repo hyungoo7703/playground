@@ -167,7 +167,8 @@
     onMount(fetchAmounts);
 </script>
 
-<div class="px-4 py-6 max-w-lg mx-auto">
+<div class="max-w-lg mx-auto space-y-6">
+
     <!-- 헤더 -->
     <div class="text-center mb-6">
         <h1

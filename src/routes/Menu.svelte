@@ -29,7 +29,6 @@
         { path: "/calculator-15", label: "15% 계산기", emoji: "🧮" },
         { path: "/pension-calculator", label: "연금저축 계산기", emoji: "📈" },
         { path: "/stock", label: "주식 모으기", emoji: "📊" },
-        { path: "/english-listening", label: "영어 듣기", emoji: "🎧" },
       ],
     },
     {
@@ -39,8 +38,9 @@
   ];
 </script>
 
-<div class="px-4 py-6 max-w-md mx-auto space-y-8 pb-24">
+<div class="max-w-md mx-auto space-y-6">
   <h2 class="text-2xl font-black text-gray-900 dark:text-white">전체 메뉴</h2>
+
 
   {#each groups as group}
     {@const visibleItems = group.items.filter(

@@ -165,7 +165,8 @@
   }
 </script>
 
-<div class="px-4 py-6 space-y-6 max-w-md mx-auto pb-20">
+<div class="space-y-6 max-w-md mx-auto">
+
   <header
     in:fade={{ duration: 800 }}
     class="relative overflow-hidden rounded-[2.5rem] bg-gray-900 p-8 text-white shadow-2xl"

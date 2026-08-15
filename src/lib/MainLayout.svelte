@@ -12,7 +12,7 @@
   import Calculator15 from "../routes/Calculator15.svelte";
   import PensionCalculator from "../routes/PensionCalculator.svelte";
   import Stock from "../routes/Stock.svelte";
-  import EnglishListening from "../routes/EnglishListening.svelte";
+
 
   // Games
   import FruitPang from "../routes/FruitPang.svelte";
@@ -98,7 +98,6 @@
       <Route path="calculator-15" component={Calculator15} />
       <Route path="pension-calculator" component={PensionCalculator} />
       <Route path="stock" component={Stock} />
-      <Route path="english-listening" component={EnglishListening} />
 
       <!-- Games -->
       <Route path="fruit-pang" component={FruitPang} />
