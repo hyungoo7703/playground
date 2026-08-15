@@ -121,24 +121,30 @@ export async function askAIChat({
           const dataStr = line.slice(6).trim();
           if (dataStr === "[DONE]") return fullText;
 
+          let parsed;
           try {
-            const parsed = JSON.parse(dataStr);
-            if (parsed.error) {
-              throw new Error(parsed.error);
-            }
-            if (parsed.text !== undefined || parsed.searchQueries || parsed.sources) {
-              const deltaText = parsed.text || "";
-              fullText += deltaText;
-              if (onChunk) {
-                onChunk(deltaText, fullText, {
-                  searchQueries: parsed.searchQueries,
-                  sources: parsed.sources,
-                });
-              }
-            }
-          } catch (e) {
-            if (e.message && !e.message.includes("JSON")) {
-              throw e;
+            parsed = JSON.parse(dataStr);
+          } catch (jsonErr) {
+            continue;
+          }
+
+          if (parsed.error) {
+            let errorMsg = parsed.error;
+            try {
+              const nested = JSON.parse(errorMsg);
+              if (nested.error?.message) errorMsg = nested.error.message;
+            } catch (_) {}
+            throw new Error(errorMsg);
+          }
+
+          if (parsed.text !== undefined || parsed.searchQueries || parsed.sources) {
+            const deltaText = parsed.text || "";
+            fullText += deltaText;
+            if (onChunk) {
+              onChunk(deltaText, fullText, {
+                searchQueries: parsed.searchQueries,
+                sources: parsed.sources,
+              });
             }
           }
         }

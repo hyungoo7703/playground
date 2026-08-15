@@ -170,9 +170,18 @@ ${eventsStr}
           scrollToBottom();
         },
       });
+
+      if (!messages[aiMsgIndex].content.trim()) {
+        messages[aiMsgIndex].content = "앗, 일시적인 응답 지연이 발생했어요. 다시 한 번 질문해주세요! 😊";
+        messages = [...messages];
+      }
     } catch (err) {
       console.error("AI 챗봇 통신 오류:", err);
-      messages[aiMsgIndex].content = `앗, AI 집사와 연결 중 오류가 발생했어요 😢\n(${err.message || "잠시 후 다시 시도해주세요."})`;
+      let errText = err.message || "잠시 후 다시 시도해주세요.";
+      if (errText.includes("429") || errText.includes("quota")) {
+        errText = "무료 API 요청 한도(분당 횟수)에 도달했어요. 잠시 후 다시 질문해 주세요!";
+      }
+      messages[aiMsgIndex].content = `앗, AI 집사와 연결 중 오류가 발생했어요 😢\n(${errText})`;
       messages = [...messages];
     } finally {
       isStreaming = false;
