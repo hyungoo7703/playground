@@ -56,19 +56,16 @@
   let showRuleModal = false;
   let isRuleSubmitting = false;
   let newRuleDay = 25;
-  let newRuleTitle = "";
+  let newRuleTitle = "범수 정기입금(생활비 + 투자)";
   let newRuleAmount = "";
-  let newRuleGiver = "현구";
+  let newRuleGiver = "범수";
   let newRuleReceiver = "엄마";
   let isBatchSubmitting = false;
 
   const RULE_PRESETS = [
-    { title: "엄마 용돈", giver: "현구", receiver: "엄마" },
-    { title: "아파트 관리비", giver: "현구", receiver: "엄마" },
-    { title: "생활비 지원", giver: "현구", receiver: "엄마" },
-    { title: "통신비/인터넷", giver: "범수", receiver: "엄마" },
-    { title: "OTT 구독료", giver: "현구", receiver: "범수" },
+    { title: "범수 정기입금(생활비 + 투자)", giver: "범수", receiver: "엄마" },
   ];
+
 
   function applyPreset(preset) {
     newRuleTitle = preset.title;
