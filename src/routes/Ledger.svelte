@@ -48,8 +48,9 @@
     isLoading = false;
   }
 
-  let viewAsUser = USERS.includes($currentUser) ? $currentUser : "아빠";
+  let viewAsUser = USERS.includes($currentUser) ? $currentUser : "현구";
   let showOnlyMine = false;
+
 
   // Fixed Rules State (Cleaned up: No manual input clutter)
   let rules = [];
