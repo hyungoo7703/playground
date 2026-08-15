@@ -354,9 +354,6 @@
     const title = `[${displayMonth}월 장부 이체 알림] 💸`;
     const body = `${debtor.giver}님, ${displayMonth}월 미정산 이체 ${debtor.totalAmount.toLocaleString()}원(${debtor.items.length}건)이 있습니다. 확인 후 정산해주세요! 🙏`;
 
-    // 현재 기기 로컬 알림 즉시 팝업
-    showLocalNotification(title, { body });
-
     try {
       const res = await api.sendPushNotification({
         target_user: debtor.giver,
@@ -391,14 +388,10 @@
     let successCount = 0;
     let serverMessages = [];
 
-    // 로컬 알림 즉시 팝업
-    showLocalNotification(`[${displayMonth}월 장부 이체 알림] 💸`, {
-      body: `가족들에게 미정산 이체 정산 알림을 발송 중입니다.`,
-    });
-
     for (const debtor of debtorsList) {
       const title = `[${displayMonth}월 장부 이체 알림] 💸`;
       const body = `${debtor.giver}님, ${displayMonth}월 미정산 이체 ${debtor.totalAmount.toLocaleString()}원(${debtor.items.length}건)이 있습니다. 확인 후 정산해주세요! 🙏`;
+
       try {
         const res = await api.sendPushNotification({
           target_user: debtor.giver,
