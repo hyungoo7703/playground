@@ -71,7 +71,7 @@ export async function testAiConnection(customUrl = null) {
 export async function askAIChat({
   messages,
   systemInstruction = "너는 친절하고 다정한 가족 비서 AI야.",
-  model = "gemini-2.0-flash",
+  model = undefined,
   stream = false,
   onChunk = null,
 }) {
@@ -84,18 +84,20 @@ export async function askAIChat({
   const endpoint = `${aiUrl}/api/chat`;
 
   if (stream) {
+    const payload = {
+      messages,
+      systemInstruction,
+      stream: true,
+    };
+    if (model) payload.model = model;
+
     const response = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "x-app-token": aiToken,
       },
-      body: JSON.stringify({
-        messages,
-        systemInstruction,
-        model,
-        stream: true,
-      }),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
@@ -121,6 +123,9 @@ export async function askAIChat({
 
           try {
             const parsed = JSON.parse(dataStr);
+            if (parsed.error) {
+              throw new Error(parsed.error);
+            }
             if (parsed.text !== undefined || parsed.searchQueries || parsed.sources) {
               const deltaText = parsed.text || "";
               fullText += deltaText;
@@ -132,7 +137,9 @@ export async function askAIChat({
               }
             }
           } catch (e) {
-            // JSON 파싱 무시
+            if (e.message && !e.message.includes("JSON")) {
+              throw e;
+            }
           }
         }
       }
@@ -142,18 +149,20 @@ export async function askAIChat({
   }
 
   // 일반 단일 JSON 요청
+  const jsonPayload = {
+    messages,
+    systemInstruction,
+    stream: false,
+  };
+  if (model) jsonPayload.model = model;
+
   const response = await fetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "x-app-token": aiToken,
     },
-    body: JSON.stringify({
-      messages,
-      systemInstruction,
-      model,
-      stream: false,
-    }),
+    body: JSON.stringify(jsonPayload),
   });
 
   const data = await response.json();
@@ -167,7 +176,7 @@ export async function askAIChat({
 // 3. AI 단일 텍스트/요약 생성 (/api/generate)
 export async function generateAIText(prompt, {
   systemInstruction = "정확하고 간결하게 답변해줘.",
-  model = "gemini-2.0-flash",
+  model = undefined,
 } = {}) {
   const { aiUrl, aiToken, isConfigured } = getAiConfig();
 
@@ -176,6 +185,11 @@ export async function generateAIText(prompt, {
   }
 
   const endpoint = `${aiUrl}/api/generate`;
+  const payload = {
+    prompt,
+    systemInstruction,
+  };
+  if (model) payload.model = model;
 
   const response = await fetch(endpoint, {
     method: "POST",
@@ -183,11 +197,7 @@ export async function generateAIText(prompt, {
       "Content-Type": "application/json",
       "x-app-token": aiToken,
     },
-    body: JSON.stringify({
-      prompt,
-      systemInstruction,
-      model,
-    }),
+    body: JSON.stringify(payload),
   });
 
   const data = await response.json();
