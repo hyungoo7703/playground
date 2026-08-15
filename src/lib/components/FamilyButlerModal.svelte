@@ -40,6 +40,7 @@
   let inputText = "";
   let isStreaming = false;
   let chatContainer;
+  let historyPushed = false;
 
   const QUICK_PROMPTS = [
     { label: "📅 이달 주요 일정", prompt: "이번 달 우리 가족 주요 일정과 중요한 약속들 한눈에 요약해줘!" },
@@ -61,11 +62,51 @@
     }
   }
 
+  // Handle Android / Mobile hardware back button & swipe gesture
+  $: if (typeof window !== "undefined") {
+    if (isOpen && !historyPushed) {
+      history.pushState({ modal: "familyButler" }, "");
+      historyPushed = true;
+    }
+  }
+
+  function handlePopState(e) {
+    if (isOpen) {
+      historyPushed = false;
+      onClose();
+    }
+  }
+
+  onMount(() => {
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  });
+
   onDestroy(() => {
+    if (typeof window !== "undefined") {
+      window.removeEventListener("popstate", handlePopState);
+      if (historyPushed && history.state?.modal === "familyButler") {
+        historyPushed = false;
+        history.back();
+      }
+    }
     if (typeof document !== "undefined") {
       document.body.style.overflow = "";
     }
   });
+
+  function handleClose() {
+    if (historyPushed) {
+      historyPushed = false;
+      if (history.state?.modal === "familyButler") {
+        history.back();
+        return; // popstate handler will trigger onClose()
+      }
+    }
+    onClose();
+  }
 
   // 챗봇 열릴 때 초기 안내 메시지 세팅
   $: if (isOpen && messages.length === 0) {
@@ -218,11 +259,6 @@ ${eventsStr}
       handleSend();
     }
   }
-
-  function clearChat() {
-    messages = [];
-    initGreeting();
-  }
 </script>
 
 {#if isOpen}
@@ -230,7 +266,7 @@ ${eventsStr}
   <div
     class="fixed inset-0 z-50 bg-white dark:bg-gray-900 sm:bg-black/60 sm:backdrop-blur-sm transition-opacity flex items-center justify-center p-0 sm:p-4"
     transition:fade={{ duration: 150 }}
-    on:keydown={(e) => e.key === 'Escape' && onClose()}
+    on:keydown={(e) => e.key === 'Escape' && handleClose()}
     role="presentation"
   >
     <!-- Main Chat Window (100% full viewport height on mobile, 720px on desktop) -->
@@ -243,7 +279,7 @@ ${eventsStr}
         <div class="flex items-center gap-3">
           <button
             type="button"
-            on:click={onClose}
+            on:click={handleClose}
             class="sm:hidden p-2 -ml-1 text-white/90 hover:text-white hover:bg-white/10 rounded-xl transition-all font-bold text-lg flex items-center justify-center"
             title="뒤로 가기"
           >
@@ -267,7 +303,7 @@ ${eventsStr}
         <div class="flex items-center gap-1.5">
           <button
             type="button"
-            on:click={onClose}
+            on:click={handleClose}
             class="p-2 text-white/80 hover:text-white hover:bg-white/20 rounded-xl transition-all text-sm font-bold w-9 h-9 flex items-center justify-center"
             title="닫기"
           >
