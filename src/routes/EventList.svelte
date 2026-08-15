@@ -168,6 +168,101 @@
     }
   }
 
+  // Push Notification State (Admin only)
+  let showEventPushModal = false;
+  let selectedPushEventId = null;
+  let isSendingEventPush = false;
+
+  $: todayStr = formatDate(new Date());
+  $: upcomingEvents = events.filter((e) => e.date >= todayStr);
+  $: nearestUpcomingEvent =
+    upcomingEvents.length > 0
+      ? upcomingEvents[0]
+      : events.length > 0
+        ? events[events.length - 1]
+        : null;
+
+  function generateEventPushMessage(event) {
+    if (!event)
+      return {
+        title: "[가족 일정 알림] 📅",
+        body: "가족 일정을 확인해보세요!",
+        diffDays: 0,
+      };
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const target = new Date(event.date);
+    target.setHours(0, 0, 0, 0);
+    const diffDays = Math.round((target - today) / (1000 * 60 * 60 * 24));
+
+    let timingPhrase = "";
+    let pushTitle = `[가족 일정 알림] 📅`;
+
+    if (diffDays === 0) {
+      timingPhrase = `오늘은 '${event.title}' 날이에요! 🎉`;
+      pushTitle = `[오늘의 가족 일정] 📅`;
+    } else if (diffDays === 1) {
+      timingPhrase = `내일은 '${event.title}' 날이에요! 잊지 마세요 ✨`;
+      pushTitle = `[내일의 가족 일정] 📅`;
+    } else if (diffDays === 2) {
+      timingPhrase = `모레는 '${event.title}' 날이에요! 🗓️`;
+      pushTitle = `[다가오는 가족 일정] 📅`;
+    } else if (diffDays > 2) {
+      timingPhrase = `${diffDays}일 뒤(${event.date.slice(5)})는 '${event.title}' 날이에요! 🗓️`;
+      pushTitle = `[다가오는 가족 일정] 📅`;
+    } else {
+      timingPhrase = `'${event.title}' (${event.date.slice(5)}) 일정이 있습니다!`;
+    }
+
+    return {
+      title: pushTitle,
+      body: timingPhrase,
+      diffDays,
+    };
+  }
+
+  function openEventPushModal() {
+    if (!$isAdmin) return alert("관리자만 일정을 푸쉬할 수 있습니다.");
+    if (events.length === 0) return alert("등록된 일정이 없습니다.");
+    selectedPushEventId = nearestUpcomingEvent
+      ? nearestUpcomingEvent.id
+      : events[0]?.id;
+    showEventPushModal = true;
+  }
+
+  $: selectedPushEvent =
+    events.find((e) => e.id === selectedPushEventId) || nearestUpcomingEvent;
+  $: currentPushPreview = generateEventPushMessage(selectedPushEvent);
+
+  async function sendEventPushToAll() {
+    if (!selectedPushEvent) return alert("발송할 일정을 선택해주세요.");
+    isSendingEventPush = true;
+
+    const { title, body } = currentPushPreview;
+    const targets = ["아빠", "엄마", "현구", "범수"];
+    let successCount = 0;
+
+    for (const target of targets) {
+      try {
+        const res = await api.sendPushNotification({
+          target_user: target,
+          title,
+          body,
+          url: `${window.location.origin}${window.location.pathname}#/events`,
+        });
+        if (res && res.success) successCount++;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    isSendingEventPush = false;
+    showEventPushModal = false;
+    alert(
+      `가족 전체에게 푸쉬 알림을 발송했습니다! 🚀\n\n📢 ${title}\n💬 "${body}"`,
+    );
+  }
+
   function getDDayLabel(dateStr) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -198,6 +293,7 @@
     selectedCategory === "전체"
       ? events
       : events.filter((e) => e.category === selectedCategory);
+
 </script>
 
 <div class="space-y-6 max-w-md mx-auto relative">
@@ -232,16 +328,50 @@
     <div class="absolute -left-8 -bottom-8 w-32 h-32 bg-pink-400/20 rounded-full blur-2xl"></div>
   </header>
 
-  <!-- Big Action Button: Add New Event -->
+  <!-- Admin Exclusive: Family Schedule Push & Add Event -->
   {#if $isAdmin}
-    <button
-      type="button"
-      on:click={openAddModal}
-      class="w-full py-4 bg-rose-500 hover:bg-rose-600 text-white rounded-3xl shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 font-black text-sm"
-    >
-      <span>➕ 새 가족 일정 추가하기</span>
-    </button>
+    <div class="space-y-2.5">
+      <button
+        type="button"
+        on:click={openEventPushModal}
+        class="w-full p-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:to-pink-700 text-white rounded-3xl shadow-lg active:scale-[0.98] transition-all flex items-center justify-between gap-3 text-left"
+      >
+        <div class="flex items-center gap-3">
+          <span class="text-2xl p-2 bg-white/20 rounded-2xl backdrop-blur-md shrink-0">
+            🔔
+          </span>
+          <div class="min-w-0">
+            <div class="flex items-center gap-1.5">
+              <span class="text-xs font-black tracking-wide">가족 전체에게 일정 푸쉬 보내기</span>
+              <span class="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-bold">나만 가능</span>
+            </div>
+            {#if nearestUpcomingEvent}
+              {@const prev = generateEventPushMessage(nearestUpcomingEvent)}
+              <p class="text-[11px] text-pink-100 font-medium truncate mt-0.5">
+                미리보기: "{prev.body}"
+              </p>
+            {:else}
+              <p class="text-[11px] text-pink-100 font-medium truncate mt-0.5">
+                다가오는 일정 알림을 보냅니다
+              </p>
+            {/if}
+          </div>
+        </div>
+        <span class="text-xs bg-white text-indigo-700 px-3 py-1.5 rounded-xl font-black shrink-0 shadow-sm">
+          발송 ➔
+        </span>
+      </button>
+
+      <button
+        type="button"
+        on:click={openAddModal}
+        class="w-full py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 font-black text-xs"
+      >
+        <span>➕ 새 가족 일정 추가하기</span>
+      </button>
+    </div>
   {/if}
+
 
   <!-- Category Filter Pills -->
   <div class="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
@@ -505,4 +635,107 @@
       </div>
     </div>
   {/if}
+
+  <!-- Schedule Push Modal (Admin only) -->
+  {#if showEventPushModal}
+    <div
+      class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      transition:fade
+    >
+      <div
+        class="w-full max-w-sm max-h-[90vh] flex flex-col bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-2xl relative space-y-4"
+        transition:slide={{ duration: 250, axis: "y" }}
+      >
+        <div class="flex justify-between items-center shrink-0">
+          <div>
+            <h2 class="text-lg font-black text-gray-900 dark:text-white flex items-center gap-1.5">
+              🔔 가족 전체 일정 푸쉬 알림
+            </h2>
+            <p class="text-[11px] text-gray-400">
+              시점에 맞춘 일정 알림 메시지가 가족 모두에게 전송됩니다.
+            </p>
+          </div>
+          <button
+            type="button"
+            on:click={() => (showEventPushModal = false)}
+            class="p-2 bg-gray-100 dark:bg-gray-700 rounded-full text-xs font-bold"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div class="space-y-4 overflow-y-auto flex-1 pr-1">
+          <!-- Select Event -->
+          <div class="space-y-1.5">
+            <span class="text-xs font-bold text-gray-400 dark:text-gray-500 block">
+              알림 보낼 일정 선택
+            </span>
+            <div class="space-y-2">
+              {#each events as ev}
+                {@const msg = generateEventPushMessage(ev)}
+                <button
+                  type="button"
+                  on:click={() => (selectedPushEventId = ev.id)}
+                  class="w-full p-3 rounded-2xl border text-left transition-all {selectedPushEventId === ev.id
+                    ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-500 ring-2 ring-indigo-500'
+                    : 'bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600'}"
+                >
+                  <div class="flex justify-between items-center">
+                    <span class="text-xs font-black text-gray-900 dark:text-white">
+                      {ev.title}
+                    </span>
+                    <span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-white dark:bg-gray-800 px-2 py-0.5 rounded-md">
+                      {ev.date}
+                    </span>
+                  </div>
+                  <p class="text-[11px] text-gray-500 dark:text-gray-300 mt-1 font-medium">
+                    "{msg.body}"
+                  </p>
+                </button>
+              {/each}
+            </div>
+          </div>
+
+          <!-- Live Preview Box -->
+          {#if selectedPushEvent}
+            <div class="p-4 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/40 dark:to-purple-950/40 rounded-2xl border border-indigo-100 dark:border-indigo-800 space-y-2">
+              <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 block">
+                📱 푸쉬 알림 미리보기
+              </span>
+              <div class="bg-white dark:bg-gray-800 p-3 rounded-xl shadow-sm border border-indigo-50 dark:border-indigo-900/50 space-y-1">
+                <p class="text-xs font-black text-gray-900 dark:text-white">
+                  📢 {currentPushPreview.title}
+                </p>
+                <p class="text-xs text-gray-700 dark:text-gray-200 leading-relaxed font-medium">
+                  {currentPushPreview.body}
+                </p>
+              </div>
+              <p class="text-[10px] text-gray-400 text-center font-bold">
+                👨‍👩‍👧‍👦 발송 대상: 아빠, 엄마, 현구, 범수 (전체 기기)
+              </p>
+            </div>
+          {/if}
+        </div>
+
+        <div class="flex gap-2 shrink-0 pt-2">
+          <button
+            type="button"
+            on:click={() => (showEventPushModal = false)}
+            class="flex-1 py-3.5 font-bold text-xs text-gray-500 bg-gray-100 dark:bg-gray-700 rounded-2xl active:scale-95"
+          >
+            취소
+          </button>
+          <button
+            type="button"
+            on:click={sendEventPushToAll}
+            disabled={isSendingEventPush || !selectedPushEvent}
+            class="flex-1 py-3.5 font-black text-xs text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 rounded-2xl shadow-lg active:scale-95 disabled:opacity-40"
+          >
+            {isSendingEventPush ? "전체 발송 중..." : "🚀 지금 가족 전체에게 발송"}
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
 </div>
+
