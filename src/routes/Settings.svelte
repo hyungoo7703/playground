@@ -1,7 +1,8 @@
 <script>
   import { onMount } from "svelte";
   import { fade } from "svelte/transition";
-  import { isDarkMode, deferredPrompt } from "../lib/store.js";
+  import { isDarkMode, deferredPrompt, isAdmin, currentUser } from "../lib/store.js";
+  import { api } from "../lib/api.js";
   import {
     getAiConfig,
     saveAiConfig,
@@ -29,6 +30,12 @@
   let notiMessage = "";
   let isSendingNoti = false;
   let isRegisteringNoti = false;
+
+  // Admin Update Push State
+  let isSendingUpdatePush = false;
+  let updatePushTitle = "가족 놀이터 업데이트 알림 🚀";
+  let updatePushBody = "새로운 업데이트가 되었어요! 지금 확인해보세요 ✨";
+  let updatePushResult = "";
 
   onMount(() => {
     // 1. AI 설정 불러오기
@@ -125,6 +132,54 @@
       notiMessage = "⚠️ 알림 발송에 실패했습니다. 권한을 확인해주세요.";
     }
     isSendingNoti = false;
+  }
+
+  // 관리자 전용: 나를 제외한 가족들에게 업데이트 알림 전송
+  async function handleSendUpdatePush() {
+    const current = $currentUser || localStorage.getItem("userName") || "현구";
+    const ALL_FAMILY = ["아빠", "엄마", "현구", "범수"];
+    const targets = ALL_FAMILY.filter((name) => name !== current);
+
+    if (
+      !confirm(
+        `나(${current})를 제외한 가족(${targets.join(", ")})에게 업데이트 알림을 전송할까요?\n\n📢 "${updatePushBody}"`
+      )
+    ) {
+      return;
+    }
+
+    isSendingUpdatePush = true;
+    updatePushResult = "";
+
+    try {
+      const results = await Promise.allSettled(
+        targets.map((member) =>
+          api.sendPushNotification({
+            target_user: member,
+            title: updatePushTitle.trim() || "가족 놀이터 업데이트 알림 🚀",
+            body: updatePushBody.trim() || "새로운 업데이트가 되었어요! 지금 확인해보세요 ✨",
+            url: `${window.location.origin}${window.location.pathname}#/`,
+          })
+        )
+      );
+
+      let successCount = 0;
+      results.forEach((r) => {
+        if (r.status === "fulfilled" && r.value && r.value.success) {
+          successCount++;
+        }
+      });
+
+      updatePushResult = `🚀 가족 ${targets.length}명(${targets.join(", ")}) 중 등록된 기기로 알림 전송 완료! (${successCount}건 성공)`;
+      alert(
+        `🚀 가족 업데이트 알림 발송 완료!\n\n발송 대상: ${targets.join(", ")}\n성공 응답: ${successCount}건\n\n📢 ${updatePushTitle}\n💬 "${updatePushBody}"`
+      );
+    } catch (e) {
+      updatePushResult = `⚠️ 발송 중 오류: ${e.message}`;
+      alert("푸시 알림 발송 중 오류가 발생했습니다: " + e.message);
+    } finally {
+      isSendingUpdatePush = false;
+    }
   }
 
   function logout() {
@@ -346,6 +401,66 @@
     </div>
 
   </section>
+
+  <!-- 🔒 관리자 전용: 가족 전체 업데이트 알리기 -->
+  {#if $isAdmin}
+    <section class="p-6 bg-gradient-to-br from-indigo-50/90 via-purple-50/70 to-pink-50/50 dark:from-gray-800 dark:via-indigo-950/40 dark:to-purple-950/30 shadow-sm border border-indigo-200/80 dark:border-indigo-800/60 rounded-3xl space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-black text-indigo-950 dark:text-indigo-200 flex items-center gap-2">
+          <span>🚀</span> 가족 업데이트 알림 (관리자 전용)
+        </h3>
+        <span class="text-[10px] bg-indigo-200/70 dark:bg-indigo-900/80 text-indigo-800 dark:text-indigo-300 font-bold px-2.5 py-0.5 rounded-full">
+          나 빼고 전송
+        </span>
+      </div>
+
+      <p class="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+        새로운 기능이나 패치가 배포되었을 때, <strong>나({$currentUser || '현구'})를 제외한 가족(아빠, 엄마, 범수)</strong>의 스마트폰으로 업데이트 알림을 즉시 발송합니다.
+      </p>
+
+      <!-- Message input / preview -->
+      <div class="space-y-2">
+        <div class="space-y-1">
+          <label for="update-push-title" class="block text-[11px] font-bold text-gray-500 dark:text-gray-400">알림 제목</label>
+          <input
+            id="update-push-title"
+            type="text"
+            bind:value={updatePushTitle}
+            class="w-full px-3.5 py-2.5 rounded-xl border border-indigo-200 dark:border-indigo-900 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+
+        <div class="space-y-1">
+          <label for="update-push-body" class="block text-[11px] font-bold text-gray-500 dark:text-gray-400">알림 내용</label>
+          <input
+            id="update-push-body"
+            type="text"
+            bind:value={updatePushBody}
+            placeholder="새로운 업데이트가 되었어요! 지금 확인해보세요 ✨"
+            class="w-full px-3.5 py-2.5 rounded-xl border border-indigo-200 dark:border-indigo-900 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+      </div>
+
+      {#if updatePushResult}
+        <div
+          in:fade
+          class="p-3 bg-white/80 dark:bg-gray-900/80 border border-indigo-200 dark:border-indigo-800 text-indigo-900 dark:text-indigo-200 rounded-xl text-xs font-bold leading-relaxed"
+        >
+          {updatePushResult}
+        </div>
+      {/if}
+
+      <button
+        type="button"
+        on:click={handleSendUpdatePush}
+        disabled={isSendingUpdatePush || !updatePushBody.trim()}
+        class="w-full py-3 px-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 text-white font-black rounded-2xl text-xs active:scale-95 transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
+      >
+        <span>📢</span> {isSendingUpdatePush ? "가족들에게 발송 중..." : "가족들에게 업데이트 알림 전송하기"}
+      </button>
+    </section>
+  {/if}
 
   <!-- 4. PWA 앱 설치 버튼 (지원되는 경우) -->
   {#if $deferredPrompt}
