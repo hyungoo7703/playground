@@ -367,7 +367,7 @@ ${eventsStr}
       </div>
 
       <!-- Bottom Input Area (Safe Area Aware) -->
-      <div class="p-3 sm:p-4 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div class="p-3 sm:p-4 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 shrink-0 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
         <form
           on:submit|preventDefault={() => handleSend()}
           class="flex items-center gap-2"
