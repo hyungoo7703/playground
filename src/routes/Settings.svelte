@@ -8,6 +8,8 @@
     saveAiConfig,
     syncAiConfigFromGAS,
     testAiConnection,
+    isGeoWeatherEnabled,
+    setGeoWeatherEnabled,
   } from "../lib/aiApi.js";
   import {
     getNotificationPermission,
@@ -24,6 +26,9 @@
   let aiStatus = "idle"; // 'idle' | 'syncing' | 'testing' | 'success' | 'error'
   let aiMessage = "";
   let isConnected = false;
+
+  // Geo Weather State
+  let useGeoWeather = false;
 
   // Notification State
   let notiPermission = "default";
@@ -45,6 +50,7 @@
     if (cfg.isConfigured) {
       isConnected = true;
     }
+    useGeoWeather = isGeoWeatherEnabled();
 
     // 2. 알림 권한 상태 확인 및 이미 허용된 경우 자동 기기 등록
     notiPermission = getNotificationPermission();
@@ -52,6 +58,33 @@
       autoRegisterPushIfGranted();
     }
   });
+
+  // 내 위치 날씨 토글 — 켤 때 이 시점에 위치 권한을 요청
+  function toggleGeoWeather() {
+    if (useGeoWeather) {
+      useGeoWeather = false;
+      setGeoWeatherEnabled(false);
+      return;
+    }
+
+    if (!("geolocation" in navigator)) {
+      alert("이 기기는 위치 정보를 지원하지 않습니다.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      () => {
+        useGeoWeather = true;
+        setGeoWeatherEnabled(true);
+      },
+      () => {
+        alert(
+          "위치 권한이 거부되어 사용할 수 없습니다.\n브라우저 설정에서 위치 권한을 허용한 뒤 다시 시도해주세요.",
+        );
+      },
+      { timeout: 5000 },
+    );
+  }
 
   // AI 서버에서 설정 동기화
   async function handleSyncAiConfig() {
@@ -334,6 +367,33 @@
     >
       💾 직접 입력값 로컬 저장
     </button>
+
+    <!-- 내 위치 날씨 -->
+    <div
+      class="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-700"
+    >
+      <div>
+        <span class="text-sm font-bold text-gray-700 dark:text-gray-300"
+          >📍 내 위치 날씨</span
+        >
+        <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
+          AI에게 날씨를 물으면 현재 위치 기준으로 답해요 (위치는 저장되지 않음)
+        </p>
+      </div>
+      <button
+        on:click={toggleGeoWeather}
+        class="relative inline-flex items-center h-6 rounded-full w-11 flex-shrink-0 transition-colors {useGeoWeather
+          ? 'bg-indigo-600'
+          : 'bg-gray-300 dark:bg-gray-600'}"
+        aria-label="내 위치 날씨 사용"
+      >
+        <span
+          class="inline-block w-4 h-4 transform bg-white rounded-full transition-transform {useGeoWeather
+            ? 'translate-x-6'
+            : 'translate-x-1'}"
+        ></span>
+      </button>
+    </div>
   </section>
 
   <!-- 3. 푸시 알림 설정 (PWA / Web Notifications) -->

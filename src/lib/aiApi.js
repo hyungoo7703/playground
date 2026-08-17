@@ -31,6 +31,54 @@ export async function syncAiConfigFromGAS() {
   }
 }
 
+// ==========================================
+// 내 위치 날씨 (설정 페이지 토글, 좌표는 10분 캐시)
+// ==========================================
+const GEO_CACHE_MS = 10 * 60 * 1000;
+
+export function isGeoWeatherEnabled() {
+  return localStorage.getItem("useGeoWeather") === "true";
+}
+
+export function setGeoWeatherEnabled(enabled) {
+  localStorage.setItem("useGeoWeather", String(enabled));
+  if (!enabled) localStorage.removeItem("geoCoords");
+}
+
+// 위경도 획득 — 꺼져 있거나 실패하면 null (서버가 도시명 매칭으로 폴백)
+export function getGeoLocation() {
+  if (!isGeoWeatherEnabled() || !("geolocation" in navigator)) {
+    return Promise.resolve(null);
+  }
+
+  try {
+    const cached = JSON.parse(localStorage.getItem("geoCoords") || "null");
+    if (cached && Date.now() - cached.ts < GEO_CACHE_MS) {
+      return Promise.resolve({ lat: cached.lat, lon: cached.lon });
+    }
+  } catch {
+    localStorage.removeItem("geoCoords");
+  }
+
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const coords = {
+          lat: Number(pos.coords.latitude.toFixed(4)),
+          lon: Number(pos.coords.longitude.toFixed(4)),
+        };
+        localStorage.setItem(
+          "geoCoords",
+          JSON.stringify({ ...coords, ts: Date.now() }),
+        );
+        resolve(coords);
+      },
+      () => resolve(null),
+      { timeout: 3000, maximumAge: GEO_CACHE_MS },
+    );
+  });
+}
+
 // 1. AI 서버 헬스체크 (연결 테스트)
 export async function testAiConnection(customUrl = null) {
   const { aiUrl } = getAiConfig();
@@ -82,6 +130,7 @@ export async function askAIChat({
   }
 
   const endpoint = `${aiUrl}/api/chat`;
+  const location = await getGeoLocation();
 
   if (stream) {
     const payload = {
@@ -90,6 +139,7 @@ export async function askAIChat({
       stream: true,
     };
     if (model) payload.model = model;
+    if (location) payload.location = location;
 
     const response = await fetch(endpoint, {
       method: "POST",
@@ -161,6 +211,7 @@ export async function askAIChat({
     stream: false,
   };
   if (model) jsonPayload.model = model;
+  if (location) jsonPayload.location = location;
 
   const response = await fetch(endpoint, {
     method: "POST",
