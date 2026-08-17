@@ -357,63 +357,74 @@
         <!-- HUD -->
         <div
             class="absolute top-0 left-0 w-full pointer-events-none sticky-hud z-[90]"
-            style="padding-top: max(6rem, env(safe-area-inset-top) + 1rem); padding-left: max(1rem, env(safe-area-inset-left)); padding-right: max(1rem, env(safe-area-inset-right));"
+            style="padding-top: max(0.75rem, env(safe-area-inset-top) + 0.5rem); padding-left: max(0.75rem, env(safe-area-inset-left)); padding-right: max(0.75rem, env(safe-area-inset-right));"
         >
-            <div class="flex justify-between items-start">
-                <div class="flex flex-col gap-2">
+            <div class="flex justify-between items-start gap-2">
+                <!-- Left: Player HP & EXP Bar -->
+                <div class="flex flex-col gap-1.5 max-w-[55%] sm:max-w-none">
                     <!-- HP -->
                     <div
-                        class="w-64 h-6 bg-gray-800/80 rounded-full border border-white/10 overflow-hidden relative"
+                        class="w-36 sm:w-64 h-5 sm:h-6 bg-gray-800/90 rounded-full border border-white/20 overflow-hidden relative shadow-md"
                     >
                         <div
                             class="h-full bg-gradient-to-r from-red-600 to-red-400 transition-all duration-300"
                             style="width: {(uiState.hp / uiState.maxHp) * 100}%"
                         ></div>
                         <span
-                            class="absolute inset-0 flex items-center justify-center text-xs font-bold text-white shadow-md"
-                            >{Math.ceil(uiState.hp)} / {Math.ceil(
-                                uiState.maxHp,
-                            )}</span
+                            class="absolute inset-0 flex items-center justify-center text-[10px] sm:text-xs font-bold text-white drop-shadow"
+                            >{Math.ceil(uiState.hp)} / {Math.ceil(uiState.maxHp)}</span
                         >
                     </div>
                     <!-- EXP -->
                     <div
-                        class="w-64 h-4 bg-gray-800/80 rounded-full border border-white/10 overflow-hidden relative"
+                        class="w-36 sm:w-64 h-3.5 sm:h-4 bg-gray-800/90 rounded-full border border-white/20 overflow-hidden relative shadow-md"
                     >
                         <div
                             class="h-full bg-gradient-to-r from-green-500 to-emerald-400 transition-all duration-300"
-                            style="width: {(uiState.exp / uiState.maxExp) *
-                                100}%"
+                            style="width: {(uiState.exp / uiState.maxExp) * 100}%"
                         ></div>
                         <span
-                            class="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white shadow-md"
+                            class="absolute inset-0 flex items-center justify-center text-[9px] sm:text-[10px] font-black text-white drop-shadow"
                             >LV. {uiState.level}</span
                         >
                     </div>
                 </div>
 
-                <div class="flex flex-col items-end">
-                    <div
-                        class="text-4xl font-mono font-bold text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]"
-                    >
-                        {formattedTime()}
+                <!-- Right: Timer, Coins & Pause Button -->
+                <div class="flex items-center gap-2 sm:gap-4">
+                    <div class="flex flex-col items-end">
+                        <div
+                            class="text-2xl sm:text-4xl font-mono font-black text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.5)] leading-none"
+                        >
+                            {formattedTime()}
+                        </div>
+                        <div
+                            class="text-yellow-400 text-xs sm:text-sm font-bold flex items-center gap-1 mt-0.5"
+                        >
+                            <span>🪙</span>
+                            <span>{uiState.coins}</span>
+                        </div>
                     </div>
-                    <div
-                        class="text-yellow-400 font-bold flex items-center gap-2 mt-1"
+
+                    <!-- Pause Button -->
+                    <button
+                        type="button"
+                        on:click={togglePause}
+                        class="pointer-events-auto w-9 h-9 sm:w-11 sm:h-11 bg-white/15 hover:bg-white/25 active:scale-95 rounded-full flex items-center justify-center text-white text-sm sm:text-base backdrop-blur-md border border-white/20 shadow-lg transition-all"
+                        aria-label="일시정지"
                     >
-                        <span>🪙</span>
-                        {uiState.coins}
-                    </div>
+                        {#if gameState === "paused"}▶{:else}⏸{/if}
+                    </button>
                 </div>
             </div>
 
             <!-- Boss HP Bar -->
             {#if uiState.boss}
                 <div
-                    class="absolute top-40 left-1/2 transform -translate-x-1/2 w-full max-w-lg px-4"
+                    class="mt-3 w-full max-w-sm sm:max-w-lg mx-auto px-2"
                 >
                     <div
-                        class="w-full h-8 bg-gray-900/90 rounded-full border-2 border-red-600 overflow-hidden relative shadow-[0_0_15px_#f00]"
+                        class="w-full h-6 sm:h-8 bg-gray-900/90 rounded-full border-2 border-red-600 overflow-hidden relative shadow-[0_0_15px_#f00]"
                     >
                         <div
                             class="h-full bg-gradient-to-r from-red-800 to-red-500 transition-all duration-200"
@@ -422,7 +433,7 @@
                                 100}%"
                         ></div>
                         <span
-                            class="absolute inset-0 flex items-center justify-center text-sm font-black text-white drop-shadow-md"
+                            class="absolute inset-0 flex items-center justify-center text-xs sm:text-sm font-black text-white drop-shadow-md"
                         >
                             BOSS
                         </span>
@@ -430,14 +441,6 @@
                 </div>
             {/if}
         </div>
-
-        <!-- Pause Button -->
-        <button
-            on:click={togglePause}
-            class="absolute top-24 right-4 z-40 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white backdrop-blur"
-        >
-            {#if gameState === "paused"}▶{:else}⏸{/if}
-        </button>
 
         <!-- Use Ultimate -->
         <button
