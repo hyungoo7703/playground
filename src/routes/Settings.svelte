@@ -29,6 +29,21 @@
 
   // Geo Weather State
   let useGeoWeather = false;
+  let geoStatus = "";
+
+  function refreshGeoStatus() {
+    try {
+      const c = JSON.parse(localStorage.getItem("geoCoords") || "null");
+      if (c) {
+        const mins = Math.round((Date.now() - c.ts) / 60000);
+        geoStatus = `✅ 위치 확인됨 · ${c.lat.toFixed(2)}, ${c.lon.toFixed(2)} (${mins <= 0 ? "방금" : `${mins}분 전`})`;
+        return;
+      }
+    } catch {
+      localStorage.removeItem("geoCoords");
+    }
+    geoStatus = "⏳ 아직 위치가 확인되지 않았습니다";
+  }
 
   // Notification State
   let notiPermission = "default";
@@ -51,6 +66,7 @@
       isConnected = true;
     }
     useGeoWeather = isGeoWeatherEnabled();
+    if (useGeoWeather) refreshGeoStatus();
 
     // 2. 알림 권한 상태 확인 및 이미 허용된 경우 자동 기기 등록
     notiPermission = getNotificationPermission();
@@ -64,6 +80,7 @@
     if (useGeoWeather) {
       useGeoWeather = false;
       setGeoWeatherEnabled(false);
+      geoStatus = "";
       return;
     }
 
@@ -73,9 +90,19 @@
     }
 
     navigator.geolocation.getCurrentPosition(
-      () => {
+      (pos) => {
         useGeoWeather = true;
         setGeoWeatherEnabled(true);
+        // aiApi.getGeoLocation과 같은 캐시를 공유 (10분 재사용)
+        localStorage.setItem(
+          "geoCoords",
+          JSON.stringify({
+            lat: Number(pos.coords.latitude.toFixed(4)),
+            lon: Number(pos.coords.longitude.toFixed(4)),
+            ts: Date.now(),
+          }),
+        );
+        refreshGeoStatus();
       },
       (err) => {
         if (err.code === 1) {
@@ -406,6 +433,16 @@
         ></span>
       </button>
     </div>
+    {#if useGeoWeather && geoStatus}
+      <p
+        in:fade
+        class="text-[11px] font-bold {geoStatus.startsWith('✅')
+          ? 'text-emerald-600 dark:text-emerald-400'
+          : 'text-amber-600 dark:text-amber-400'}"
+      >
+        {geoStatus}
+      </p>
+    {/if}
   </section>
 
   <!-- 3. 푸시 알림 설정 (PWA / Web Notifications) -->
