@@ -6,8 +6,8 @@ export const deferredPrompt = writable(null);
 export const isLoggedIn = writable(!!localStorage.getItem("accessCode"));
 // 현재 사용자 (추후 로그인 시 설정)
 export const currentUser = writable(localStorage.getItem("currentUser"));
-// 사용자 역할 (admin/member)
-export const userRole = writable(localStorage.getItem("role") || "admin");
+// 사용자 역할 (admin/member) — 값이 없으면 비관리자로 (fail-closed)
+export const userRole = writable(localStorage.getItem("role") || "member");
 // 관리자 여부 판별 — '현구' 또는 role === 'admin'
 export const isAdmin = derived(
   [userRole, currentUser],

@@ -158,54 +158,66 @@ export async function askAIChat({
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let fullText = "";
+    let buffer = "";
+
+    // 한 줄 처리. [DONE]이면 true 반환
+    const handleLine = (line) => {
+      if (!line.startsWith("data: ")) return false;
+      const dataStr = line.slice(6).trim();
+      if (dataStr === "[DONE]") return true;
+
+      let parsed;
+      try {
+        parsed = JSON.parse(dataStr);
+      } catch (jsonErr) {
+        return false;
+      }
+
+      if (parsed.error) {
+        let errorMsg = parsed.error;
+        try {
+          const nested = JSON.parse(errorMsg);
+          if (nested.error?.message) errorMsg = nested.error.message;
+        } catch (_) {}
+        throw new Error(errorMsg);
+      }
+
+      // 도구 실행 시작 알림 (텍스트 없음 — UI 상태 표시용)
+      if (parsed.tool) {
+        if (onChunk) onChunk("", fullText, { tool: parsed.tool });
+        return false;
+      }
+
+      if (parsed.text !== undefined || parsed.searchQueries || parsed.sources) {
+        const deltaText = parsed.text || "";
+        fullText += deltaText;
+        if (onChunk) {
+          onChunk(deltaText, fullText, {
+            searchQueries: parsed.searchQueries,
+            sources: parsed.sources,
+          });
+        }
+      }
+      return false;
+    };
 
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;
 
-      const chunk = decoder.decode(value, { stream: true });
-      const lines = chunk.split("\n");
+      // TCP 청크가 줄 중간에서 끊길 수 있으므로 마지막 불완전 라인은
+      // 버퍼에 남겨 다음 청크와 이어붙인다 (없으면 긴 응답에서 텍스트 유실)
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
 
       for (const line of lines) {
-        if (line.startsWith("data: ")) {
-          const dataStr = line.slice(6).trim();
-          if (dataStr === "[DONE]") return fullText;
-
-          let parsed;
-          try {
-            parsed = JSON.parse(dataStr);
-          } catch (jsonErr) {
-            continue;
-          }
-
-          if (parsed.error) {
-            let errorMsg = parsed.error;
-            try {
-              const nested = JSON.parse(errorMsg);
-              if (nested.error?.message) errorMsg = nested.error.message;
-            } catch (_) {}
-            throw new Error(errorMsg);
-          }
-
-          // 도구 실행 시작 알림 (텍스트 없음 — UI 상태 표시용)
-          if (parsed.tool) {
-            if (onChunk) onChunk("", fullText, { tool: parsed.tool });
-            continue;
-          }
-
-          if (parsed.text !== undefined || parsed.searchQueries || parsed.sources) {
-            const deltaText = parsed.text || "";
-            fullText += deltaText;
-            if (onChunk) {
-              onChunk(deltaText, fullText, {
-                searchQueries: parsed.searchQueries,
-                sources: parsed.sources,
-              });
-            }
-          }
-        }
+        if (handleLine(line)) return fullText;
       }
     }
+
+    // 스트림 종료 후 버퍼에 남은 마지막 라인 처리
+    handleLine(buffer + decoder.decode());
 
     return fullText;
   }

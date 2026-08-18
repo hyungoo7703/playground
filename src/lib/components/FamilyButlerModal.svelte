@@ -2,6 +2,7 @@
   import { onMount, onDestroy, tick } from "svelte";
   import { fade, fly } from "svelte/transition";
   import { marked } from "marked";
+  import DOMPurify from "dompurify";
   import { askAIChat } from "../aiApi.js";
 
   // Configure marked for smooth chat rendering
@@ -10,12 +11,13 @@
     gfm: true,
   });
 
+  // Rendered with {@html} — always sanitize (model/server output is untrusted)
   function formatMessage(content) {
     if (!content) return "";
     try {
-      return marked.parse(content);
+      return DOMPurify.sanitize(marked.parse(content));
     } catch (e) {
-      return content;
+      return DOMPurify.sanitize(content);
     }
   }
 
