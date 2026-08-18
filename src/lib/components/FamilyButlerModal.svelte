@@ -202,6 +202,8 @@ ${eventsStr}
     get_weather: "🌦️ 실시간 날씨 확인 중...",
     get_news: "📰 최신 뉴스 확인 중...",
     get_holidays: "📅 공휴일 확인 중...",
+    get_exchange_rate: "💱 환율 확인 중...",
+    get_on_this_day: "📜 역사 속 오늘 찾는 중...",
   };
 
   async function handleSend(text = null) {
