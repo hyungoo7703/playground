@@ -32,8 +32,11 @@
   // Selected preset payer mode: 'mom' | 'bum' | 'half' | 'all' | 'custom'
   let payerMode = "half";
 
-  $: calculatedTotal =
-    (parseInt(newStock.price) || 0) * (parseFloat(newStock.quantity) || 0);
+  // Round to whole KRW so fractional quantities can't leave an unmatchable
+  // float remainder that locks the submit button
+  $: calculatedTotal = Math.round(
+    (parseInt(newStock.price) || 0) * (parseFloat(newStock.quantity) || 0),
+  );
 
   $: totalContributed = Object.values(contributions).reduce(
     (a, b) => a + (parseInt(b) || 0),
