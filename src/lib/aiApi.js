@@ -187,6 +187,12 @@ export async function askAIChat({
             throw new Error(errorMsg);
           }
 
+          // 도구 실행 시작 알림 (텍스트 없음 — UI 상태 표시용)
+          if (parsed.tool) {
+            if (onChunk) onChunk("", fullText, { tool: parsed.tool });
+            continue;
+          }
+
           if (parsed.text !== undefined || parsed.searchQueries || parsed.sources) {
             const deltaText = parsed.text || "";
             fullText += deltaText;

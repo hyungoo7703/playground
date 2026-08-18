@@ -196,6 +196,13 @@ ${eventsStr}
     }
   }
 
+  // 도구 실행 상태 표시 (서버가 SSE로 tool 이벤트를 보내줌)
+  let toolStatus = "";
+  const TOOL_LABELS = {
+    get_weather: "🌦️ 실시간 날씨 확인 중...",
+    get_news: "📰 최신 뉴스 확인 중...",
+  };
+
   async function handleSend(text = null) {
     const query = (text || inputText).trim();
     if (!query || isStreaming) return;
@@ -235,7 +242,13 @@ ${eventsStr}
         messages: recentMessages,
         systemInstruction,
         stream: true,
-        onChunk: (chunk, fullText) => {
+        onChunk: (chunk, fullText, meta) => {
+          if (meta?.tool) {
+            toolStatus = TOOL_LABELS[meta.tool] || "🔧 실시간 정보 확인 중...";
+            scrollToBottom();
+            return;
+          }
+          if (fullText) toolStatus = "";
           messages[aiMsgIndex].content = fullText;
           messages = [...messages];
           scrollToBottom();
@@ -256,6 +269,7 @@ ${eventsStr}
       messages = [...messages];
     } finally {
       isStreaming = false;
+      toolStatus = "";
       await scrollToBottom();
     }
   }
@@ -352,7 +366,7 @@ ${eventsStr}
                       <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
                     </svg>
                     <span class="font-bold text-sm">
-                      패밀리봇이 답변 작성 중... ✍️
+                      {toolStatus || "패밀리봇이 답변 작성 중... ✍️"}
                     </span>
                   </div>
                 {:else if msg.role === 'user'}
