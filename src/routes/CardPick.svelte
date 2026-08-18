@@ -106,6 +106,7 @@
         shuffling = true;
         selectedCard = null;
         revealed = false;
+        pickLocked = false;
         revealedAmount = "";
 
         // 카드 뒤집기 리셋
@@ -129,15 +130,18 @@
     }
 
     /** 카드 선택 */
+    let pickLocked = false; // 150ms 애니메이션 사이 연타로 당첨 카드가 바뀌는 것 방지
+
     function selectCard(card) {
         if (shuffling) return;
 
         // 이미 뒤집힌 카드면 무시
         if (card.flipped) return;
 
-        // 첫 번째 선택인 경우 당첨 카드로 기록
-        const isFirstPick = !revealed;
+        // 첫 번째 선택인 경우 당첨 카드로 기록 (동기적으로 즉시 잠금)
+        const isFirstPick = !pickLocked && !revealed;
         if (isFirstPick) {
+            pickLocked = true;
             selectedCard = card.id;
             revealedAmount = card.amount;
         }
