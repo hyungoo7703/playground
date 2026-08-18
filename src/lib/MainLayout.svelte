@@ -25,6 +25,7 @@
   import Attendance from "../routes/Attendance.svelte";
   import Settings from "../routes/Settings.svelte";
   import Menu from "../routes/Menu.svelte";
+  import NotFound from "../routes/NotFound.svelte";
   import Login from "../routes/Login.svelte";
 
   import { autoRegisterPushIfGranted } from "./notification.js";
@@ -110,6 +111,8 @@
       <Route path="attendance" component={Attendance} />
       <Route path="settings" component={Settings} />
       <Route path="menu" component={Menu} />
+      <!-- path 없는 Route = 미등록 주소 폴백 (svelte-routing default route) -->
+      <Route component={NotFound} />
     {/if}
   </main>
 
