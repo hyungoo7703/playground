@@ -208,7 +208,7 @@
 
   // 관리자 전용: 나를 제외한 가족들에게 업데이트 알림 전송
   async function handleSendUpdatePush() {
-    const current = $currentUser || localStorage.getItem("userName") || "현구";
+    const current = $currentUser || "현구";
     const ALL_FAMILY = ["아빠", "엄마", "현구", "범수"];
     const targets = ALL_FAMILY.filter((name) => name !== current);
 

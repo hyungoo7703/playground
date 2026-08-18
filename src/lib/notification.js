@@ -78,10 +78,7 @@ export async function registerPushDevice(customUserName = null) {
   }
 
   const userName =
-    customUserName ||
-    localStorage.getItem("userName") ||
-    localStorage.getItem("currentUser") ||
-    "가족";
+    customUserName || localStorage.getItem("currentUser") || "가족";
 
   // 3. 구글 앱스 스크립트(GAS)로 기기 정보 전송 및 저장
   const res = await api.savePushDevice({
@@ -105,7 +102,7 @@ export async function autoRegisterPushIfGranted() {
   if (Notification.permission !== "granted") return;
 
   const isRegistered = localStorage.getItem("isPushRegistered");
-  const currentUser = localStorage.getItem("userName") || "가족";
+  const currentUser = localStorage.getItem("currentUser") || "가족";
   const lastUser = localStorage.getItem("lastPushUser");
   const storedVersion = localStorage.getItem("push_vapid_version");
 

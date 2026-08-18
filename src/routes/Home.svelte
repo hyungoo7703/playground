@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import { fade, fly } from "svelte/transition";
   import { navigate } from "svelte-routing";
-  import { base, isAdmin } from "../lib/store.js";
+  import { base, isAdmin, currentUser } from "../lib/store.js";
   import { api } from "../lib/api.js";
   import { formatDate } from "../lib/utils.js";
   import { readCache, writeCache } from "../lib/cache.js";
@@ -12,7 +12,7 @@
 
   let monthlyEvents = [];
   let isLoading = true;
-  const userName = localStorage.getItem("userName") || "가족";
+  $: userName = $currentUser || "가족";
   const todayLabel = new Date().toLocaleDateString("ko-KR", {
     month: "long",
     day: "numeric",
@@ -207,14 +207,14 @@
   function applyAttendance(attendance) {
     const today = new Date();
     const todayStr = formatDate(today);
-    const currentUser = localStorage.getItem("userName") || "가족";
+    const user = $currentUser || "가족";
     todayCheckedIn = attendance.some(
-      (a) => a.date === todayStr && a.user_name === currentUser,
+      (a) => a.date === todayStr && a.user_name === user,
     );
 
     // Streak calc
     const userDates = attendance
-      .filter((a) => a.user_name === currentUser)
+      .filter((a) => a.user_name === user)
       .map((a) => a.date)
       .sort()
       .reverse();

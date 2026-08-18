@@ -21,8 +21,7 @@
 
       if (result.success) {
         localStorage.setItem("accessCode", accessCode);
-        localStorage.setItem("userName", result.userName);
-        localStorage.setItem("currentUser", result.userName); // currentUser도 업데이트
+        localStorage.setItem("currentUser", result.userName);
         localStorage.setItem("role", result.role);
 
         currentUser.set(result.userName); // 스토어 업데이트
