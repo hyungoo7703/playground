@@ -32,17 +32,41 @@
   // Selected preset payer mode: 'mom' | 'bum' | 'half' | 'all' | 'custom'
   let payerMode = "half";
 
-  // Round to whole KRW so fractional quantities can't leave an unmatchable
+  $: isUSD = newStock.currency === "USD";
+
+  // KRW는 원 단위, USD는 센트(소수 2자리) 단위로 반올림
+  const roundMoney = (v, cur) =>
+    cur === "USD" ? Math.round(v * 100) / 100 : Math.round(v);
+
+  const fmtMoney = (v, cur = "KRW") =>
+    cur === "USD"
+      ? `$${Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      : `${Math.round(Number(v)).toLocaleString()}원`;
+
+  function setCurrency(cur) {
+    if (newStock.currency === cur) return;
+    // 통화 전환 시 단위가 섞이지 않게 금액 초기화
+    newStock.currency = cur;
+    newStock.price = "";
+    FAMILY_MEMBERS.forEach((m) => (contributions[m] = 0));
+  }
+
+  // Round so fractional quantities can't leave an unmatchable
   // float remainder that locks the submit button
-  $: calculatedTotal = Math.round(
-    (parseInt(newStock.price) || 0) * (parseFloat(newStock.quantity) || 0),
+  $: calculatedTotal = roundMoney(
+    (isUSD ? parseFloat(newStock.price) || 0 : parseInt(newStock.price) || 0) *
+      (parseFloat(newStock.quantity) || 0),
+    newStock.currency,
   );
 
-  $: totalContributed = Object.values(contributions).reduce(
-    (a, b) => a + (parseInt(b) || 0),
-    0,
+  $: totalContributed = roundMoney(
+    Object.values(contributions).reduce((a, b) => a + (parseFloat(b) || 0), 0),
+    newStock.currency,
   );
-  $: remainToFill = calculatedTotal - totalContributed;
+  $: remainToFill = roundMoney(
+    calculatedTotal - totalContributed,
+    newStock.currency,
+  );
 
   // Automatically update contributions when payerMode or calculatedTotal changes
   function applyPayerMode(mode) {
@@ -51,21 +75,22 @@
 
     if (calculatedTotal <= 0) return;
 
+    const cur = newStock.currency;
     if (mode === "mom") {
       contributions["엄마"] = calculatedTotal;
     } else if (mode === "bum") {
       contributions["범수"] = calculatedTotal;
     } else if (mode === "half") {
-      const half = Math.floor(calculatedTotal / 2);
+      const half = roundMoney(calculatedTotal / 2, cur);
       contributions["엄마"] = half;
-      contributions["범수"] = calculatedTotal - half;
+      contributions["범수"] = roundMoney(calculatedTotal - half, cur);
     } else if (mode === "all") {
-      const quarter = Math.floor(calculatedTotal / 4);
-      const rem = calculatedTotal - quarter * 4;
+      const quarter = roundMoney(calculatedTotal / 4, cur);
       contributions["아빠"] = quarter;
-      contributions["엄마"] = quarter + rem;
       contributions["현구"] = quarter;
       contributions["범수"] = quarter;
+      // 엄마가 반올림 잔차 흡수
+      contributions["엄마"] = roundMoney(calculatedTotal - quarter * 3, cur);
     }
   }
 
@@ -102,15 +127,16 @@
     if (!newStock.name || !newStock.price || !newStock.quantity)
       return alert("종목명, 단가, 수량을 모두 입력해주세요.");
 
-    if (totalContributed !== calculatedTotal)
+    // 센트 단위 정수 비교 (부동소수점 오차 회피)
+    if (Math.round(totalContributed * 100) !== Math.round(calculatedTotal * 100))
       return alert(
-        `총 매입액(${calculatedTotal.toLocaleString()}원)과 분배금액(${totalContributed.toLocaleString()}원)을 맞춰주세요.`,
+        `총 매입액(${fmtMoney(calculatedTotal, newStock.currency)})과 분배금액(${fmtMoney(totalContributed, newStock.currency)})을 맞춰주세요.`,
       );
 
     isSubmitting = true;
 
     const items = [];
-    const price = parseInt(newStock.price);
+    const price = isUSD ? parseFloat(newStock.price) : parseInt(newStock.price);
 
     for (const [owner, amount] of Object.entries(contributions)) {
       if (amount > 0) {
@@ -122,7 +148,7 @@
           quantity: quantity,
           owner: owner,
           currency: newStock.currency,
-          memo: `투자금: ${amount.toLocaleString()}원`,
+          memo: `투자금: ${fmtMoney(amount, newStock.currency)}`,
         });
       }
     }
@@ -157,35 +183,73 @@
     if (res.success) loadStocks();
   }
 
-  onMount(loadStocks);
+  // USD→KRW 환율 (frankfurter, 무키·무료, 1시간 캐시) — 달러 종목 원화 환산 표시용
+  let usdKrwRate = null;
 
+  async function loadFxRate() {
+    try {
+      const cached = JSON.parse(localStorage.getItem("fx_usd_krw") || "null");
+      if (cached && Date.now() - cached.ts < 60 * 60 * 1000) {
+        usdKrwRate = cached.rate;
+        return;
+      }
+    } catch {
+      localStorage.removeItem("fx_usd_krw");
+    }
+    try {
+      const res = await fetch("https://api.frankfurter.app/latest?from=USD&to=KRW");
+      const data = await res.json();
+      if (typeof data?.rates?.KRW === "number") {
+        usdKrwRate = data.rates.KRW;
+        localStorage.setItem(
+          "fx_usd_krw",
+          JSON.stringify({ rate: usdKrwRate, ts: Date.now() }),
+        );
+      }
+    } catch (e) {
+      console.warn("환율 조회 실패:", e);
+    }
+  }
+
+  onMount(() => {
+    loadStocks();
+    loadFxRate();
+  });
+
+  // 같은 종목이라도 통화가 다르면 별도 그룹 (원화·달러 합산 방지)
   $: summaryByStock = Object.values(
     stocks.reduce((acc, item) => {
-      if (!acc[item.stock_name])
-        acc[item.stock_name] = {
+      const cur = item.currency || "KRW";
+      const key = `${item.stock_name}__${cur}`;
+      if (!acc[key])
+        acc[key] = {
           name: item.stock_name,
+          currency: cur,
           quantity: 0,
           total_price: 0,
           count: 0,
           owners: {},
         };
-      acc[item.stock_name].quantity += Number(item.quantity);
-      acc[item.stock_name].total_price +=
-        Number(item.price) * Number(item.quantity);
-      acc[item.stock_name].count++;
+      acc[key].quantity += Number(item.quantity);
+      acc[key].total_price += Number(item.price) * Number(item.quantity);
+      acc[key].count++;
 
-      if (!acc[item.stock_name].owners[item.owner])
-        acc[item.stock_name].owners[item.owner] = 0;
-      acc[item.stock_name].owners[item.owner] += Number(item.quantity);
+      if (!acc[key].owners[item.owner]) acc[key].owners[item.owner] = 0;
+      acc[key].owners[item.owner] += Number(item.quantity);
 
       return acc;
     }, {}),
   );
 
-  $: totalPortfolioValue = summaryByStock.reduce(
-    (sum, item) => sum + (item.total_price || 0),
-    0,
-  );
+  // 총 매입 원금 (달러 종목은 현재 환율로 원화 환산)
+  $: totalPortfolioValue = summaryByStock.reduce((sum, item) => {
+    if (item.currency === "USD")
+      return sum + (usdKrwRate ? item.total_price * usdKrwRate : 0);
+    return sum + (item.total_price || 0);
+  }, 0);
+
+  $: hasUnconvertedUsd =
+    !usdKrwRate && summaryByStock.some((i) => i.currency === "USD");
 
   const MEMBER_COLORS = {
     아빠: "bg-blue-500",
@@ -221,9 +285,11 @@
         우리 가족 주식 📈
       </h1>
       <div class="pt-2 border-t border-white/20 flex justify-between items-baseline">
-        <span class="text-xs text-emerald-100 font-medium">총 매입 원금</span>
+        <span class="text-xs text-emerald-100 font-medium">
+          총 매입 원금{hasUnconvertedUsd ? " (달러 종목 제외)" : ""}
+        </span>
         <span class="text-2xl font-black text-amber-300">
-          {totalPortfolioValue.toLocaleString()}<span class="text-sm text-white font-bold">원</span>
+          {Math.round(totalPortfolioValue).toLocaleString()}<span class="text-sm text-white font-bold">원</span>
         </span>
       </div>
     </div>
@@ -291,6 +357,28 @@
           <span class="text-xs font-black text-gray-800 dark:text-gray-200">얼마에 몇 주 사셨나요?</span>
         </div>
 
+        <!-- 통화 선택 (원화/달러) -->
+        <div class="flex gap-1.5">
+          <button
+            type="button"
+            on:click={() => setCurrency("KRW")}
+            class="flex-1 py-2 rounded-xl text-xs font-black border transition-all {!isUSD
+              ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-500'
+              : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400'}"
+          >
+            ₩ 국내 주식 (원)
+          </button>
+          <button
+            type="button"
+            on:click={() => setCurrency("USD")}
+            class="flex-1 py-2 rounded-xl text-xs font-black border transition-all {isUSD
+              ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-500'
+              : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400'}"
+          >
+            $ 미국 주식 (달러)
+          </button>
+        </div>
+
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label for="p-stock-price" class="block text-[11px] font-bold text-gray-400 mb-1 ml-1">
@@ -300,11 +388,12 @@
               <input
                 id="p-stock-price"
                 type="number"
+                step={isUSD ? "0.01" : "1"}
                 bind:value={newStock.price}
-                placeholder="예: 70000"
+                placeholder={isUSD ? "예: 231.45" : "예: 70000"}
                 class="w-full p-3.5 pr-8 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-2xl font-black text-base outline-none focus:ring-2 focus:ring-emerald-500 border border-gray-200 dark:border-gray-700"
               />
-              <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">원</span>
+              <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">{isUSD ? "$" : "원"}</span>
             </div>
           </div>
 
@@ -361,8 +450,15 @@
         {#if calculatedTotal > 0}
           <div class="p-4 bg-emerald-50 dark:bg-emerald-950/40 rounded-2xl border border-emerald-200 dark:border-emerald-800 flex justify-between items-center">
             <span class="text-xs font-bold text-emerald-800 dark:text-emerald-300">총 결제 금액</span>
-            <span class="text-xl font-black text-emerald-700 dark:text-emerald-400">
-              {calculatedTotal.toLocaleString()}원
+            <span class="text-right">
+              <span class="text-xl font-black text-emerald-700 dark:text-emerald-400 block">
+                {fmtMoney(calculatedTotal, newStock.currency)}
+              </span>
+              {#if isUSD && usdKrwRate}
+                <span class="text-[11px] font-bold text-emerald-600/70 dark:text-emerald-400/70">
+                  ≈ {Math.round(calculatedTotal * usdKrwRate).toLocaleString()}원
+                </span>
+              {/if}
             </span>
           </div>
         {/if}
@@ -442,7 +538,7 @@
                     placeholder="0"
                     class="w-full p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl text-xs font-bold text-right pr-8 outline-none border border-gray-200 dark:border-gray-700"
                   />
-                  <span class="absolute right-2.5 top-2 text-[10px] text-gray-400">원</span>
+                  <span class="absolute right-2.5 top-2 text-[10px] text-gray-400">{isUSD ? "$" : "원"}</span>
                 </div>
               </div>
             {/each}
@@ -479,20 +575,28 @@
             <!-- Title & Price -->
             <div class="flex justify-between items-start">
               <div>
-                <h3 class="text-xl font-black text-gray-900 dark:text-white">
+                <h3 class="text-xl font-black text-gray-900 dark:text-white flex items-center gap-1.5">
                   {item.name}
+                  {#if item.currency === "USD"}
+                    <span class="text-[10px] font-black px-1.5 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-800">USD</span>
+                  {/if}
                 </h3>
                 <p class="text-xs font-bold text-gray-400 mt-0.5">
-                  평단가 약 {Math.round(item.total_price / item.quantity).toLocaleString()}원
+                  평단가 약 {fmtMoney(item.total_price / item.quantity, item.currency)}
                 </p>
               </div>
               <div class="text-right">
                 <span class="block text-xl font-black text-emerald-600 dark:text-emerald-400">
                   {item.quantity.toFixed(2)}주
                 </span>
-                <span class="text-xs font-bold text-gray-400">
-                  총 {item.total_price.toLocaleString()}원
+                <span class="text-xs font-bold text-gray-400 block">
+                  총 {fmtMoney(item.total_price, item.currency)}
                 </span>
+                {#if item.currency === "USD" && usdKrwRate}
+                  <span class="text-[10px] font-bold text-gray-300 dark:text-gray-500">
+                    ≈ {Math.round(item.total_price * usdKrwRate).toLocaleString()}원
+                  </span>
+                {/if}
               </div>
             </div>
 
@@ -530,7 +634,7 @@
                 <span class="group-open:rotate-180 transition-transform">▼</span>
               </summary>
               <div class="space-y-2 mt-3 pt-1">
-                {#each stocks.filter((s) => s.stock_name === item.name) as stock}
+                {#each stocks.filter((s) => s.stock_name === item.name && (s.currency || "KRW") === item.currency) as stock}
                   <div class="flex justify-between items-center text-xs p-3 bg-gray-50 dark:bg-gray-700/40 rounded-2xl">
                     <div class="flex items-center gap-2">
                       <span class="w-2 h-2 rounded-full {MEMBER_COLORS[stock.owner] || 'bg-gray-400'}"></span>
@@ -545,7 +649,7 @@
                           {Number(stock.quantity).toFixed(2)}주
                         </p>
                         <p class="text-[10px] text-gray-400">
-                          @{Number(stock.price).toLocaleString()}원
+                          @{fmtMoney(stock.price, stock.currency || "KRW")}
                         </p>
                       </div>
                       {#if $isAdmin}
