@@ -21,6 +21,7 @@
         { path: "/neon-blast", label: "네온 블래스트", emoji: "🌠" },
         { path: "/neon-brick", label: "네온 브릭", emoji: "🧱" },
         { path: "/neon-survivor", label: "네온 서바이버", emoji: "⚡" },
+        { path: "/neon-2048", label: "네온 2048", emoji: "🔢" },
       ],
     },
     {

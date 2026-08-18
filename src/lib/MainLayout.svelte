@@ -19,6 +19,7 @@
   import NeonBlast from "../routes/NeonBlast.svelte";
   import NeonBrick from "../routes/NeonBrick.svelte";
   import NeonSurvivor from "../routes/NeonSurvivor.svelte";
+  import Neon2048 from "../routes/Neon2048.svelte";
 
   import FoodSpinner from "../routes/FoodSpinner.svelte";
   import CardPick from "../routes/CardPick.svelte";
@@ -83,7 +84,8 @@
     $location.pathname.includes("/fruit-pang") ||
     $location.pathname.includes("/neon-blast") ||
     $location.pathname.includes("/neon-brick") ||
-    $location.pathname.includes("/neon-survivor");
+    $location.pathname.includes("/neon-survivor") ||
+    $location.pathname.includes("/neon-2048");
 </script>
 
 <div
@@ -112,6 +114,7 @@
       <Route path="neon-blast" component={NeonBlast} />
       <Route path="neon-brick" component={NeonBrick} />
       <Route path="neon-survivor" component={NeonSurvivor} />
+      <Route path="neon-2048" component={Neon2048} />
 
       <Route path="food-spinner" component={FoodSpinner} />
       <Route path="card-pick" component={CardPick} />
