@@ -1033,7 +1033,7 @@
 <!-- Toast -->
 {#if toastMessage}
     <div
-        class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] px-6 py-3 rounded-2xl shadow-2xl font-bold text-sm max-w-[90vw]
+        class="fixed bottom-24 left-1/2 -translate-x-1/2 z-[60] px-6 py-3 rounded-2xl shadow-2xl font-bold text-sm max-w-[90vw]
       {toastType === 'success'
             ? 'bg-green-500 text-white'
             : 'bg-red-500 text-white'}"

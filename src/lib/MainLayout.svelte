@@ -72,6 +72,13 @@
   // 로그인 여부나 경로가 바뀔 때마다 체크
   $: $isLoggedIn, $location.pathname, checkAuth();
 
+  // 페이지 전환 시 스크롤 최상단으로 (이전 페이지의 스크롤 위치 잔존 방지)
+  let prevPath = "";
+  $: if ($location.pathname !== prevPath) {
+    prevPath = $location.pathname;
+    if (typeof window !== "undefined") window.scrollTo(0, 0);
+  }
+
   $: isGameplayPage =
     $location.pathname.includes("/fruit-pang") ||
     $location.pathname.includes("/neon-blast") ||

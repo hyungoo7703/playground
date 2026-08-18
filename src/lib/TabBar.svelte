@@ -15,10 +15,16 @@
 
   $: fullPath = (path) => (path === "/" ? base || "/" : `${base}${path}`);
 
+  const normalize = (p) => p.replace(/\/$/, "") || "/";
+
   $: isActive = (path) => {
-    const current = $location.pathname.replace(/\/$/, "") || "/";
-    const target = fullPath(path).replace(/\/$/, "") || "/";
-    return current === target;
+    const current = normalize($location.pathname);
+    if (current === normalize(fullPath(path))) return true;
+    // 설정·주식·게임 등 탭에 없는 페이지는 '전체' 소속으로 표시
+    if (path === "/menu") {
+      return !tabs.some((t) => normalize(fullPath(t.path)) === current);
+    }
+    return false;
   };
 </script>
 

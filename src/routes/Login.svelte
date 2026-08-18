@@ -47,13 +47,14 @@
     class="max-w-md w-full space-y-8 p-10 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700"
   >
     <div>
+      <span class="block text-center text-5xl">🏡</span>
       <h2
-        class="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white"
+        class="mt-4 text-center text-3xl font-black text-gray-900 dark:text-white tracking-tight"
       >
-        코드 입력
+        가족의 공간
       </h2>
       <p class="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-        접속 코드를 입력하여 입장하세요
+        가족에게 받은 접속 코드를 입력해주세요
       </p>
     </div>
 
