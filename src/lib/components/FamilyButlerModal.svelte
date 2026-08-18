@@ -201,6 +201,7 @@ ${eventsStr}
   const TOOL_LABELS = {
     get_weather: "🌦️ 실시간 날씨 확인 중...",
     get_news: "📰 최신 뉴스 확인 중...",
+    get_holidays: "📅 공휴일 확인 중...",
   };
 
   async function handleSend(text = null) {
