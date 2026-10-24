@@ -1,11 +1,12 @@
 <script>
   import { onMount } from "svelte";
-  import { fade, slide } from "svelte/transition";
+  import { slide } from "svelte/transition";
   import { api } from "../lib/api.js";
+  import { toast, confirmDialog } from "../lib/feedback.js";
   import { formatDate } from "../lib/utils.js";
   import { readCache, writeCache } from "../lib/cache.js";
   import Spinner from "../lib/components/Spinner.svelte";
-  import { currentUser, isAdmin } from "../lib/store.js";
+  import { isAdmin } from "../lib/store.js";
 
   let stocks = [];
   let isLoading = true;
@@ -37,6 +38,10 @@
   // KRW는 원 단위, USD는 센트(소수 2자리) 단위로 반올림
   const roundMoney = (v, cur) =>
     cur === "USD" ? Math.round(v * 100) / 100 : Math.round(v);
+
+  // 소수 주식은 최대 소수 2자리까지만, 정수면 소수점 없이
+  const fmtQty = (q) =>
+    Number(q).toLocaleString(undefined, { maximumFractionDigits: 2 });
 
   const fmtMoney = (v, cur = "KRW") =>
     cur === "USD"
@@ -118,19 +123,20 @@
       stocks = res.stocks;
       writeCache("stocks", stocks);
     } else if (!cached) {
-      alert("데이터 불러오기 실패");
+      toast("데이터 불러오기 실패", "error");
     }
     isLoading = false;
   }
 
   async function handleSubmit() {
     if (!newStock.name || !newStock.price || !newStock.quantity)
-      return alert("종목명, 단가, 수량을 모두 입력해주세요.");
+      return toast("종목명, 단가, 수량을 모두 입력해주세요.", "info");
 
     // 센트 단위 정수 비교 (부동소수점 오차 회피)
     if (Math.round(totalContributed * 100) !== Math.round(calculatedTotal * 100))
-      return alert(
+      return toast(
         `총 매입액(${fmtMoney(calculatedTotal, newStock.currency)})과 분배금액(${fmtMoney(totalContributed, newStock.currency)})을 맞춰주세요.`,
+        "info",
       );
 
     isSubmitting = true;
@@ -155,12 +161,12 @@
 
     const res = await api.batchAddStock(items);
     if (res.success) {
-      alert("성공적으로 저장되었습니다! 📈");
+      toast("성공적으로 저장되었습니다! 📈", "success");
       showAddForm = false;
       resetForm();
       loadStocks();
     } else {
-      alert("저장 실패: " + res.message);
+      toast("저장 실패: " + res.message, "error");
     }
     isSubmitting = false;
   }
@@ -178,9 +184,10 @@
   }
 
   async function deleteStock(id) {
-    if (!confirm("정말 삭제하시겠습니까?")) return;
+    if (!(await confirmDialog("정말 삭제하시겠습니까?", { danger: true }))) return;
     const res = await api.deleteStock(id);
     if (res.success) loadStocks();
+    else toast("삭제 실패: " + res.message, "error");
   }
 
   // USD→KRW 환율 (frankfurter, 무키·무료, 1시간 캐시) — 달러 종목 원화 환산 표시용
@@ -322,7 +329,7 @@
       <!-- STEP 1: 종목 선택 -->
       <div class="space-y-2">
         <div class="flex items-center gap-1.5">
-          <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-black flex items-center justify-center">1</span>
+          <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300 text-xs font-black flex items-center justify-center">1</span>
           <span class="text-xs font-black text-gray-800 dark:text-gray-200">어떤 주식을 사셨나요?</span>
         </div>
 
@@ -345,6 +352,7 @@
         <input
           type="text"
           bind:value={newStock.name}
+          aria-label="종목명"
           placeholder="목록에 없는 경우 직접 입력"
           class="w-full p-3 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-2xl font-bold text-xs outline-none focus:ring-2 focus:ring-emerald-500 border border-gray-200 dark:border-gray-700"
         />
@@ -353,7 +361,7 @@
       <!-- STEP 2: 단가 및 수량 입력 -->
       <div class="space-y-3">
         <div class="flex items-center gap-1.5">
-          <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-black flex items-center justify-center">2</span>
+          <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300 text-xs font-black flex items-center justify-center">2</span>
           <span class="text-xs font-black text-gray-800 dark:text-gray-200">얼마에 몇 주 사셨나요?</span>
         </div>
 
@@ -419,28 +427,28 @@
           <button
             type="button"
             on:click={() => addQuantity(1)}
-            class="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
+            class="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
           >
             +1주
           </button>
           <button
             type="button"
             on:click={() => addQuantity(5)}
-            class="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
+            class="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
           >
             +5주
           </button>
           <button
             type="button"
             on:click={() => addQuantity(10)}
-            class="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
+            class="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
           >
             +10주
           </button>
           <button
             type="button"
             on:click={() => addQuantity(50)}
-            class="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
+            class="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
           >
             +50주
           </button>
@@ -467,7 +475,7 @@
       <!-- STEP 3: 누구 돈으로 샀나요? (초간단 버튼) -->
       <div class="space-y-3">
         <div class="flex items-center gap-1.5">
-          <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-black flex items-center justify-center">3</span>
+          <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300 text-xs font-black flex items-center justify-center">3</span>
           <span class="text-xs font-black text-gray-800 dark:text-gray-200">누구 돈으로 샀나요? (클릭 한 번으로 선택)</span>
         </div>
 
@@ -475,7 +483,8 @@
           <button
             type="button"
             on:click={() => applyPayerMode("mom")}
-            class="p-3.5 rounded-2xl text-left border transition-all {payerMode === 'mom'
+            disabled={calculatedTotal <= 0}
+            class="p-3.5 rounded-2xl text-left border transition-all disabled:opacity-50 {payerMode === 'mom'
               ? 'bg-pink-50 dark:bg-pink-950/40 border-pink-500 text-pink-700 dark:text-pink-300 ring-2 ring-pink-500 font-black'
               : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold'}"
           >
@@ -486,7 +495,8 @@
           <button
             type="button"
             on:click={() => applyPayerMode("bum")}
-            class="p-3.5 rounded-2xl text-left border transition-all {payerMode === 'bum'
+            disabled={calculatedTotal <= 0}
+            class="p-3.5 rounded-2xl text-left border transition-all disabled:opacity-50 {payerMode === 'bum'
               ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-500 text-amber-700 dark:text-amber-300 ring-2 ring-amber-500 font-black'
               : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold'}"
           >
@@ -497,7 +507,8 @@
           <button
             type="button"
             on:click={() => applyPayerMode("half")}
-            class="p-3.5 rounded-2xl text-left border transition-all {payerMode === 'half'
+            disabled={calculatedTotal <= 0}
+            class="p-3.5 rounded-2xl text-left border transition-all disabled:opacity-50 {payerMode === 'half'
               ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-500 font-black'
               : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold'}"
           >
@@ -508,7 +519,8 @@
           <button
             type="button"
             on:click={() => applyPayerMode("all")}
-            class="p-3.5 rounded-2xl text-left border transition-all {payerMode === 'all'
+            disabled={calculatedTotal <= 0}
+            class="p-3.5 rounded-2xl text-left border transition-all disabled:opacity-50 {payerMode === 'all'
               ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-500 text-indigo-700 dark:text-indigo-300 ring-2 ring-indigo-500 font-black'
               : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold'}"
           >
@@ -535,6 +547,7 @@
                   <input
                     type="number"
                     bind:value={contributions[mem]}
+                    aria-label="{mem} 부담 금액"
                     placeholder="0"
                     class="w-full p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl text-xs font-bold text-right pr-8 outline-none border border-gray-200 dark:border-gray-700"
                   />
@@ -587,7 +600,7 @@
               </div>
               <div class="text-right">
                 <span class="block text-xl font-black text-emerald-600 dark:text-emerald-400">
-                  {item.quantity.toFixed(2)}주
+                  {fmtQty(item.quantity)}주
                 </span>
                 <span class="text-xs font-bold text-gray-400 block">
                   총 {fmtMoney(item.total_price, item.currency)}
@@ -621,7 +634,7 @@
                   <div class="flex items-center gap-1.5 text-xs font-bold bg-gray-50 dark:bg-gray-700/50 px-2.5 py-1 rounded-xl">
                     <span class="w-2 h-2 rounded-full {MEMBER_COLORS[owner] || 'bg-gray-400'}"></span>
                     <span class="text-gray-700 dark:text-gray-300">{owner}</span>
-                    <span class="text-gray-400 font-normal">{qty.toFixed(2)}주 ({pct}%)</span>
+                    <span class="text-gray-400 font-normal">{fmtQty(qty)}주 ({pct}%)</span>
                   </div>
                 {/if}
               {/each}
@@ -646,7 +659,7 @@
                     <div class="flex items-center gap-3">
                       <div class="text-right">
                         <p class="font-bold text-gray-900 dark:text-white">
-                          {Number(stock.quantity).toFixed(2)}주
+                          {fmtQty(stock.quantity)}주
                         </p>
                         <p class="text-[10px] text-gray-400">
                           @{fmtMoney(stock.price, stock.currency || "KRW")}
@@ -656,8 +669,8 @@
                         <button
                           type="button"
                           on:click={() => deleteStock(stock.id)}
-                          class="p-1.5 text-gray-400 hover:text-rose-500 transition-colors"
-                          title="삭제하기"
+                          class="w-10 h-10 -mr-2 flex items-center justify-center text-gray-400 hover:text-rose-500 transition-colors"
+                          aria-label="매입 내역 삭제"
                         >
                           🗑️
                         </button>

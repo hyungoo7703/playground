@@ -8,7 +8,7 @@
 
   $: taxRate = salaryCondition === "low" ? 16.5 : 13.2;
   $: refundableAmount = Math.floor(
-    Math.min(annualContribution, LIMIT) * (taxRate / 100),
+    Math.min(Math.max(0, annualContribution || 0), LIMIT) * (taxRate / 100),
   );
 
   // --- 2. 복리 수익률 계산 로직 ---
@@ -21,16 +21,17 @@
   let interestEarned = 0;
 
   function calculateROI() {
+    const invest = Math.max(0, monthlyInvest || 0);
     let months = investYears * 12;
-    let monthlyRate = expectedRate / 100 / 12;
+    let monthlyRate = (expectedRate || 0) / 100 / 12;
 
     let current = 0;
     for (let i = 0; i < months; i++) {
-      current = (current + monthlyInvest) * (1 + monthlyRate);
+      current = (current + invest) * (1 + monthlyRate);
     }
 
     finalAsset = Math.floor(current);
-    totalPrincipal = monthlyInvest * months;
+    totalPrincipal = invest * months;
     interestEarned = finalAsset - totalPrincipal;
   }
 
@@ -73,7 +74,7 @@
 <div class="max-w-md mx-auto space-y-6">
   <!-- Header -->
   <div class="text-left space-y-1">
-    <h2 class="text-2xl font-black text-gray-900 dark:text-white">연금저축 계산기 📈</h2>
+    <h1 class="text-2xl font-black text-gray-900 dark:text-white">연금저축 계산기 📈</h1>
     <p class="text-xs font-bold text-gray-400 dark:text-gray-500">
       절세 혜택과 복리 수익 시뮬레이션을 한눈에 확인하세요.
     </p>
@@ -84,7 +85,7 @@
     <button
       class="py-2.5 px-2 text-xs font-bold rounded-xl transition-all {activeTab === 'tax'
         ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-white shadow-sm'
-        : 'text-gray-500 dark:text-gray-400 hover:text-gray-800'}"
+        : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}"
       on:click={() => (activeTab = "tax")}
     >
       💰 세액공제
@@ -92,7 +93,7 @@
     <button
       class="py-2.5 px-2 text-xs font-bold rounded-xl transition-all {activeTab === 'roi'
         ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-white shadow-sm'
-        : 'text-gray-500 dark:text-gray-400 hover:text-gray-800'}"
+        : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}"
       on:click={() => (activeTab = "roi")}
     >
       📈 복리수익
@@ -100,7 +101,7 @@
     <button
       class="py-2.5 px-2 text-xs font-bold rounded-xl transition-all {activeTab === 'products'
         ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-white shadow-sm'
-        : 'text-gray-500 dark:text-gray-400 hover:text-gray-800'}"
+        : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}"
       on:click={() => (activeTab = "products")}
     >
       🏆 포트폴리오
@@ -156,6 +157,8 @@
               id="annual-contrib"
               type="number"
               bind:value={annualContribution}
+              min="0"
+              inputmode="numeric"
               step="100000"
               class="w-full p-3.5 pr-12 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-base font-bold text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
             />
@@ -192,6 +195,8 @@
               id="monthly-invest"
               type="number"
               bind:value={monthlyInvest}
+              min="0"
+              inputmode="numeric"
               step="50000"
               class="w-full p-3.5 pr-12 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-base font-bold text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
             />

@@ -1,11 +1,12 @@
 <script>
+  import { toast } from "../lib/feedback.js";
   import { fade } from "svelte/transition";
 
   let amount = "";
   let calculated = 0;
   let copied = false;
 
-  $: calculated = Math.floor((parseFloat(amount) || 0) * 0.15);
+  $: calculated = Math.floor(Math.max(0, parseFloat(amount) || 0) * 0.15);
 
   function formatNumber(num) {
     return (num || 0).toLocaleString();
@@ -27,7 +28,7 @@
       copied = true;
       setTimeout(() => (copied = false), 2000);
     } catch (err) {
-      alert("복사 실패: " + err);
+      toast("복사 실패: " + err, "error");
     }
   }
 </script>
@@ -35,7 +36,7 @@
 <div class="max-w-md mx-auto space-y-6">
   <!-- Header -->
   <div class="text-left space-y-1">
-    <h2 class="text-2xl font-black text-gray-900 dark:text-white">15% 계산기 🧮</h2>
+    <h1 class="text-2xl font-black text-gray-900 dark:text-white">15% 계산기 🧮</h1>
     <p class="text-xs font-bold text-gray-400 dark:text-gray-500">
       입력한 금액의 15%를 즉시 계산합니다.
     </p>
@@ -51,6 +52,8 @@
         id="calc-amount"
         type="number"
         bind:value={amount}
+        min="0"
+        inputmode="numeric"
         placeholder="0"
         class="w-full p-4 pr-12 bg-gray-50 dark:bg-gray-900 rounded-2xl text-2xl font-black text-right outline-none ring-2 ring-transparent focus:ring-indigo-500 text-gray-900 dark:text-white transition-all"
       />
@@ -62,35 +65,35 @@
       <button
         type="button"
         on:click={() => addAmount(10000)}
-        class="px-2.5 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95 transition-all"
+        class="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95 transition-all"
       >
         +1만
       </button>
       <button
         type="button"
         on:click={() => addAmount(50000)}
-        class="px-2.5 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95 transition-all"
+        class="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95 transition-all"
       >
         +5만
       </button>
       <button
         type="button"
         on:click={() => addAmount(100000)}
-        class="px-2.5 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95 transition-all"
+        class="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95 transition-all"
       >
         +10만
       </button>
       <button
         type="button"
         on:click={() => addAmount(1000000)}
-        class="px-2.5 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95 transition-all"
+        class="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95 transition-all"
       >
         +100만
       </button>
       <button
         type="button"
         on:click={resetAmount}
-        class="px-2.5 py-1.5 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-300 font-bold rounded-xl text-xs active:scale-95 transition-all ml-auto"
+        class="px-3 py-2 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-300 font-bold rounded-xl text-xs active:scale-95 transition-all ml-auto"
       >
         초기화
       </button>
@@ -105,7 +108,7 @@
 
     <p class="text-indigo-200 font-bold mb-1 text-xs uppercase tracking-widest">Calculated 15%</p>
     <div class="flex items-baseline justify-center gap-1.5">
-      <h1 class="text-4xl font-black tracking-tight">{formatNumber(calculated)}</h1>
+      <p class="text-4xl font-black tracking-tight">{formatNumber(calculated)}</p>
       <span class="text-lg font-bold text-indigo-200">원</span>
     </div>
   </div>

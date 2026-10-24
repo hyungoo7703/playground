@@ -1,3 +1,33 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-100 dark:bg-gray-900;
+  }
+}
+
+/* iOS Safari zooms the page when a focused field is under 16px.
+   Keep the compact sizes on desktop, bump them only on touch screens. */
+@media (pointer: coarse) {
+  input[class*="text-xs"],
+  input[class*="text-sm"],
+  input[class*="text-[1"],
+  select[class*="text-xs"],
+  select[class*="text-sm"],
+  textarea[class*="text-xs"],
+  textarea[class*="text-sm"] {
+    font-size: 16px;
+  }
+}
+
+@layer utilities {
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}

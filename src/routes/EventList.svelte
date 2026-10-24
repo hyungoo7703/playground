@@ -1,11 +1,12 @@
 <script>
   import { onMount } from "svelte";
-  import { fade, slide, fly } from "svelte/transition";
   import { api } from "../lib/api.js";
+  import { toast, confirmDialog } from "../lib/feedback.js";
   import { formatDate } from "../lib/utils.js";
   import { isAdmin } from "../lib/store.js";
   import { readCache, writeCache } from "../lib/cache.js";
   import Spinner from "../lib/components/Spinner.svelte";
+  import Modal from "../lib/components/Modal.svelte";
 
   let events = readCache("events") || [];
   let isLoading = events.length === 0;
@@ -72,9 +73,12 @@
     }
 
     const res = await api.getEvents();
+    todayStr = formatDate(new Date());
     if (res.success) {
       events = res.events.sort((a, b) => a.date.localeCompare(b.date));
       writeCache("events", events);
+    } else if (!cached) {
+      toast("일정을 불러오지 못했습니다.", "error");
     }
     isLoading = false;
   }
@@ -110,7 +114,7 @@
   }
 
   async function handleSubmit() {
-    if (!newDate || !newTitle.trim()) return alert("날짜와 일정 제목을 입력해주세요.");
+    if (!newDate || !newTitle.trim()) return toast("날짜와 일정 제목을 입력해주세요.", "info");
     isSubmitting = true;
 
     const payload = {
@@ -131,17 +135,17 @@
         await fetchEvents();
         loadDDay();
       } else {
-        alert(result.message || "저장에 실패했습니다.");
+        toast(result.message || "저장에 실패했습니다.", "error");
       }
     } catch {
-      alert("통신 오류가 발생했습니다.");
+      toast("통신 오류가 발생했습니다.", "error");
     } finally {
       isSubmitting = false;
     }
   }
 
   async function handleDelete(id) {
-    if (!confirm("정말 이 일정을 삭제하시겠습니까?")) return;
+    if (!(await confirmDialog("정말 이 일정을 삭제하시겠습니까?", { danger: true }))) return;
     deletingId = id;
     try {
       const res = await api.deleteEvent(id);
@@ -152,10 +156,10 @@
         }
         await fetchEvents();
       } else {
-        alert("삭제 실패: " + res.message);
+        toast("삭제 실패: " + res.message, "error");
       }
     } catch {
-      alert("통신 오류가 발생했습니다.");
+      toast("통신 오류가 발생했습니다.", "error");
     } finally {
       deletingId = null;
     }
@@ -165,23 +169,27 @@
     if (currentDDayId === event.id) {
       localStorage.removeItem("dDayEvent");
       loadDDay();
-      alert("홈 화면 D-Day 설정이 해제되었습니다.");
+      toast("홈 화면 D-Day 설정이 해제되었습니다.", "success");
     } else {
       localStorage.setItem("dDayEvent", JSON.stringify(event));
       loadDDay();
-      alert(`'${event.title}' 일정이 홈 화면 D-Day로 설정되었습니다! 🎉`);
+      toast(`'${event.title}' 일정이 홈 화면 D-Day로 설정되었습니다! 🎉`, "success");
     }
   }
-
-  import { showLocalNotification } from "../lib/notification.js";
 
   // Push Notification State (Admin only)
   let showEventPushModal = false;
   let selectedPushEventId = null;
   let isSendingEventPush = false;
 
-  $: todayStr = formatDate(new Date());
+  // Refreshed when events load or the push picker opens, so it doesn't go stale past midnight
+  let todayStr = formatDate(new Date());
   $: upcomingEvents = events.filter((e) => e.date >= todayStr);
+  // Push picker: upcoming first (nearest on top), then past events newest first
+  $: pushCandidates = [
+    ...upcomingEvents,
+    ...events.filter((e) => e.date < todayStr).reverse(),
+  ];
   $: nearestUpcomingEvent =
     upcomingEvents.length > 0
       ? upcomingEvents[0]
@@ -229,8 +237,9 @@
   }
 
   function openEventPushModal() {
-    if (!$isAdmin) return alert("관리자만 일정을 푸쉬할 수 있습니다.");
-    if (events.length === 0) return alert("등록된 일정이 없습니다.");
+    todayStr = formatDate(new Date());
+    if (!$isAdmin) return toast("관리자만 일정을 푸쉬할 수 있습니다.", "info");
+    if (events.length === 0) return toast("등록된 일정이 없습니다.", "info");
     selectedPushEventId = nearestUpcomingEvent
       ? nearestUpcomingEvent.id
       : events[0]?.id;
@@ -242,7 +251,7 @@
   $: currentPushPreview = generateEventPushMessage(selectedPushEvent);
 
   async function sendEventPushToAll() {
-    if (!selectedPushEvent) return alert("발송할 일정을 선택해주세요.");
+    if (!selectedPushEvent) return toast("발송할 일정을 선택해주세요.", "info");
     isSendingEventPush = true;
 
     const { title, body } = currentPushPreview;
@@ -262,17 +271,19 @@
       showEventPushModal = false;
 
       if (res && res.success) {
-        alert(
+        toast(
           `🚀 가족 전체 푸쉬 알림 발송 완료!\n\n📢 ${title}\n💬 "${body}"\n\n📌 발송 결과: ${res.message || res.count + "개 기기로 전송되었습니다."}`,
+          "success",
         );
       } else {
-        alert(
+        toast(
           `[알림 발송 안내]\n${res?.message || "등록된 기기가 없습니다."}\n\n※ 부모님 스마트폰에서 사이트를 한 번 새로고침하여 기기가 등록되었는지 확인해주세요!`,
+          "info",
         );
       }
     } catch (e) {
       isSendingEventPush = false;
-      alert("푸쉬 발송 중 오류가 발생했습니다: " + e.message);
+      toast("푸쉬 발송 중 오류가 발생했습니다: " + e.message, "error");
     }
   }
 
@@ -492,10 +503,12 @@
             <button
               type="button"
               on:click={() => toggleDDay(event)}
-              class="p-2 rounded-xl text-sm transition-all active:scale-90 {isDDayPinned
+              class="w-9 h-9 flex items-center justify-center rounded-xl text-sm transition-all active:scale-90 {isDDayPinned
                 ? 'bg-rose-500 text-white shadow-sm'
-                : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 text-gray-400 hover:text-rose-500'}"
+                : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-400 hover:text-rose-500'}"
               title={isDDayPinned ? "홈 D-Day 해제" : "홈 D-Day로 설정"}
+              aria-label={isDDayPinned ? "홈 D-Day 해제" : "홈 D-Day로 설정"}
+              aria-pressed={isDDayPinned}
             >
               {isDDayPinned ? "⭐" : "☆"}
             </button>
@@ -504,8 +517,9 @@
               <button
                 type="button"
                 on:click={() => openEditModal(event)}
-                class="p-2 bg-gray-100 hover:bg-indigo-50 dark:bg-gray-700 dark:hover:bg-indigo-950 text-gray-400 hover:text-indigo-600 rounded-xl text-xs font-bold transition-all"
+                class="w-9 h-9 flex items-center justify-center bg-gray-100 hover:bg-indigo-50 dark:bg-gray-700 dark:hover:bg-indigo-950 text-gray-400 hover:text-indigo-600 rounded-xl text-xs font-bold transition-all"
                 title="수정"
+                aria-label="일정 수정"
               >
                 ✏️
               </button>
@@ -513,8 +527,9 @@
                 type="button"
                 disabled={deletingId === event.id}
                 on:click={() => handleDelete(event.id)}
-                class="p-2 bg-gray-100 hover:bg-rose-50 dark:bg-gray-700 dark:hover:bg-rose-950 text-gray-400 hover:text-rose-500 disabled:opacity-40 rounded-xl text-xs font-bold transition-all flex items-center justify-center min-w-[32px]"
+                class="w-9 h-9 bg-gray-100 hover:bg-rose-50 dark:bg-gray-700 dark:hover:bg-rose-950 text-gray-400 hover:text-rose-500 disabled:opacity-40 rounded-xl text-xs font-bold transition-all flex items-center justify-center"
                 title="삭제"
+                aria-label="일정 삭제"
               >
                 {#if deletingId === event.id}
                   <svg class="animate-spin h-3.5 w-3.5 text-rose-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -534,232 +549,225 @@
 
   <!-- Add / Edit Modal -->
   {#if showFormModal}
-    <div
-      class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-      transition:fade
+    <Modal
+      label={editingId ? "일정 수정" : "새 가족 일정 등록"}
+      on:close={() => (showFormModal = false)}
     >
-      <div
-        class="w-full max-w-sm max-h-[88vh] overflow-y-auto bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-2xl relative space-y-4"
-        transition:slide={{ duration: 250, axis: "y" }}
-      >
-        <div class="flex justify-between items-center">
-          <h2 class="text-lg font-black text-gray-900 dark:text-white">
-            {editingId ? "일정 수정" : "새 가족 일정 등록"}
-          </h2>
-          <button
-            type="button"
-            on:click={() => (showFormModal = false)}
-            class="p-2 bg-gray-100 dark:bg-gray-700 rounded-full text-xs font-bold"
-          >
-            ✕
-          </button>
-        </div>
+      <div class="flex justify-between items-center">
+        <h2 class="text-lg font-black text-gray-900 dark:text-white">
+          {editingId ? "일정 수정" : "새 가족 일정 등록"}
+        </h2>
+        <button
+          type="button"
+          on:click={() => (showFormModal = false)}
+          class="w-10 h-10 shrink-0 flex items-center justify-center bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 rounded-full text-sm font-bold"
+          aria-label="닫기"
+        >
+          ✕
+        </button>
+      </div>
 
-        <div class="space-y-4">
-          <!-- Date Picker + Quick Buttons -->
-          <div class="space-y-1.5">
-            <label for="event-date" class="text-xs font-bold text-gray-400 dark:text-gray-500 block">
-              날짜 선택
-            </label>
-            <input
-              id="event-date"
-              type="date"
-              bind:value={newDate}
-              class="w-full p-3.5 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-rose-500 border border-gray-200 dark:border-gray-700"
-            />
-            <div class="flex gap-1.5 pt-1">
-              <button
-                type="button"
-                on:click={() => setDateShortcut(0)}
-                class="flex-1 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
-              >
-                오늘
-              </button>
-              <button
-                type="button"
-                on:click={() => setDateShortcut(1)}
-                class="flex-1 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
-              >
-                내일
-              </button>
-              <button
-                type="button"
-                on:click={setWeekendShortcut}
-                class="flex-1 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
-              >
-                이번 주말
-              </button>
-            </div>
-          </div>
-
-          <!-- Category Selection Chips -->
-          <div>
-            <span class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1.5">
-              분류
-            </span>
-            <div class="grid grid-cols-3 gap-1.5">
-              {#each CATEGORIES as cat}
-                <button
-                  type="button"
-                  on:click={() => (newCategory = cat)}
-                  class="py-2 px-2.5 rounded-xl text-xs font-bold transition-all border {newCategory ===
-                  cat
-                    ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-500 text-rose-700 dark:text-rose-300 ring-1 ring-rose-500'
-                    : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300'}"
-                >
-                  {CATEGORY_EMOJIS[cat]} {cat}
-                </button>
-              {/each}
-            </div>
-          </div>
-
-          <!-- Title Input + Suggestions -->
-          <div class="space-y-1.5">
-            <label for="event-title" class="text-xs font-bold text-gray-400 dark:text-gray-500 block">
-              일정 내용
-            </label>
-            <input
-              id="event-title"
-              type="text"
-              bind:value={newTitle}
-              placeholder="예: 가족 외식 (저녁 7시)"
-              class="w-full p-3.5 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-rose-500 border border-gray-200 dark:border-gray-700"
-            />
-            <div class="flex gap-1 overflow-x-auto pb-1 scrollbar-none pt-1">
-              {#each TITLE_SUGGESTIONS as sugg}
-                <button
-                  type="button"
-                  on:click={() => (newTitle = sugg)}
-                  class="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-[10px] font-bold text-gray-600 dark:text-gray-300 rounded-lg whitespace-nowrap hover:bg-rose-50 hover:text-rose-600"
-                >
-                  + {sugg}
-                </button>
-              {/each}
-            </div>
+      <div class="space-y-4">
+        <!-- Date Picker + Quick Buttons -->
+        <div class="space-y-1.5">
+          <label for="event-date" class="text-xs font-bold text-gray-400 dark:text-gray-500 block">
+            날짜 선택
+          </label>
+          <input
+            id="event-date"
+            type="date"
+            bind:value={newDate}
+            class="w-full p-3.5 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-rose-500 border border-gray-200 dark:border-gray-700"
+          />
+          <div class="flex gap-1.5 pt-1">
+            <button
+              type="button"
+              on:click={() => setDateShortcut(0)}
+              class="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
+            >
+              오늘
+            </button>
+            <button
+              type="button"
+              on:click={() => setDateShortcut(1)}
+              class="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
+            >
+              내일
+            </button>
+            <button
+              type="button"
+              on:click={setWeekendShortcut}
+              class="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
+            >
+              이번 주말
+            </button>
           </div>
         </div>
 
-        <div class="flex gap-2 pt-2">
-          <button
-            type="button"
-            on:click={() => (showFormModal = false)}
-            class="flex-1 py-3.5 font-bold text-xs text-gray-500 bg-gray-100 dark:bg-gray-700 rounded-2xl active:scale-95"
-          >
-            취소
-          </button>
-          <button
-            type="button"
-            on:click={handleSubmit}
-            disabled={isSubmitting}
-            class="flex-1 py-3.5 font-black text-xs text-white bg-rose-500 hover:bg-rose-600 rounded-2xl shadow-md active:scale-95 disabled:opacity-40"
-          >
-            {isSubmitting ? "저장 중..." : editingId ? "수정 완료" : "일정 등록"}
-          </button>
+        <!-- Category Selection Chips -->
+        <div>
+          <span class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1.5">
+            분류
+          </span>
+          <div class="grid grid-cols-3 gap-1.5">
+            {#each CATEGORIES as cat}
+              <button
+                type="button"
+                on:click={() => (newCategory = cat)}
+                class="py-2 px-2.5 rounded-xl text-xs font-bold transition-all border {newCategory ===
+                cat
+                  ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-500 text-rose-700 dark:text-rose-300 ring-1 ring-rose-500'
+                  : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300'}"
+              >
+                {CATEGORY_EMOJIS[cat]} {cat}
+              </button>
+            {/each}
+          </div>
+        </div>
+
+        <!-- Title Input + Suggestions -->
+        <div class="space-y-1.5">
+          <label for="event-title" class="text-xs font-bold text-gray-400 dark:text-gray-500 block">
+            일정 내용
+          </label>
+          <input
+            id="event-title"
+            type="text"
+            bind:value={newTitle}
+            placeholder="예: 가족 외식 (저녁 7시)"
+            class="w-full p-3.5 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-rose-500 border border-gray-200 dark:border-gray-700"
+          />
+          <div class="flex gap-1 overflow-x-auto pb-1 scrollbar-none pt-1">
+            {#each TITLE_SUGGESTIONS as sugg}
+              <button
+                type="button"
+                on:click={() => (newTitle = sugg)}
+                class="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-xs font-bold text-gray-600 dark:text-gray-300 rounded-lg whitespace-nowrap hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
+              >
+                + {sugg}
+              </button>
+            {/each}
+          </div>
         </div>
       </div>
-    </div>
+
+      <div class="flex gap-2 pt-2">
+        <button
+          type="button"
+          on:click={() => (showFormModal = false)}
+          class="flex-1 py-3.5 font-bold text-xs text-gray-500 bg-gray-100 dark:bg-gray-700 rounded-2xl active:scale-95"
+        >
+          취소
+        </button>
+        <button
+          type="button"
+          on:click={handleSubmit}
+          disabled={isSubmitting}
+          class="flex-1 py-3.5 font-black text-xs text-white bg-rose-500 hover:bg-rose-600 rounded-2xl shadow-md active:scale-95 disabled:opacity-40"
+        >
+          {isSubmitting ? "저장 중..." : editingId ? "수정 완료" : "일정 등록"}
+        </button>
+      </div>
+    </Modal>
   {/if}
 
   <!-- Schedule Push Modal (Admin only) -->
   {#if showEventPushModal}
-    <div
-      class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-      transition:fade
+    <Modal
+      label="가족 전체 일정 푸쉬 알림"
+      class="max-w-sm p-6 space-y-4 flex flex-col"
+      on:close={() => (showEventPushModal = false)}
     >
-      <div
-        class="w-full max-w-sm max-h-[90vh] flex flex-col bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-2xl relative space-y-4"
-        transition:slide={{ duration: 250, axis: "y" }}
-      >
-        <div class="flex justify-between items-center shrink-0">
-          <div>
-            <h2 class="text-lg font-black text-gray-900 dark:text-white flex items-center gap-1.5">
-              🔔 가족 전체 일정 푸쉬 알림
-            </h2>
-            <p class="text-[11px] text-gray-400">
-              시점에 맞춘 일정 알림 메시지가 가족 모두에게 전송됩니다.
-            </p>
+      <div class="flex justify-between items-center shrink-0">
+        <div>
+          <h2 class="text-lg font-black text-gray-900 dark:text-white flex items-center gap-1.5">
+            🔔 가족 전체 일정 푸쉬 알림
+          </h2>
+          <p class="text-[11px] text-gray-400">
+            시점에 맞춘 일정 알림 메시지가 가족 모두에게 전송됩니다.
+          </p>
+        </div>
+        <button
+          type="button"
+          on:click={() => (showEventPushModal = false)}
+          class="w-10 h-10 shrink-0 flex items-center justify-center bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 rounded-full text-sm font-bold"
+          aria-label="닫기"
+        >
+          ✕
+        </button>
+      </div>
+
+      <div class="space-y-4 overflow-y-auto flex-1 pr-1">
+        <!-- Select Event -->
+        <div class="space-y-1.5">
+          <span class="text-xs font-bold text-gray-400 dark:text-gray-500 block">
+            알림 보낼 일정 선택
+          </span>
+          <div class="space-y-2">
+            {#each pushCandidates as ev}
+              {@const msg = generateEventPushMessage(ev)}
+              <button
+                type="button"
+                on:click={() => (selectedPushEventId = ev.id)}
+                class="w-full p-3 rounded-2xl border text-left transition-all {selectedPushEventId === ev.id
+                  ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-500 ring-2 ring-indigo-500'
+                  : 'bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600'}"
+              >
+                <div class="flex justify-between items-center">
+                  <span class="text-xs font-black text-gray-900 dark:text-white">
+                    {ev.title}
+                  </span>
+                  <span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-white dark:bg-gray-800 px-2 py-0.5 rounded-md">
+                    {ev.date}
+                  </span>
+                </div>
+                <p class="text-[11px] text-gray-500 dark:text-gray-300 mt-1 font-medium">
+                  "{msg.body}"
+                </p>
+              </button>
+            {/each}
           </div>
-          <button
-            type="button"
-            on:click={() => (showEventPushModal = false)}
-            class="p-2 bg-gray-100 dark:bg-gray-700 rounded-full text-xs font-bold"
-          >
-            ✕
-          </button>
         </div>
 
-        <div class="space-y-4 overflow-y-auto flex-1 pr-1">
-          <!-- Select Event -->
-          <div class="space-y-1.5">
-            <span class="text-xs font-bold text-gray-400 dark:text-gray-500 block">
-              알림 보낼 일정 선택
+        <!-- Live Preview Box -->
+        {#if selectedPushEvent}
+          <div class="p-4 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/40 dark:to-purple-950/40 rounded-2xl border border-indigo-100 dark:border-indigo-800 space-y-2">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 block">
+              📱 푸쉬 알림 미리보기
             </span>
-            <div class="space-y-2">
-              {#each events as ev}
-                {@const msg = generateEventPushMessage(ev)}
-                <button
-                  type="button"
-                  on:click={() => (selectedPushEventId = ev.id)}
-                  class="w-full p-3 rounded-2xl border text-left transition-all {selectedPushEventId === ev.id
-                    ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-500 ring-2 ring-indigo-500'
-                    : 'bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600'}"
-                >
-                  <div class="flex justify-between items-center">
-                    <span class="text-xs font-black text-gray-900 dark:text-white">
-                      {ev.title}
-                    </span>
-                    <span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-white dark:bg-gray-800 px-2 py-0.5 rounded-md">
-                      {ev.date}
-                    </span>
-                  </div>
-                  <p class="text-[11px] text-gray-500 dark:text-gray-300 mt-1 font-medium">
-                    "{msg.body}"
-                  </p>
-                </button>
-              {/each}
-            </div>
-          </div>
-
-          <!-- Live Preview Box -->
-          {#if selectedPushEvent}
-            <div class="p-4 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/40 dark:to-purple-950/40 rounded-2xl border border-indigo-100 dark:border-indigo-800 space-y-2">
-              <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 block">
-                📱 푸쉬 알림 미리보기
-              </span>
-              <div class="bg-white dark:bg-gray-800 p-3 rounded-xl shadow-sm border border-indigo-50 dark:border-indigo-900/50 space-y-1">
-                <p class="text-xs font-black text-gray-900 dark:text-white">
-                  📢 {currentPushPreview.title}
-                </p>
-                <p class="text-xs text-gray-700 dark:text-gray-200 leading-relaxed font-medium">
-                  {currentPushPreview.body}
-                </p>
-              </div>
-              <p class="text-[10px] text-gray-400 text-center font-bold">
-                👨‍👩‍👧‍👦 발송 대상: 아빠, 엄마, 현구, 범수 (전체 기기)
+            <div class="bg-white dark:bg-gray-800 p-3 rounded-xl shadow-sm border border-indigo-50 dark:border-indigo-900/50 space-y-1">
+              <p class="text-xs font-black text-gray-900 dark:text-white">
+                📢 {currentPushPreview.title}
+              </p>
+              <p class="text-xs text-gray-700 dark:text-gray-200 leading-relaxed font-medium">
+                {currentPushPreview.body}
               </p>
             </div>
-          {/if}
-        </div>
-
-        <div class="flex gap-2 shrink-0 pt-2">
-          <button
-            type="button"
-            on:click={() => (showEventPushModal = false)}
-            class="flex-1 py-3.5 font-bold text-xs text-gray-500 bg-gray-100 dark:bg-gray-700 rounded-2xl active:scale-95"
-          >
-            취소
-          </button>
-          <button
-            type="button"
-            on:click={sendEventPushToAll}
-            disabled={isSendingEventPush || !selectedPushEvent}
-            class="flex-1 py-3.5 font-black text-xs text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 rounded-2xl shadow-lg active:scale-95 disabled:opacity-40"
-          >
-            {isSendingEventPush ? "전체 발송 중..." : "🚀 지금 가족 전체에게 발송"}
-          </button>
-        </div>
+            <p class="text-[10px] text-gray-400 text-center font-bold">
+              👨‍👩‍👧‍👦 발송 대상: 아빠, 엄마, 현구, 범수 (전체 기기)
+            </p>
+          </div>
+        {/if}
       </div>
-    </div>
+
+      <div class="flex gap-2 shrink-0 pt-2">
+        <button
+          type="button"
+          on:click={() => (showEventPushModal = false)}
+          class="flex-1 py-3.5 font-bold text-xs text-gray-500 bg-gray-100 dark:bg-gray-700 rounded-2xl active:scale-95"
+        >
+          취소
+        </button>
+        <button
+          type="button"
+          on:click={sendEventPushToAll}
+          disabled={isSendingEventPush || !selectedPushEvent}
+          class="flex-1 py-3.5 font-black text-xs text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 rounded-2xl shadow-lg active:scale-95 disabled:opacity-40"
+        >
+          {isSendingEventPush ? "전체 발송 중..." : "🚀 지금 가족 전체에게 발송"}
+        </button>
+      </div>
+    </Modal>
   {/if}
 </div>
 

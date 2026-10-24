@@ -6,9 +6,18 @@
   import { api } from "../lib/api.js";
   import { formatDate } from "../lib/utils.js";
   import { readCache, writeCache } from "../lib/cache.js";
-  import FamilyButlerModal from "../lib/components/FamilyButlerModal.svelte";
-
+  import { toast } from "../lib/feedback.js";
   let isButlerOpen = false;
+  // The butler pulls in marked + DOMPurify; load it on first open
+  let FamilyButlerModal = null;
+  async function openButler() {
+    try {
+      FamilyButlerModal ??= (await import("../lib/components/FamilyButlerModal.svelte")).default;
+      isButlerOpen = true;
+    } catch {
+      toast("AI 집사를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.", "error");
+    }
+  }
 
   let monthlyEvents = [];
   let isLoading = true;
@@ -268,7 +277,7 @@
   }
 </script>
 
-<div class="space-y-6 max-w-md mx-auto pb-36">
+<div class="space-y-6 max-w-md mx-auto pb-16">
 
   <header
     in:fade={{ duration: 800 }}
@@ -434,14 +443,14 @@
       </h2>
       <button
         on:click={() => navigateTo("events")}
-        class="text-xs font-bold text-indigo-600">전체보기</button
+        class="text-xs font-bold text-indigo-600 dark:text-indigo-400 px-2 py-2 -my-2 -mr-2">전체보기</button
       >
     </div>
 
     <div class="space-y-4">
       {#if isLoading}
         <div class="animate-pulse flex flex-col gap-3">
-          <div class="h-16 bg-gray-50 rounded-2xl"></div>
+          <div class="h-16 bg-gray-50 dark:bg-gray-700/30 rounded-2xl"></div>
         </div>
       {:else if monthlyEvents.length > 0}
         <ul class="space-y-3 list-none p-0 m-0">
@@ -458,7 +467,7 @@
                     month: "short",
                   })}</span
                 >
-                <span class="text-lg font-black text-indigo-600 leading-none"
+                <span class="text-lg font-black text-indigo-600 dark:text-indigo-400 leading-none"
                   >{getDay(event.date)}</span
                 >
               </div>
@@ -554,8 +563,8 @@
               <button
                 type="button"
                 on:click={() => handleDeleteKnowledge(item)}
-                class="text-gray-400 hover:text-red-500 transition-colors p-0.5 rounded ml-0.5"
-                title="메모 삭제"
+                class="w-6 h-6 -my-1 -mr-1.5 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors rounded"
+                aria-label="메모 삭제"
               >
                 ✕
               </button>
@@ -569,6 +578,7 @@
         <input
           type="text"
           bind:value={newKnowledgeText}
+          aria-label="AI 집사용 가족 메모"
           placeholder="예: 엄마 매운음식 못드심, 분리수거 화요일"
           class="flex-1 min-w-0 px-3.5 py-2.5 bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-xl text-xs sm:text-sm border border-indigo-100 dark:border-indigo-900/60 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-inner"
         />
@@ -586,8 +596,9 @@
   <!-- Floating AI Butler Button -->
   <button
     type="button"
-    on:click={() => (isButlerOpen = true)}
-    class="fixed bottom-24 right-5 sm:right-8 z-50 bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white pl-3.5 pr-4 py-3 rounded-full shadow-2xl flex items-center gap-2 border-2 border-white/20 active:scale-95 transition-all group"
+    on:click={openButler}
+    style="bottom: calc(5rem + env(safe-area-inset-bottom)); right: max(1.25rem, calc(50% - 14rem + 1.25rem));"
+    class="fixed z-50 bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white pl-3.5 pr-4 py-3 rounded-full shadow-2xl flex items-center gap-2 border-2 border-white/20 active:scale-95 transition-all group"
     aria-label="우리집 AI 집사 열기"
     in:fade={{ duration: 400 }}
   >
@@ -605,7 +616,8 @@
   </button>
 
   <!-- Family Butler Modal -->
-  <FamilyButlerModal
+  <svelte:component
+    this={FamilyButlerModal}
     isOpen={isButlerOpen}
     onClose={() => (isButlerOpen = false)}
     {userName}

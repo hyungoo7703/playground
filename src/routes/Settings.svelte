@@ -3,6 +3,7 @@
   import { fade } from "svelte/transition";
   import { isDarkMode, deferredPrompt, isAdmin, currentUser } from "../lib/store.js";
   import { api } from "../lib/api.js";
+  import { toast, confirmDialog } from "../lib/feedback.js";
   import {
     getAiConfig,
     saveAiConfig,
@@ -56,6 +57,9 @@
   let updatePushTitle = "가족 놀이터 업데이트 알림 🚀";
   let updatePushBody = "새로운 업데이트가 되었어요! 지금 확인해보세요 ✨";
   let updatePushResult = "";
+  const ALL_FAMILY = ["아빠", "엄마", "현구", "범수"];
+  $: me = $currentUser || "현구";
+  $: pushTargets = ALL_FAMILY.filter((name) => name !== me);
 
   onMount(() => {
     // 1. AI 설정 불러오기
@@ -85,7 +89,7 @@
     }
 
     if (!("geolocation" in navigator)) {
-      alert("이 기기는 위치 정보를 지원하지 않습니다.");
+      toast("이 기기는 위치 정보를 지원하지 않습니다.", "info");
       return;
     }
 
@@ -107,18 +111,20 @@
       (err) => {
         if (err.code === 1) {
           // PERMISSION_DENIED — 한 번 차단하면 팝업 없이 즉시 거부됨
-          alert(
+          toast(
             "위치 권한이 차단되어 있습니다.\n\n" +
               "· Android: 폰 설정 → 애플리케이션 → 가족의 공간 → 권한 → 위치 허용\n" +
               "· iPhone: 설정 → 개인정보 보호 → 위치 서비스 → Safari 웹사이트 → 앱 사용 중 허용\n" +
               "· PC: 주소창 자물쇠 아이콘 → 사이트 설정 → 위치 허용",
+            "error",
           );
         } else if (err.code === 2) {
-          alert(
+          toast(
             "위치를 확인할 수 없습니다.\n기기의 위치(GPS) 기능이 켜져 있는지 확인해주세요.",
+            "error",
           );
         } else {
-          alert("위치 확인 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.");
+          toast("위치 확인 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.", "error");
         }
       },
       { timeout: 5000 },
@@ -186,6 +192,8 @@
         notiMessage = "🔔 알림 권한 허용 및 구글 시트에 기기 등록이 완료되었습니다!";
       } else if (result.permission === "denied") {
         notiMessage = "🚫 알림 권한이 차단되었습니다. 브라우저 사이트 설정에서 권한을 변경해주세요.";
+      } else {
+        notiMessage = `⚠️ 기기 등록에 실패했습니다. 잠시 후 다시 시도해주세요.${result.message ? ` (${result.message})` : ""}`;
       }
     } catch (e) {
       notiMessage = `알림 등록 오류: ${e.message}`;
@@ -208,14 +216,12 @@
 
   // 관리자 전용: 나를 제외한 가족들에게 업데이트 알림 전송
   async function handleSendUpdatePush() {
-    const current = $currentUser || "현구";
-    const ALL_FAMILY = ["아빠", "엄마", "현구", "범수"];
-    const targets = ALL_FAMILY.filter((name) => name !== current);
+    const targets = pushTargets;
 
     if (
-      !confirm(
-        `나(${current})를 제외한 가족(${targets.join(", ")})에게 업데이트 알림을 전송할까요?\n\n📢 "${updatePushBody}"`
-      )
+      !(await confirmDialog(
+        `나(${me})를 제외한 가족(${targets.join(", ")})에게 업데이트 알림을 전송할까요?\n\n📢 "${updatePushBody}"`,
+      ))
     ) {
       return;
     }
@@ -242,24 +248,34 @@
         }
       });
 
-      updatePushResult = `🚀 가족 ${targets.length}명(${targets.join(", ")}) 중 등록된 기기로 알림 전송 완료! (${successCount}건 성공)`;
-      alert(
-        `🚀 가족 업데이트 알림 발송 완료!\n\n발송 대상: ${targets.join(", ")}\n성공 응답: ${successCount}건\n\n📢 ${updatePushTitle}\n💬 "${updatePushBody}"`
-      );
+      updatePushResult =
+        successCount === 0
+          ? `⚠️ 가족 ${targets.length}명 모두에게 전송하지 못했습니다. 가족들의 기기 등록 여부를 확인해주세요.`
+          : `🚀 가족 ${targets.length}명(${targets.join(", ")}) 중 ${successCount}명에게 알림을 보냈습니다.`;
     } catch (e) {
       updatePushResult = `⚠️ 발송 중 오류: ${e.message}`;
-      alert("푸시 알림 발송 중 오류가 발생했습니다: " + e.message);
+      toast("푸시 알림 발송 중 오류가 발생했습니다: " + e.message, "error");
     } finally {
       isSendingUpdatePush = false;
     }
   }
 
-  function logout() {
-    if (!confirm("로그아웃 하시겠습니까?")) return;
+  async function logout() {
+    if (!(await confirmDialog("로그아웃 하시겠습니까?"))) return;
     // 로그인 정보만 삭제 (게임 세이브, 다크모드 등은 유지)
     ["accessCode", "userName", "currentUser", "role", "aiToken"].forEach((key) =>
       localStorage.removeItem(key),
     );
+    location.reload();
+  }
+
+  async function resetStorage() {
+    const ok = await confirmDialog(
+      "로컬스토리지를 초기화하면 로그인 정보, AI 설정, 다크모드 등 모든 설정이 삭제됩니다. 계속하시겠습니까?",
+      { confirmText: "초기화", danger: true },
+    );
+    if (!ok) return;
+    localStorage.clear();
     location.reload();
   }
 
@@ -277,8 +293,8 @@
   }
 </script>
 
-<div class="space-y-6 max-w-md mx-auto pb-24">
-  <h2 class="text-2xl font-black text-gray-800 dark:text-gray-200">설정</h2>
+<div class="space-y-6 max-w-md mx-auto">
+  <h1 class="text-2xl font-black text-gray-900 dark:text-white">설정</h1>
 
   <!-- 1. 기본 설정 (다크모드) -->
   <section class="p-6 bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 rounded-3xl">
@@ -289,14 +305,16 @@
       </div>
       <button
         on:click={() => isDarkMode.set(!$isDarkMode)}
-        class="relative inline-flex items-center h-6 rounded-full w-11 transition-colors {$isDarkMode
+        class="relative inline-flex items-center h-8 rounded-full w-14 shrink-0 transition-colors {$isDarkMode
           ? 'bg-indigo-600'
-          : 'bg-gray-300'}"
-        aria-label="다크 모드 토글"
+          : 'bg-gray-300 dark:bg-gray-600'}"
+        role="switch"
+        aria-checked={$isDarkMode}
+        aria-label="다크 모드"
       >
         <span
-          class="inline-block w-4 h-4 transform bg-white rounded-full transition-transform {$isDarkMode
-            ? 'translate-x-6'
+          class="inline-block w-6 h-6 transform bg-white rounded-full shadow transition-transform {$isDarkMode
+            ? 'translate-x-7'
             : 'translate-x-1'}"
         ></span>
       </button>
@@ -341,7 +359,7 @@
         <button
           type="button"
           on:click={() => (showToken = !showToken)}
-          class="text-[11px] text-indigo-600 dark:text-indigo-400 font-bold"
+          class="text-[11px] text-indigo-600 dark:text-indigo-400 font-bold px-2 py-1.5 -my-1.5 -mr-2"
         >
           {showToken ? "숨기기 🙈" : "보기 👁️"}
         </button>
@@ -402,7 +420,7 @@
 
     <button
       on:click={handleSaveAiConfig}
-      class="w-full py-2 bg-gray-50 hover:bg-gray-100 dark:bg-gray-750 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95 transition-all"
+      class="w-full py-2 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95 transition-all"
     >
       💾 직접 입력값 로컬 저장
     </button>
@@ -421,14 +439,16 @@
       </div>
       <button
         on:click={toggleGeoWeather}
-        class="relative inline-flex items-center h-6 rounded-full w-11 flex-shrink-0 transition-colors {useGeoWeather
+        class="relative inline-flex items-center h-8 rounded-full w-14 shrink-0 transition-colors {useGeoWeather
           ? 'bg-indigo-600'
           : 'bg-gray-300 dark:bg-gray-600'}"
+        role="switch"
+        aria-checked={useGeoWeather}
         aria-label="내 위치 날씨 사용"
       >
         <span
-          class="inline-block w-4 h-4 transform bg-white rounded-full transition-transform {useGeoWeather
-            ? 'translate-x-6'
+          class="inline-block w-6 h-6 transform bg-white rounded-full shadow transition-transform {useGeoWeather
+            ? 'translate-x-7'
             : 'translate-x-1'}"
         ></span>
       </button>
@@ -524,7 +544,7 @@
       </div>
 
       <p class="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
-        새로운 기능이나 패치가 배포되었을 때, <strong>나({$currentUser || '현구'})를 제외한 가족(아빠, 엄마, 범수)</strong>의 스마트폰으로 업데이트 알림을 즉시 발송합니다.
+        새로운 기능이나 패치가 배포되었을 때, <strong>나({me})를 제외한 가족({pushTargets.join(", ")})</strong>의 스마트폰으로 업데이트 알림을 즉시 발송합니다.
       </p>
 
       <!-- Message input / preview -->
@@ -595,16 +615,7 @@
     </button>
 
     <button
-      on:click={() => {
-        if (
-          confirm(
-            "로컬스토리지를 초기화하면 로그인 정보, AI 설정, 다크모드 등 모든 설정이 삭제됩니다. 계속하시겠습니까?",
-          )
-        ) {
-          localStorage.clear();
-          location.reload();
-        }
-      }}
+      on:click={resetStorage}
       class="w-full flex items-center justify-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl text-red-600 dark:text-red-400 font-bold active:scale-95 transition-all text-xs"
     >
       <span>🗑️</span> 로컬스토리지 초기화

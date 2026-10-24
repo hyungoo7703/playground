@@ -10,6 +10,11 @@ export class GameEngine {
     constructor(canvas, onGameOver, onGameWin, onUpdate, onLevelUp) {
         this.canvas = canvas;
         this.ctx = canvas.getContext("2d");
+        // Capped at 2: glow-heavy frames get expensive at 3x
+        this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+        this.width = canvas.width;
+        this.height = canvas.height;
+        this.safeBottom = 0;
         this.onGameOver = onGameOver;
         this.onGameWin = onGameWin;
         this.onUpdate = onUpdate;
@@ -59,14 +64,17 @@ export class GameEngine {
         this.restart();
     }
 
+    // width/height are CSS pixels; the backing store is scaled by dpr
     resize(width, height) {
-        this.canvas.width = width;
-        this.canvas.height = height;
+        this.width = width;
+        this.height = height;
+        this.canvas.width = width * this.dpr;
+        this.canvas.height = height * this.dpr;
     }
 
     restart() {
         this.upgradeSystem = new UpgradeSystem();
-        this.player = new Player(this.canvas.width, this.canvas.height, this.upgradeSystem.data);
+        this.player = new Player(this.width, this.height, this.upgradeSystem.data);
         this.enemies = [];
         this.projectiles = [];
         this.items = [];
@@ -136,7 +144,8 @@ export class GameEngine {
     loop(timestamp) {
         if (this.gameState !== "playing") return;
 
-        const dt = timestamp - this.lastTime;
+        // Clamp so a long pause (backgrounded tab) doesn't teleport everything
+        const dt = Math.min(timestamp - this.lastTime, 50);
         this.lastTime = timestamp;
 
         this.update(dt);
@@ -167,8 +176,8 @@ export class GameEngine {
         }
 
         // Camera
-        this.camera.x = this.player.x - this.canvas.width / 2;
-        this.camera.y = this.player.y - this.canvas.height / 2;
+        this.camera.x = this.player.x - this.width / 2;
+        this.camera.y = this.player.y - this.height / 2;
 
         // Player
         const movement = this.inputManager.getMovementVector();
@@ -263,7 +272,7 @@ export class GameEngine {
 
         if (Math.random() < dt / spawnRate) {
             const angle = Math.random() * Math.PI * 2;
-            const dist = Math.max(this.canvas.width, this.canvas.height) / 2 + 100;
+            const dist = Math.max(this.width, this.height) / 2 + 100;
             const x = this.player.x + Math.cos(angle) * dist;
             const y = this.player.y + Math.sin(angle) * dist;
 
@@ -590,7 +599,7 @@ export class GameEngine {
             this.ultimateGauge = 0;
             this.shockwave.active = true;
             this.shockwave.radius = 0;
-            this.shockwave.maxRadius = Math.max(this.canvas.width, this.canvas.height) * 1.5;
+            this.shockwave.maxRadius = Math.max(this.width, this.height) * 1.5;
             this.shockwave.alpha = 1;
 
             this.enemies.forEach(e => {
@@ -620,9 +629,10 @@ export class GameEngine {
         // I will trust the previous draw logic was mostly fine, just adding support for the new particles/boss projectiles
         // Copying the improved draw from my verified step 317 but adding boss patterns support
         const ctx = this.ctx;
-        const width = this.canvas.width;
-        const height = this.canvas.height;
+        const width = this.width;
+        const height = this.height;
 
+        ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
         ctx.clearRect(0, 0, width, height);
 
         let sx = (Math.random() - 0.5) * this.screenShake;
@@ -741,7 +751,7 @@ export class GameEngine {
         const radius = size / 2;
         const margin = 16;
         const cx = margin + radius;
-        const cy = this.canvas.height - margin - radius;
+        const cy = this.height - margin - radius - this.safeBottom;
         const range = 900;
 
         ctx.save();

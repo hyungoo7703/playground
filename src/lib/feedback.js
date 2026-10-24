@@ -1,0 +1,28 @@
+import { writable } from "svelte/store";
+
+// In-app replacements for alert()/confirm(); rendered once by MainLayout
+
+export const toasts = writable([]);
+let nextId = 0;
+
+// type: "success" | "error" | "info"; longer messages stay up longer
+export function toast(message, type = "info", duration = Math.max(2800, message.length * 70)) {
+  const id = ++nextId;
+  toasts.update((list) => [...list, { id, message, type }]);
+  setTimeout(
+    () => toasts.update((list) => list.filter((t) => t.id !== id)),
+    duration,
+  );
+}
+
+export const confirmState = writable(null);
+
+export function confirmDialog(message, { danger = false, confirmText = danger ? "삭제" : "확인" } = {}) {
+  return new Promise((resolve) => {
+    // A newer confirm replaces an open one; settle the old caller as cancelled
+    confirmState.update((prev) => {
+      prev?.resolve(false);
+      return { message, confirmText, danger, resolve };
+    });
+  });
+}

@@ -1,19 +1,19 @@
 <script>
     import { onMount } from "svelte";
-    import { fade, fly, scale } from "svelte/transition";
+    import { fade, scale } from "svelte/transition";
     import { navigate } from "svelte-routing";
     import { base, currentUser } from "../lib/store.js";
     import { api } from "../lib/api.js";
     import { formatDate } from "../lib/utils.js";
     import { readCache, writeCache } from "../lib/cache.js";
+    import Modal from "../lib/components/Modal.svelte";
+    import { toast } from "../lib/feedback.js";
 
     let attendance = [];
     let ledgerItems = [];
     let isLoading = true;
     let todayChecked = false;
     let isSubmitting = false;
-    let toastMessage = "";
-    let toastType = "success";
     let showRules = false;
 
     // Reward usage modal
@@ -33,6 +33,9 @@
     $: currentYear = currentDate.getFullYear();
     $: currentMonth = currentDate.getMonth();
     $: monthName = currentDate.toLocaleString("ko-KR", { month: "long" });
+    $: isThisMonth =
+        currentYear === new Date().getFullYear() &&
+        currentMonth === new Date().getMonth();
     $: daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
     $: firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
     $: calendarDays = buildCalendarDays(daysInMonth, firstDayOfMonth);
@@ -300,12 +303,12 @@
                     $currentUser,
                 );
                 if (lastMonthDays === daysInLastMonth && thisMonthCount === 1) {
-                    showToast(
+                    toast(
                         `🎉 출석 완료! +${todayReward}원 🎰 | 올출석 보너스 +${perfectBonus.toLocaleString()}원 🌟`,
                         "success",
                     );
                 } else {
-                    showToast(
+                    toast(
                         `출석 완료! +${todayReward}원 보상 획득! 🎰`,
                         "success",
                     );
@@ -360,10 +363,10 @@
                     }, 800);
                 }
             } else {
-                showToast(result.message || "출석에 실패했습니다.", "error");
+                toast(result.message || "출석에 실패했습니다.", "error");
             }
         } catch (e) {
-            showToast("오류가 발생했습니다.", "error");
+            toast("오류가 발생했습니다.", "error");
         } finally {
             isSubmitting = false;
         }
@@ -371,14 +374,14 @@
 
     async function submitUseReward() {
         const amt = parseInt(String(useAmount).replace(/[^\d]/g, ""), 10);
-        if (!amt || amt <= 0) return showToast("금액을 입력해주세요.", "error");
+        if (!amt || amt <= 0) return toast("금액을 입력해주세요.", "error");
         if (amt > rewardBalance)
-            return showToast(
-                `잔액이 부족합니다. (잔액: ${rewardBalance}원)`,
+            return toast(
+                `잔액이 부족합니다. (잔액: ${rewardBalance.toLocaleString()}원)`,
                 "error",
             );
         if (!useDescription.trim())
-            return showToast("사용 목적을 입력해주세요.", "error");
+            return toast("사용 목적을 입력해주세요.", "error");
 
         isUseSubmitting = true;
         try {
@@ -398,30 +401,24 @@
                 showUseRewardModal = false;
                 useAmount = "";
                 useDescription = "";
-                showToast(
-                    `${amt}원 보상 사용 완료! 장부에 기록됨 💰`,
+                toast(
+                    `${amt.toLocaleString()}원 보상 사용 완료! 장부에 기록됨 💰`,
                     "success",
                 );
                 // Refresh ledger data
                 const refreshed = await api.getLedger();
                 if (refreshed.success) ledgerItems = refreshed.ledger || [];
             } else {
-                showToast(
+                toast(
                     result.message || "보상 사용에 실패했습니다.",
                     "error",
                 );
             }
         } catch (e) {
-            showToast("오류가 발생했습니다.", "error");
+            toast("오류가 발생했습니다.", "error");
         } finally {
             isUseSubmitting = false;
         }
-    }
-
-    function showToast(msg, type = "success") {
-        toastMessage = msg;
-        toastType = type;
-        setTimeout(() => (toastMessage = ""), 3000);
     }
 
     onMount(async () => {
@@ -456,6 +453,9 @@
             if (ledgerResult.success) {
                 ledgerItems = ledgerResult.ledger || [];
                 writeCache("ledger", ledgerItems);
+            }
+            if (!attResult.success && !cachedAtt) {
+                toast("출석 정보를 불러오지 못했습니다.", "error");
             }
         } catch (e) {
             console.error("출석 데이터 로드 실패:", e);
@@ -690,6 +690,7 @@
         <div class="flex items-center justify-between mb-6">
             <button
                 on:click={prevMonth}
+                aria-label="이전 달"
                 class="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 active:scale-90 transition-all"
             >
                 <svg
@@ -710,7 +711,9 @@
             </h2>
             <button
                 on:click={nextMonth}
-                class="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 active:scale-90 transition-all"
+                disabled={isThisMonth}
+                aria-label="다음 달"
+                class="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 active:scale-90 transition-all disabled:opacity-30 disabled:active:scale-100"
             >
                 <svg
                     class="w-5 h-5"
@@ -911,135 +914,102 @@
 
 <!-- Reward Use Modal -->
 {#if showUseRewardModal}
-    <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
-    <div
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-        role="dialog"
-        tabindex="-1"
-        aria-modal="true"
-        aria-label="보상 사용 모달"
-        on:click|self={() => (showUseRewardModal = false)}
-        on:keydown={(e) => e.key === "Escape" && (showUseRewardModal = false)}
-        transition:fade={{ duration: 200 }}
+    <Modal
+        label="보상 사용하기"
+        class="max-w-sm p-6"
+        on:close={() => (showUseRewardModal = false)}
     >
-        <div
-            class="w-full max-w-sm bg-white dark:bg-gray-800 rounded-[2rem] p-6 shadow-2xl"
-            in:scale={{ duration: 300, start: 0.9 }}
-        >
-            <h3 class="text-xl font-black text-gray-900 dark:text-white mb-1">
-                보상 사용하기 🎁
-            </h3>
-            <p class="text-sm text-gray-500 mb-5">
-                잔액: <span class="font-bold text-amber-600"
-                    >{rewardBalance.toLocaleString()}원</span
-                >
-            </p>
+        <h3 class="text-xl font-black text-gray-900 dark:text-white mb-1">
+            보상 사용하기 🎁
+        </h3>
+        <p class="text-sm text-gray-500 mb-5">
+            잔액: <span class="font-bold text-amber-600"
+                >{rewardBalance.toLocaleString()}원</span
+            >
+        </p>
 
-            <div class="space-y-3">
-                <input
-                    type="number"
-                    bind:value={useAmount}
-                    placeholder="사용할 금액 (예: 500)"
-                    class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-2xl text-lg font-black focus:outline-none focus:ring-2 focus:ring-rose-400 dark:text-white"
-                />
-                <input
-                    type="text"
-                    bind:value={useDescription}
-                    placeholder="사용 목적 (예: 커피값)"
-                    class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-rose-400 dark:text-white"
-                />
-            </div>
-
-            <div class="flex gap-3 mt-5">
-                <button
-                    on:click={() => (showUseRewardModal = false)}
-                    class="flex-1 py-3 rounded-xl font-bold text-gray-500 bg-gray-100 dark:bg-gray-700 active:scale-95 transition-all"
-                >
-                    취소
-                </button>
-                <button
-                    on:click={submitUseReward}
-                    disabled={isUseSubmitting}
-                    class="flex-1 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-rose-500 to-pink-500 active:scale-95 transition-all shadow-lg disabled:opacity-50"
-                >
-                    {#if isUseSubmitting}
-                        <span
-                            class="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"
-                        ></span>
-                    {:else}
-                        사용하기
-                    {/if}
-                </button>
-            </div>
+        <div class="space-y-3">
+            <input
+                type="number"
+                bind:value={useAmount}
+                aria-label="사용할 금액"
+                placeholder="사용할 금액 (예: 500)"
+                class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-2xl text-lg font-black focus:outline-none focus:ring-2 focus:ring-rose-400 dark:text-white"
+            />
+            <input
+                type="text"
+                bind:value={useDescription}
+                aria-label="사용 목적"
+                placeholder="사용 목적 (예: 커피값)"
+                class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-rose-400 dark:text-white"
+            />
         </div>
-    </div>
+
+        <div class="flex gap-3 mt-5">
+            <button
+                on:click={() => (showUseRewardModal = false)}
+                class="flex-1 py-3 rounded-xl font-bold text-gray-500 bg-gray-100 dark:bg-gray-700 active:scale-95 transition-all"
+            >
+                취소
+            </button>
+            <button
+                on:click={submitUseReward}
+                disabled={isUseSubmitting}
+                class="flex-1 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-rose-500 to-pink-500 active:scale-95 transition-all shadow-lg disabled:opacity-50"
+            >
+                {#if isUseSubmitting}
+                    <span
+                        class="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"
+                    ></span>
+                {:else}
+                    사용하기
+                {/if}
+            </button>
+        </div>
+    </Modal>
 {/if}
 
 <!-- 100-Day Streak Celebration Modal -->
 {#if show100Modal}
-    <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
-    <div
-        class="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-md p-4"
-        role="dialog"
-        tabindex="-1"
-        aria-modal="true"
-        aria-label="100일 연속 출석 축하 모달"
-        on:click|self={() => (show100Modal = false)}
-        on:keydown={(e) => e.key === "Escape" && (show100Modal = false)}
-        transition:fade={{ duration: 300 }}
+    <Modal
+        label="100일 연속 출석 축하"
+        z="z-[70]"
+        class="max-w-sm p-8 text-center bg-gradient-to-b from-amber-50 to-white dark:from-gray-800 dark:to-gray-900"
+        on:close={() => (show100Modal = false)}
     >
-        <div
-            class="w-full max-w-sm bg-gradient-to-b from-amber-50 to-white dark:from-gray-800 dark:to-gray-900 rounded-[2.5rem] p-8 shadow-2xl text-center"
-            in:scale={{ duration: 500, start: 0.5 }}
+        <div class="text-6xl mb-4 animate-bounce">🎉</div>
+        <h3 class="text-2xl font-black text-gray-900 dark:text-white mb-2">
+            축하합니다! 🏆
+        </h3>
+        <p
+            class="text-lg font-bold text-amber-600 dark:text-amber-400 mb-1"
         >
-            <div class="text-6xl mb-4 animate-bounce">🎉</div>
-            <h3 class="text-2xl font-black text-gray-900 dark:text-white mb-2">
-                축하합니다! 🏆
-            </h3>
-            <p
-                class="text-lg font-bold text-amber-600 dark:text-amber-400 mb-1"
+            100일 연속 출석 달성!
+        </p>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
+            대단한 끈기에요! 🔥<br />특별 보상으로 용돈카드 뽑기 기회를
+            드려요! <br />따로 저장되지 않기 때문에
+            <b>현구를 호출하세요!</b>
+        </p>
+
+        <div class="flex flex-col gap-3">
+            <button
+                on:click={() => {
+                    show100Modal = false;
+                    localStorage.setItem(cardPickKey, "used");
+                    cardPickAvailable = false;
+                    navigate(`${base}/card-pick`);
+                }}
+                class="w-full py-4 rounded-2xl font-black text-white text-lg bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 active:scale-95 transition-all shadow-lg"
             >
-                100일 연속 출석 달성!
-            </p>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                대단한 끈기에요! 🔥<br />특별 보상으로 용돈카드 뽑기 기회를
-                드려요! <br />따로 저장되지 않기 때문에
-                <b>현구를 호출하세요!</b>
-            </p>
-
-            <div class="flex flex-col gap-3">
-                <button
-                    on:click={() => {
-                        show100Modal = false;
-                        localStorage.setItem(cardPickKey, "used");
-                        cardPickAvailable = false;
-                        navigate(`${base}/card-pick`);
-                    }}
-                    class="w-full py-4 rounded-2xl font-black text-white text-lg bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 active:scale-95 transition-all shadow-lg"
-                >
-                    🃏 용돈카드 뽑으러 가기!
-                </button>
-                <button
-                    on:click={() => (show100Modal = false)}
-                    class="w-full py-3 rounded-2xl font-bold text-gray-400 bg-gray-100 dark:bg-gray-700 active:scale-95 transition-all"
-                >
-                    나중에
-                </button>
-            </div>
+                🃏 용돈카드 뽑으러 가기!
+            </button>
+            <button
+                on:click={() => (show100Modal = false)}
+                class="w-full py-3 rounded-2xl font-bold text-gray-400 bg-gray-100 dark:bg-gray-700 active:scale-95 transition-all"
+            >
+                나중에
+            </button>
         </div>
-    </div>
-{/if}
-
-<!-- Toast -->
-{#if toastMessage}
-    <div
-        class="fixed bottom-24 left-1/2 -translate-x-1/2 z-[60] px-6 py-3 rounded-2xl shadow-2xl font-bold text-sm max-w-[90vw]
-      {toastType === 'success'
-            ? 'bg-green-500 text-white'
-            : 'bg-red-500 text-white'}"
-        in:fly={{ y: 30, duration: 300 }}
-        out:fade={{ duration: 200 }}
-    >
-        {toastMessage}
-    </div>
+    </Modal>
 {/if}

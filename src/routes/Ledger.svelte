@@ -1,12 +1,13 @@
 <script>
   import { onMount } from "svelte";
-  import { fade, slide } from "svelte/transition";
+  import { fade } from "svelte/transition";
   import { api } from "../lib/api.js";
+  import { toast, confirmDialog } from "../lib/feedback.js";
   import { formatDate } from "../lib/utils.js";
   import { readCache, writeCache } from "../lib/cache.js";
   import { currentUser, isAdmin } from "../lib/store.js";
-  import { showLocalNotification } from "../lib/notification.js";
   import Spinner from "../lib/components/Spinner.svelte";
+  import Modal from "../lib/components/Modal.svelte";
 
 
   let ledgerItems = [];
@@ -45,7 +46,7 @@
       );
       writeCache("ledger", ledgerItems);
     } else if (!cached) {
-      alert("장부 불러오기 실패: " + (res.message || "알 수 없는 오류"));
+      toast("장부 불러오기 실패: " + (res.message || "알 수 없는 오류"), "error");
     }
     isLoading = false;
   }
@@ -56,6 +57,7 @@
 
   // Fixed Rules State
   let rules = [];
+  let isRulesLoading = false;
   let showRuleModal = false;
   let isRuleSubmitting = false;
   let isBatchSubmitting = false;
@@ -72,19 +74,21 @@
 
   onMount(() => {
     loadLedger();
+    // 헤더의 '고정 이체 (N)' 개수를 바로 보여주기 위해 미리 로드
+    if ($isAdmin) loadRules();
   });
 
-  async function openRuleModal() {
-    if (!$isAdmin) return alert("관리자만 접근할 수 있습니다.");
-    showRuleModal = true;
-    isLoading = true;
+  async function loadRules() {
+    isRulesLoading = true;
     const res = await api.getRules();
-    if (res.success) {
-      rules = res.rules;
-    } else {
-      rules = [];
-    }
-    isLoading = false;
+    if (res.success) rules = res.rules;
+    isRulesLoading = false;
+  }
+
+  function openRuleModal() {
+    if (!$isAdmin) return toast("관리자만 접근할 수 있습니다.", "info");
+    showRuleModal = true;
+    loadRules();
   }
 
   function addRuleAmount(val) {
@@ -96,7 +100,7 @@
   async function handleAddRule() {
     const ruleAmount = cleanAmount(newRuleAmount);
     if (!newRuleTitle.trim() || !ruleAmount)
-      return alert("내역 이름과 금액을 모두 입력해주세요.");
+      return toast("내역 이름과 금액을 모두 입력해주세요.", "info");
 
     isRuleSubmitting = true;
     const payload = {
@@ -115,14 +119,14 @@
       const r = await api.getRules();
       if (r.success) rules = r.rules;
     } else {
-      alert("고정 규칙 등록 실패: " + res.message);
+      toast("고정 규칙 등록 실패: " + res.message, "error");
     }
     isRuleSubmitting = false;
   }
 
 
   async function handleDeleteRule(id) {
-    if (!confirm("고정 내역을 삭제하시겠습니까?")) return;
+    if (!(await confirmDialog("고정 내역을 삭제하시겠습니까?", { danger: true }))) return;
     deletingRuleId = id;
     try {
       const res = await api.deleteRule(id);
@@ -130,21 +134,21 @@
         const r = await api.getRules();
         if (r.success) rules = r.rules;
       } else {
-        alert("삭제 실패: " + res.message);
+        toast("삭제 실패: " + res.message, "error");
       }
     } catch (e) {
-      alert("삭제 중 오류가 발생했습니다.");
+      toast("삭제 중 오류가 발생했습니다.", "error");
     } finally {
       deletingRuleId = null;
     }
   }
 
   async function applyRulesToMonth() {
-    if (rules.length === 0) return alert("등록된 고정 내역 규칙이 없습니다.");
+    if (rules.length === 0) return toast("등록된 고정 내역 규칙이 없습니다.", "info");
     if (
-      !confirm(
+      !(await confirmDialog(
         `${displayMonth}월 장부에 ${rules.length}개의 고정 이체 내역을 일괄 추가하시겠습니까?`,
-      )
+      ))
     )
       return;
 
@@ -181,18 +185,19 @@
 
     if (newItems.length === 0) {
       isBatchSubmitting = false;
-      return alert(
+      return toast(
         "이번 달에 추가할 내역이 없습니다. (이미 추가된 내역은 중복 방지를 위해 건너뛰었습니다)",
+        "info",
       );
     }
 
     const res = await api.batchAddLedger(newItems);
     if (res.success) {
-      alert(`총 ${newItems.length}건이 성공적으로 추가되었습니다!`);
+      toast(`총 ${newItems.length}건이 성공적으로 추가되었습니다!`, "success");
       showRuleModal = false;
       loadLedger();
     } else {
-      alert("일괄 추가 실패: " + res.message);
+      toast("일괄 추가 실패: " + res.message, "error");
     }
     isBatchSubmitting = false;
   }
@@ -222,7 +227,7 @@
   async function handleSubmit() {
     const amount = cleanAmount(formData.amount);
     if (!formData.title || !amount)
-      return alert("내용과 금액을 입력해주세요.");
+      return toast("내용과 금액을 입력해주세요.", "info");
 
     isSubmitting = true;
     let res;
@@ -243,13 +248,13 @@
       showForm = false;
       loadLedger();
     } else {
-      alert("저장 실패: " + res.message);
+      toast("저장 실패: " + res.message, "error");
     }
     isSubmitting = false;
   }
 
   async function handleDelete(id) {
-    if (!confirm("정말 삭제하시겠습니까?")) return;
+    if (!(await confirmDialog("정말 삭제하시겠습니까?", { danger: true }))) return;
 
     isDeleting = true;
     try {
@@ -258,10 +263,10 @@
         showForm = false;
         await loadLedger();
       } else {
-        alert("삭제 실패: " + res.message);
+        toast("삭제 실패: " + res.message, "error");
       }
     } catch (e) {
-      alert("삭제 중 오류가 발생했습니다.");
+      toast("삭제 중 오류가 발생했습니다.", "error");
     } finally {
       isDeleting = false;
     }
@@ -279,10 +284,10 @@
       if (res.success) {
         await loadLedger();
       } else {
-        alert("정산 처리 실패: " + (res.message || "알 수 없는 오류"));
+        toast("정산 처리 실패: " + (res.message || "알 수 없는 오류"), "error");
       }
     } catch (e) {
-      alert("정산 처리 중 오류가 발생했습니다.");
+      toast("정산 처리 중 오류가 발생했습니다.", "error");
     } finally {
       settlingId = null;
     }
@@ -328,16 +333,16 @@
     return true;
   });
 
-  $: totalAmount = filteredItems.reduce((sum, item) => {
-    const n = parseFloat(item.amount);
-    return sum + (isNaN(n) ? 0 : n);
-  }, 0);
+  $: totalAmount = filteredItems.reduce(
+    (sum, item) => sum + cleanAmount(item.amount),
+    0,
+  );
 
   $: unsettledItems = filteredItems.filter((i) => !i.is_settled);
-  $: unsettledAmount = unsettledItems.reduce((sum, item) => {
-    const n = parseFloat(item.amount);
-    return sum + (isNaN(n) ? 0 : n);
-  }, 0);
+  $: unsettledAmount = unsettledItems.reduce(
+    (sum, item) => sum + cleanAmount(item.amount),
+    0,
+  );
 
   // Nudge Push State
   let showNudgeModal = false;
@@ -360,16 +365,16 @@
           items: [],
         };
       }
-      acc[giver].totalAmount += parseFloat(item.amount) || 0;
+      acc[giver].totalAmount += cleanAmount(item.amount);
       acc[giver].items.push(item);
       return acc;
     }, {}),
   );
 
   function openNudgeModal() {
-    if (!$isAdmin) return alert("관리자만 독촉할 수 있습니다.");
+    if (!$isAdmin) return toast("관리자만 독촉할 수 있습니다.", "info");
     if (debtorsList.length === 0) {
-      return alert("현재 미정산된 이체 내역이 없습니다! 🎉");
+      return toast("현재 미정산된 이체 내역이 없습니다! 🎉", "info");
     }
     showNudgeModal = true;
   }
@@ -389,14 +394,15 @@
       });
 
       if (res && res.success) {
-        alert(`${debtor.giver}님에게 푸쉬 알림을 성공적으로 보냈습니다! 🚀`);
+        toast(`${debtor.giver}님에게 푸쉬 알림을 성공적으로 보냈습니다! 🚀`, "success");
       } else {
-        alert(
+        toast(
           `[알림 발송 상태]\n서버 응답: ${res?.message || "기기 미등록"}\n\n※ ${debtor.giver}님의 기기에서 '설정' ➔ '알림 권한 허용 및 기기 등록'을 완료했는지 확인해주세요!`,
+          "error",
         );
       }
     } catch (e) {
-      alert("푸쉬 발송 중 오류가 발생했습니다: " + e.message);
+      toast("푸쉬 발송 중 오류가 발생했습니다: " + e.message, "error");
     } finally {
       isSendingNudge = { ...isSendingNudge, [debtor.giver]: false };
     }
@@ -404,9 +410,9 @@
 
   async function sendAllNudgePush() {
     if (
-      !confirm(
+      !(await confirmDialog(
         `미정산 이체가 있는 모든 가족(${debtorsList.length}명)에게 푸쉬 알림을 보낼까요?`,
-      )
+      ))
     )
       return;
     isBatchSendingNudge = true;
@@ -438,12 +444,14 @@
     isBatchSendingNudge = false;
 
     if (serverMessages.length > 0 && successCount === 0) {
-      alert(
+      toast(
         `[알림 발송 상태]\n서버 응답: ${serverMessages[0]}\n\n※ 상대방 기기가 '설정' 화면에서 '알림 허용 및 기기 등록'을 완료했는지 확인해주세요!`,
+        "error",
       );
     } else {
-      alert(
+      toast(
         `총 ${debtorsList.length}명 중 ${successCount}명에게 푸쉬 알림 발송 완료! 🚀`,
+        "success",
       );
     }
   }
@@ -451,6 +459,7 @@
 </script>
 
 <div class="space-y-6 max-w-md mx-auto relative">
+  <h1 class="sr-only">가족 장부</h1>
   <!-- Header Card -->
   <header
     class="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 p-7 text-white shadow-xl space-y-5"
@@ -462,7 +471,8 @@
           <button
             type="button"
             on:click={prevMonth}
-            class="text-indigo-200 hover:text-white active:scale-75 transition-all p-1"
+            class="w-8 h-8 -my-1 flex items-center justify-center text-indigo-200 hover:text-white active:scale-75 transition-all"
+            aria-label="이전 달"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" />
@@ -474,7 +484,8 @@
           <button
             type="button"
             on:click={nextMonth}
-            class="text-indigo-200 hover:text-white active:scale-75 transition-all p-1"
+            class="w-8 h-8 -my-1 flex items-center justify-center text-indigo-200 hover:text-white active:scale-75 transition-all"
+            aria-label="다음 달"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
@@ -500,9 +511,9 @@
         </span>
 
         <div class="flex items-baseline justify-center gap-1">
-          <h1 class="text-4xl font-black tracking-tight text-white">
+          <p class="text-4xl font-black tracking-tight text-white">
             {unsettledAmount.toLocaleString()}
-          </h1>
+          </p>
           <span class="text-lg font-bold text-indigo-200">원</span>
         </div>
         <p class="text-[11px] text-indigo-300 font-medium">
@@ -515,6 +526,7 @@
         <div class="flex items-center gap-1.5">
           <select
             bind:value={viewAsUser}
+            aria-label="기준 사용자"
             disabled={!$isAdmin}
             class="bg-black/25 text-indigo-100 text-xs font-bold py-1.5 px-2.5 rounded-xl border-none outline-none backdrop-blur-md"
           >
@@ -550,7 +562,7 @@
 
   <!-- Items List -->
   <div class="space-y-3">
-    {#if isLoading && !showRuleModal}
+    {#if isLoading}
       <div class="flex flex-col items-center justify-center py-16">
         <Spinner label="장부를 불러오는 중..." />
       </div>
@@ -558,7 +570,9 @@
       <div class="bg-white dark:bg-gray-800 rounded-3xl p-10 text-center shadow-sm border border-gray-100 dark:border-gray-700 text-gray-400">
         <span class="text-4xl block mb-2">💸</span>
         <p class="text-sm font-bold text-gray-600 dark:text-gray-300">내역이 없습니다.</p>
-        <p class="text-xs text-gray-400 mt-1">우측 하단의 '+' 버튼으로 새 내역을 추가해보세요!</p>
+        {#if $isAdmin}
+          <p class="text-xs text-gray-400 mt-1">우측 하단의 '+' 버튼으로 새 내역을 추가해보세요!</p>
+        {/if}
       </div>
     {:else}
       {#each filteredItems as item (item.id)}
@@ -573,9 +587,12 @@
           ></div>
 
           <!-- Item Details -->
-          <div
-            class="pl-2 flex-1 {$isAdmin ? 'cursor-pointer' : ''}"
+          <svelte:element
+            this={$isAdmin ? "button" : "div"}
+            type={$isAdmin ? "button" : undefined}
+            class="pl-2 flex-1 min-w-0 text-left {$isAdmin ? 'cursor-pointer' : ''}"
             on:click={() => $isAdmin && openEditForm(item)}
+            role={$isAdmin ? undefined : "presentation"}
           >
             <div class="flex items-center gap-2 mb-1">
               <span class="text-[10px] font-black px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
@@ -599,12 +616,10 @@
               <span class="text-gray-300">→</span>
               <span>{item.receiver}</span>
               {#if $isAdmin}
-                <span class="text-[10px] text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity ml-1">
-                  ✏️ 수정
-                </span>
+                <span class="text-[10px] text-indigo-400 ml-1">✏️ 수정</span>
               {/if}
             </div>
-          </div>
+          </svelte:element>
 
           <!-- Amount & Settle Toggle -->
           <div class="flex flex-col items-end gap-1.5 text-right">
@@ -642,427 +657,423 @@
 
   <!-- Add/Edit Modal -->
   {#if showForm}
-    <div
-      class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-      transition:fade
+    <Modal
+      label={formData.id ? "내역 수정" : "새로운 내역 등록"}
+      on:close={() => (showForm = false)}
     >
-      <div
-        class="w-full max-w-sm max-h-[85vh] overflow-y-auto bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-2xl relative space-y-4"
-        transition:slide={{ duration: 300, axis: "y" }}
-      >
-        <div class="flex justify-between items-center">
-          <h2 class="text-lg font-black text-gray-900 dark:text-white">
-            {formData.id ? "내역 수정" : "새로운 내역 등록"}
-          </h2>
-          {#if formData.id}
-            <button
-              type="button"
-              disabled={isDeleting || isSubmitting}
-              on:click={() => handleDelete(formData.id)}
-              class="text-rose-500 hover:text-rose-600 disabled:opacity-40 text-xs font-bold p-1 flex items-center gap-1"
-            >
-              {#if isDeleting}
-                <svg class="animate-spin h-3 w-3 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-                </svg>
-                <span>삭제 중...</span>
-              {:else}
-                <span>삭제</span>
-              {/if}
-            </button>
-          {/if}
-        </div>
-
-        <div class="space-y-3">
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label for="ledger-date" class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1">날짜</label>
-              <input
-                id="ledger-date"
-                type="date"
-                bind:value={formData.date}
-                class="w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-xl px-3 py-2.5 text-xs font-bold outline-none border border-gray-200 dark:border-gray-700"
-              />
-            </div>
-            <div>
-              <label for="ledger-type" class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1">분류</label>
-              <select
-                id="ledger-type"
-                bind:value={formData.type}
-                class="w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-xl px-3 py-2.5 text-xs font-bold outline-none border border-gray-200 dark:border-gray-700"
-              >
-                {#each TYPES as t}<option value={t}>{t}</option>{/each}
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label for="ledger-title" class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1">내용</label>
-            <input
-              id="ledger-title"
-              type="text"
-              bind:value={formData.title}
-              placeholder="예: 마트 장보기, 용돈 등"
-              class="w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-xl px-3.5 py-3 font-bold text-sm outline-none border border-gray-200 dark:border-gray-700"
-            />
-          </div>
-
-          <div>
-            <label for="ledger-amount" class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1">금액 (원)</label>
-            <input
-              id="ledger-amount"
-              type="text"
-              bind:value={formData.amount}
-              placeholder="0"
-              class="w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-xl px-3.5 py-3 text-lg font-black outline-none border border-gray-200 dark:border-gray-700"
-            />
-          </div>
-
-          <div class="grid grid-cols-[1fr_auto_1fr] gap-2 items-center">
-            <div>
-              <label for="ledger-giver" class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1">누가</label>
-              <select
-                id="ledger-giver"
-                bind:value={formData.giver}
-                class="w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-xl px-3 py-2.5 text-xs font-bold outline-none border border-gray-200 dark:border-gray-700"
-              >
-                {#each USERS as u}<option value={u}>{u}</option>{/each}
-              </select>
-            </div>
-            <span class="text-gray-400 font-bold mt-5">→</span>
-            <div>
-              <label for="ledger-receiver" class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1">누구에게</label>
-              <select
-                id="ledger-receiver"
-                bind:value={formData.receiver}
-                class="w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-xl px-3 py-2.5 text-xs font-bold outline-none border border-gray-200 dark:border-gray-700"
-              >
-                {#each USERS as u}<option value={u}>{u}</option>{/each}
-              </select>
-            </div>
-          </div>
-
-          <label
-            class="flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-900 rounded-2xl cursor-pointer border border-gray-200 dark:border-gray-700"
-          >
-            <input
-              type="checkbox"
-              bind:checked={formData.is_settled}
-              class="w-4 h-4 text-indigo-600 rounded"
-            />
-            <span class="text-xs font-bold text-gray-700 dark:text-gray-300">정산 완료 처리</span>
-          </label>
-        </div>
-
-        <div class="flex gap-2 pt-2">
+      <div class="flex justify-between items-center">
+        <h2 class="text-lg font-black text-gray-900 dark:text-white">
+          {formData.id ? "내역 수정" : "새로운 내역 등록"}
+        </h2>
+        {#if formData.id}
           <button
             type="button"
-            on:click={() => (showForm = false)}
-            class="flex-1 py-3.5 font-bold text-xs text-gray-500 bg-gray-100 dark:bg-gray-700 rounded-2xl active:scale-95 transition-all"
+            disabled={isDeleting || isSubmitting}
+            on:click={() => handleDelete(formData.id)}
+            class="text-rose-500 hover:text-rose-600 disabled:opacity-40 text-xs font-bold p-1 flex items-center gap-1"
           >
-            취소
+            {#if isDeleting}
+              <svg class="animate-spin h-3 w-3 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+              </svg>
+              <span>삭제 중...</span>
+            {:else}
+              <span>삭제</span>
+            {/if}
           </button>
-          <button
-            type="button"
-            on:click={handleSubmit}
-            disabled={isSubmitting}
-            class="flex-1 py-3.5 font-black text-xs text-white bg-indigo-600 hover:bg-indigo-700 rounded-2xl shadow-md active:scale-95 transition-all"
-          >
-            {isSubmitting ? "저장 중..." : "저장하기"}
-          </button>
-        </div>
+        {/if}
       </div>
-    </div>
+
+      <div class="space-y-3">
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label for="ledger-date" class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1">날짜</label>
+            <input
+              id="ledger-date"
+              type="date"
+              bind:value={formData.date}
+              class="w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-xl px-3 py-2.5 text-xs font-bold outline-none border border-gray-200 dark:border-gray-700"
+            />
+          </div>
+          <div>
+            <label for="ledger-type" class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1">분류</label>
+            <select
+              id="ledger-type"
+              bind:value={formData.type}
+              class="w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-xl px-3 py-2.5 text-xs font-bold outline-none border border-gray-200 dark:border-gray-700"
+            >
+              {#each TYPES as t}<option value={t}>{t}</option>{/each}
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label for="ledger-title" class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1">내용</label>
+          <input
+            id="ledger-title"
+            type="text"
+            bind:value={formData.title}
+            placeholder="예: 마트 장보기, 용돈 등"
+            class="w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-xl px-3.5 py-3 font-bold text-sm outline-none border border-gray-200 dark:border-gray-700"
+          />
+        </div>
+
+        <div>
+          <label for="ledger-amount" class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1">금액 (원)</label>
+          <input
+            id="ledger-amount"
+            type="text"
+            bind:value={formData.amount}
+            placeholder="0"
+            class="w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-xl px-3.5 py-3 text-lg font-black outline-none border border-gray-200 dark:border-gray-700"
+          />
+        </div>
+
+        <div class="grid grid-cols-[1fr_auto_1fr] gap-2 items-center">
+          <div>
+            <label for="ledger-giver" class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1">누가</label>
+            <select
+              id="ledger-giver"
+              bind:value={formData.giver}
+              class="w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-xl px-3 py-2.5 text-xs font-bold outline-none border border-gray-200 dark:border-gray-700"
+            >
+              {#each USERS as u}<option value={u}>{u}</option>{/each}
+            </select>
+          </div>
+          <span class="text-gray-400 font-bold mt-5">→</span>
+          <div>
+            <label for="ledger-receiver" class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1">누구에게</label>
+            <select
+              id="ledger-receiver"
+              bind:value={formData.receiver}
+              class="w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-xl px-3 py-2.5 text-xs font-bold outline-none border border-gray-200 dark:border-gray-700"
+            >
+              {#each USERS as u}<option value={u}>{u}</option>{/each}
+            </select>
+          </div>
+        </div>
+
+        <label
+          class="flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-900 rounded-2xl cursor-pointer border border-gray-200 dark:border-gray-700"
+        >
+          <input
+            type="checkbox"
+            bind:checked={formData.is_settled}
+            class="w-4 h-4 text-indigo-600 rounded"
+          />
+          <span class="text-xs font-bold text-gray-700 dark:text-gray-300">정산 완료 처리</span>
+        </label>
+      </div>
+
+      <div class="flex gap-2 pt-2">
+        <button
+          type="button"
+          on:click={() => (showForm = false)}
+          class="flex-1 py-3.5 font-bold text-xs text-gray-500 bg-gray-100 dark:bg-gray-700 rounded-2xl active:scale-95 transition-all"
+        >
+          취소
+        </button>
+        <button
+          type="button"
+          on:click={handleSubmit}
+          disabled={isSubmitting}
+          class="flex-1 py-3.5 font-black text-xs text-white bg-indigo-600 hover:bg-indigo-700 rounded-2xl shadow-md active:scale-95 transition-all disabled:opacity-40"
+        >
+          {isSubmitting ? "저장 중..." : "저장하기"}
+        </button>
+      </div>
+    </Modal>
   {/if}
 
   <!-- Simplified Fixed Rules Modal -->
   {#if showRuleModal}
-    <div
-      class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-      transition:fade
+    <Modal
+      label="매월 고정 이체 관리"
+      class="max-w-sm p-6 space-y-4 flex flex-col"
+      on:close={() => (showRuleModal = false)}
     >
-      <div
-        class="w-full max-w-sm max-h-[88vh] flex flex-col bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-2xl relative space-y-4"
-        transition:slide={{ duration: 300, axis: "y" }}
-      >
-        <div class="flex justify-between items-center shrink-0">
-          <div>
-            <h2 class="text-lg font-black text-gray-900 dark:text-white flex items-center gap-1.5">
-              📌 매월 고정 이체 관리
-            </h2>
-            <p class="text-[11px] text-gray-400">용돈/관리비 등 매달 반복되는 이체 내역</p>
-          </div>
-          <button
-            type="button"
-            on:click={() => (showRuleModal = false)}
-            class="p-2 bg-gray-100 dark:bg-gray-700 rounded-full text-xs font-bold"
-          >
-            ✕
-          </button>
+      <div class="flex justify-between items-center shrink-0">
+        <div>
+          <h2 class="text-lg font-black text-gray-900 dark:text-white flex items-center gap-1.5">
+            📌 매월 고정 이체 관리
+          </h2>
+          <p class="text-[11px] text-gray-400">용돈/관리비 등 매달 반복되는 이체 내역</p>
         </div>
+        <button
+          type="button"
+          on:click={() => (showRuleModal = false)}
+          class="w-10 h-10 shrink-0 flex items-center justify-center bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 rounded-full text-sm font-bold"
+          aria-label="닫기"
+        >
+          ✕
+        </button>
+      </div>
 
-        <!-- 1-Click Batch Apply Button -->
-        <div class="shrink-0 bg-indigo-50 dark:bg-indigo-950/40 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-800 space-y-2">
-          <div class="flex justify-between items-center text-xs font-bold text-indigo-950 dark:text-indigo-200">
-            <span>{displayMonth}월 장부로 일괄 가져오기</span>
-            <span class="text-indigo-600 dark:text-indigo-400">{rules.length}개 규칙</span>
-          </div>
-          <button
-            type="button"
-            on:click={applyRulesToMonth}
-            disabled={isBatchSubmitting || rules.length === 0}
-            class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-md active:scale-95 transition-all disabled:opacity-40"
-          >
-            {isBatchSubmitting ? "추가하는 중..." : `📋 ${displayMonth}월 장부에 즉시 등록하기`}
-          </button>
+      <!-- 1-Click Batch Apply Button -->
+      <div class="shrink-0 bg-indigo-50 dark:bg-indigo-950/40 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-800 space-y-2">
+        <div class="flex justify-between items-center text-xs font-bold text-indigo-950 dark:text-indigo-200">
+          <span>{displayMonth}월 장부로 일괄 가져오기</span>
+          <span class="text-indigo-600 dark:text-indigo-400">{rules.length}개 규칙</span>
         </div>
+        <button
+          type="button"
+          on:click={applyRulesToMonth}
+          disabled={isBatchSubmitting || rules.length === 0}
+          class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-md active:scale-95 transition-all disabled:opacity-40"
+        >
+          {isBatchSubmitting ? "추가하는 중..." : `📋 ${displayMonth}월 장부에 즉시 등록하기`}
+        </button>
+      </div>
 
-        <!-- Rules List (Scrollable) -->
-        <div class="flex-1 overflow-y-auto space-y-2 pr-1 min-h-[100px] max-h-[220px]">
-          {#if rules.length === 0}
-            <div class="text-center py-6 text-gray-400 text-xs bg-gray-50 dark:bg-gray-900 rounded-2xl">
-              아직 등록된 고정 이체 규칙이 없습니다.<br />아래 폼에서 규칙을 등록해보세요!
-            </div>
-          {:else}
-            {#each rules as rule}
-              <div class="bg-gray-50 dark:bg-gray-900 p-3.5 rounded-2xl flex justify-between items-center border border-gray-100 dark:border-gray-700">
-                <div>
-                  <div class="flex items-center gap-1.5">
-                    <span class="text-[10px] bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-black px-1.5 py-0.5 rounded">
-                      매월 {rule.day}일
-                    </span>
-                    <span class="font-bold text-xs text-gray-900 dark:text-white">
-                      {rule.title}
-                    </span>
-                  </div>
-                  <p class="text-xs font-black text-indigo-600 dark:text-indigo-400 mt-1">
-                    {formatAmount(rule.amount)}원 <span class="text-[11px] text-gray-400 font-normal">({rule.giver} → {rule.receiver})</span>
-                  </p>
+      <!-- Rules List (Scrollable) -->
+      <div class="flex-1 overflow-y-auto space-y-2 pr-1 min-h-[100px] max-h-[220px]">
+        {#if isRulesLoading && rules.length === 0}
+          <Spinner label="고정 이체 불러오는 중..." />
+        {:else if rules.length === 0}
+          <div class="text-center py-6 text-gray-400 text-xs bg-gray-50 dark:bg-gray-900 rounded-2xl">
+            아직 등록된 고정 이체 규칙이 없습니다.<br />아래 폼에서 규칙을 등록해보세요!
+          </div>
+        {:else}
+          {#each rules as rule}
+            <div class="bg-gray-50 dark:bg-gray-900 p-3.5 rounded-2xl flex justify-between items-center border border-gray-100 dark:border-gray-700">
+              <div>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-[10px] bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-black px-1.5 py-0.5 rounded">
+                    매월 {rule.day}일
+                  </span>
+                  <span class="font-bold text-xs text-gray-900 dark:text-white">
+                    {rule.title}
+                  </span>
                 </div>
-                <button
-                  type="button"
-                  disabled={deletingRuleId === rule.id}
-                  on:click={() => handleDeleteRule(rule.id)}
-                  class="p-2 text-gray-400 hover:text-rose-500 disabled:opacity-40 transition-colors text-xs flex items-center justify-center min-w-[28px]"
-                  title="삭제"
-                >
-                  {#if deletingRuleId === rule.id}
-                    <svg class="animate-spin h-3.5 w-3.5 text-rose-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-                    </svg>
-                  {:else}
-                    🗑️
-                  {/if}
-                </button>
+                <p class="text-xs font-black text-indigo-600 dark:text-indigo-400 mt-1">
+                  {formatAmount(rule.amount)}원 <span class="text-[11px] text-gray-400 font-normal">({rule.giver} → {rule.receiver})</span>
+                </p>
               </div>
-            {/each}
-          {/if}
+              <button
+                type="button"
+                disabled={deletingRuleId === rule.id}
+                on:click={() => handleDeleteRule(rule.id)}
+                class="w-10 h-10 shrink-0 text-gray-400 hover:text-rose-500 disabled:opacity-40 transition-colors text-sm flex items-center justify-center"
+                aria-label="고정 이체 삭제"
+              >
+                {#if deletingRuleId === rule.id}
+                  <svg class="animate-spin h-3.5 w-3.5 text-rose-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                  </svg>
+                {:else}
+                  🗑️
+                {/if}
+              </button>
+            </div>
+          {/each}
+        {/if}
+      </div>
+
+      <!-- Add New Fixed Rule Form -->
+      <div class="shrink-0 p-4 bg-gray-50 dark:bg-gray-900 rounded-2xl space-y-3 border border-gray-100 dark:border-gray-700">
+        <span class="text-xs font-black text-gray-800 dark:text-gray-200 block">
+          ➕ 새 고정 이체 규칙 등록
+        </span>
+
+        <!-- Day & Title -->
+        <div class="flex gap-2">
+          <div class="flex items-center gap-1 bg-white dark:bg-gray-800 px-2.5 py-2 rounded-xl border border-gray-200 dark:border-gray-700 shrink-0">
+            <span class="text-[10px] text-gray-400 font-bold">매월</span>
+            <input
+              type="number"
+              min="1"
+              max="31"
+              bind:value={newRuleDay}
+              aria-label="매월 이체일"
+              class="w-7 text-center text-xs font-black bg-transparent text-gray-900 dark:text-white outline-none"
+            />
+            <span class="text-[10px] text-gray-400 font-bold">일</span>
+          </div>
+          <input
+            type="text"
+            bind:value={newRuleTitle}
+            aria-label="내역 이름"
+            placeholder="내역 이름 (예: 범수 정기입금)"
+            class="flex-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 rounded-xl text-xs font-bold outline-none border border-gray-200 dark:border-gray-700"
+          />
         </div>
 
-        <!-- Add New Fixed Rule Form -->
-        <div class="shrink-0 p-4 bg-gray-50 dark:bg-gray-900 rounded-2xl space-y-3 border border-gray-100 dark:border-gray-700">
-          <span class="text-xs font-black text-gray-800 dark:text-gray-200 block">
-            ➕ 새 고정 이체 규칙 등록
-          </span>
-
-          <!-- Day & Title -->
-          <div class="flex gap-2">
-            <div class="flex items-center gap-1 bg-white dark:bg-gray-800 px-2.5 py-2 rounded-xl border border-gray-200 dark:border-gray-700 shrink-0">
-              <span class="text-[10px] text-gray-400 font-bold">매월</span>
-              <input
-                type="number"
-                min="1"
-                max="31"
-                bind:value={newRuleDay}
-                class="w-7 text-center text-xs font-black bg-transparent text-gray-900 dark:text-white outline-none"
-              />
-              <span class="text-[10px] text-gray-400 font-bold">일</span>
-            </div>
+        <!-- Amount + Quick Buttons -->
+        <div class="space-y-1.5">
+          <div class="relative">
             <input
               type="text"
-              bind:value={newRuleTitle}
-              placeholder="내역 이름 (예: 범수 정기입금)"
-              class="flex-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 rounded-xl text-xs font-bold outline-none border border-gray-200 dark:border-gray-700"
+              bind:value={newRuleAmount}
+              aria-label="이체 금액"
+              placeholder="이체 금액 입력"
+              class="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2.5 rounded-xl text-xs font-black outline-none border border-gray-200 dark:border-gray-700 pr-8"
             />
+            <span class="absolute right-3 top-2.5 text-xs text-gray-400 font-bold">원</span>
           </div>
-
-          <!-- Amount + Quick Buttons -->
-          <div class="space-y-1.5">
-            <div class="relative">
-              <input
-                type="text"
-                bind:value={newRuleAmount}
-                placeholder="이체 금액 입력"
-                class="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2.5 rounded-xl text-xs font-black outline-none border border-gray-200 dark:border-gray-700 pr-8"
-              />
-              <span class="absolute right-3 top-2.5 text-xs text-gray-400 font-bold">원</span>
-            </div>
-            <div class="flex gap-1">
-              <button
-                type="button"
-                on:click={() => addRuleAmount(100000)}
-                class="flex-1 py-1 bg-white dark:bg-gray-800 text-[10px] font-bold text-gray-600 dark:text-gray-300 rounded-lg border border-gray-200 dark:border-gray-700 active:scale-95"
-              >
-                +10만
-              </button>
-              <button
-                type="button"
-                on:click={() => addRuleAmount(300000)}
-                class="flex-1 py-1 bg-white dark:bg-gray-800 text-[10px] font-bold text-gray-600 dark:text-gray-300 rounded-lg border border-gray-200 dark:border-gray-700 active:scale-95"
-              >
-                +30만
-              </button>
-              <button
-                type="button"
-                on:click={() => addRuleAmount(500000)}
-                class="flex-1 py-1 bg-white dark:bg-gray-800 text-[10px] font-bold text-gray-600 dark:text-gray-300 rounded-lg border border-gray-200 dark:border-gray-700 active:scale-95"
-              >
-                +50만
-              </button>
-              <button
-                type="button"
-                on:click={() => addRuleAmount(1000000)}
-                class="flex-1 py-1 bg-white dark:bg-gray-800 text-[10px] font-bold text-gray-600 dark:text-gray-300 rounded-lg border border-gray-200 dark:border-gray-700 active:scale-95"
-              >
-                +100만
-              </button>
-            </div>
+          <div class="flex gap-1">
+            <button
+              type="button"
+              on:click={() => addRuleAmount(100000)}
+              class="flex-1 py-2 bg-white dark:bg-gray-800 text-xs font-bold text-gray-600 dark:text-gray-300 rounded-lg border border-gray-200 dark:border-gray-700 active:scale-95"
+            >
+              +10만
+            </button>
+            <button
+              type="button"
+              on:click={() => addRuleAmount(300000)}
+              class="flex-1 py-2 bg-white dark:bg-gray-800 text-xs font-bold text-gray-600 dark:text-gray-300 rounded-lg border border-gray-200 dark:border-gray-700 active:scale-95"
+            >
+              +30만
+            </button>
+            <button
+              type="button"
+              on:click={() => addRuleAmount(500000)}
+              class="flex-1 py-2 bg-white dark:bg-gray-800 text-xs font-bold text-gray-600 dark:text-gray-300 rounded-lg border border-gray-200 dark:border-gray-700 active:scale-95"
+            >
+              +50만
+            </button>
+            <button
+              type="button"
+              on:click={() => addRuleAmount(1000000)}
+              class="flex-1 py-2 bg-white dark:bg-gray-800 text-xs font-bold text-gray-600 dark:text-gray-300 rounded-lg border border-gray-200 dark:border-gray-700 active:scale-95"
+            >
+              +100만
+            </button>
           </div>
-
-          <!-- Giver -> Receiver -->
-          <div class="grid grid-cols-[1fr_auto_1fr] gap-1.5 items-center">
-            <div class="space-y-0.5">
-              <span class="text-[9px] font-bold text-gray-400 pl-1">보내는 사람</span>
-              <select
-                bind:value={newRuleGiver}
-                class="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-2.5 py-1.5 rounded-xl text-xs font-bold outline-none border border-gray-200 dark:border-gray-700"
-              >
-                {#each USERS as u}<option value={u}>{u}</option>{/each}
-              </select>
-            </div>
-            <span class="text-gray-400 text-xs font-bold pt-3">➔</span>
-            <div class="space-y-0.5">
-              <span class="text-[9px] font-bold text-gray-400 pl-1">받는 사람</span>
-              <select
-                bind:value={newRuleReceiver}
-                class="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-2.5 py-1.5 rounded-xl text-xs font-bold outline-none border border-gray-200 dark:border-gray-700"
-              >
-                {#each USERS as u}<option value={u}>{u}</option>{/each}
-              </select>
-            </div>
-          </div>
-
-          <!-- Submit Button -->
-          <button
-            type="button"
-            on:click={handleAddRule}
-            disabled={isRuleSubmitting}
-            class="w-full py-3 bg-gray-900 hover:bg-black dark:bg-white dark:text-gray-900 text-white rounded-xl text-xs font-black active:scale-95 transition-all shadow-sm disabled:opacity-40"
-          >
-            {isRuleSubmitting ? "등록 중..." : "➕ 고정 이체 규칙 저장하기"}
-          </button>
         </div>
+
+        <!-- Giver -> Receiver -->
+        <div class="grid grid-cols-[1fr_auto_1fr] gap-1.5 items-center">
+          <div class="space-y-0.5">
+            <span class="text-[9px] font-bold text-gray-400 pl-1">보내는 사람</span>
+            <select
+              bind:value={newRuleGiver}
+              aria-label="보내는 사람"
+              class="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-2.5 py-1.5 rounded-xl text-xs font-bold outline-none border border-gray-200 dark:border-gray-700"
+            >
+              {#each USERS as u}<option value={u}>{u}</option>{/each}
+            </select>
+          </div>
+          <span class="text-gray-400 text-xs font-bold pt-3">➔</span>
+          <div class="space-y-0.5">
+            <span class="text-[9px] font-bold text-gray-400 pl-1">받는 사람</span>
+            <select
+              bind:value={newRuleReceiver}
+              aria-label="받는 사람"
+              class="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-2.5 py-1.5 rounded-xl text-xs font-bold outline-none border border-gray-200 dark:border-gray-700"
+            >
+              {#each USERS as u}<option value={u}>{u}</option>{/each}
+            </select>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button
+          type="button"
+          on:click={handleAddRule}
+          disabled={isRuleSubmitting}
+          class="w-full py-3 bg-gray-900 hover:bg-black dark:bg-white dark:text-gray-900 text-white rounded-xl text-xs font-black active:scale-95 transition-all shadow-sm disabled:opacity-40"
+        >
+          {isRuleSubmitting ? "등록 중..." : "➕ 고정 이체 규칙 저장하기"}
+        </button>
       </div>
-    </div>
+    </Modal>
   {/if}
 
 
 
   <!-- Nudge Push Modal (이체 기록 한정, 주는 사람별 선택 푸쉬) -->
   {#if showNudgeModal}
-    <div
-      class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-      transition:fade
+    <Modal
+      label="이체 독촉 푸쉬 발송"
+      class="max-w-sm p-6 space-y-4 flex flex-col"
+      on:close={() => (showNudgeModal = false)}
     >
-      <div
-        class="w-full max-w-sm max-h-[85vh] flex flex-col bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-2xl relative space-y-4"
-        transition:slide={{ duration: 250, axis: "y" }}
-      >
-        <div class="flex justify-between items-center shrink-0">
-          <div>
-            <h2 class="text-lg font-black text-gray-900 dark:text-white flex items-center gap-1.5">
-              📢 이체 독촉 푸쉬 발송
-            </h2>
-            <p class="text-[11px] text-gray-400">
-              미정산 이체 내역이 있는 '주는 사람'에게 푸쉬를 보냅니다.
-            </p>
-          </div>
-          <button
-            type="button"
-            on:click={() => (showNudgeModal = false)}
-            class="p-2 bg-gray-100 dark:bg-gray-700 rounded-full text-xs font-bold"
-          >
-            ✕
-          </button>
+      <div class="flex justify-between items-center shrink-0">
+        <div>
+          <h2 class="text-lg font-black text-gray-900 dark:text-white flex items-center gap-1.5">
+            📢 이체 독촉 푸쉬 발송
+          </h2>
+          <p class="text-[11px] text-gray-400">
+            미정산 이체 내역이 있는 '주는 사람'에게 푸쉬를 보냅니다.
+          </p>
         </div>
-
-        <!-- All Givers Batch Send Button -->
-        {#if debtorsList.length > 1}
-          <button
-            type="button"
-            on:click={sendAllNudgePush}
-            disabled={isBatchSendingNudge}
-            class="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-2xl font-black text-xs shadow-md active:scale-95 transition-all disabled:opacity-40 flex items-center justify-center gap-2"
-          >
-            <span>⚡</span>
-            <span>{isBatchSendingNudge ? "일괄 발송 중..." : `모두에게 한 번에 푸쉬 보내기 (${debtorsList.length}명)`}</span>
-          </button>
-        {/if}
-
-        <!-- Debtors List -->
-        <div class="flex-1 overflow-y-auto space-y-3 pr-1">
-          {#each debtorsList as debtor}
-            <div class="bg-gray-50 dark:bg-gray-900 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 space-y-3">
-              <!-- Giver Header -->
-              <div class="flex justify-between items-center">
-                <div class="flex items-center gap-2">
-                  <span class="text-xl p-1.5 bg-white dark:bg-gray-800 rounded-xl leading-none shadow-sm">
-                    {debtor.giver === "엄마" ? "👩" : debtor.giver === "아빠" ? "👨" : debtor.giver === "범수" ? "👦" : "🧑"}
-                  </span>
-                  <div>
-                    <p class="text-xs font-black text-gray-900 dark:text-white leading-tight">
-                      {debtor.giver} (주는 사람)
-                    </p>
-                    <p class="text-[10px] text-gray-400">
-                      미정산 이체 {debtor.items.length}건
-                    </p>
-                  </div>
-                </div>
-
-                <span class="text-sm font-black text-rose-600 dark:text-rose-400">
-                  {debtor.totalAmount.toLocaleString()}원
-                </span>
-              </div>
-
-              <!-- Unsettled items preview -->
-              <div class="space-y-1 bg-white dark:bg-gray-800 p-2.5 rounded-xl border border-gray-100 dark:border-gray-700 text-[11px]">
-                {#each debtor.items as it}
-                  <div class="flex justify-between items-center text-gray-600 dark:text-gray-300">
-                    <span class="truncate max-w-[170px]">• {it.title} ({it.date.slice(5)})</span>
-                    <span class="font-bold text-gray-800 dark:text-gray-200">
-                      {Number(it.amount).toLocaleString()}원
-                    </span>
-                  </div>
-                {/each}
-              </div>
-
-              <!-- Send Button -->
-              <button
-                type="button"
-                on:click={() => sendNudgePush(debtor)}
-                disabled={isSendingNudge[debtor.giver]}
-                class="w-full py-2.5 bg-rose-500 hover:bg-rose-600 disabled:opacity-40 text-white rounded-xl text-xs font-bold active:scale-95 transition-all shadow-sm flex items-center justify-center gap-1.5"
-              >
-                <span>🔔</span>
-                <span>{isSendingNudge[debtor.giver] ? "푸쉬 발송 중..." : `${debtor.giver}에게 푸쉬 알림 발송`}</span>
-              </button>
-            </div>
-          {/each}
-        </div>
+        <button
+          type="button"
+          on:click={() => (showNudgeModal = false)}
+          class="w-10 h-10 shrink-0 flex items-center justify-center bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 rounded-full text-sm font-bold"
+          aria-label="닫기"
+        >
+          ✕
+        </button>
       </div>
-    </div>
+
+      <!-- All Givers Batch Send Button -->
+      {#if debtorsList.length > 1}
+        <button
+          type="button"
+          on:click={sendAllNudgePush}
+          disabled={isBatchSendingNudge}
+          class="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-2xl font-black text-xs shadow-md active:scale-95 transition-all disabled:opacity-40 flex items-center justify-center gap-2"
+        >
+          <span>⚡</span>
+          <span>{isBatchSendingNudge ? "일괄 발송 중..." : `모두에게 한 번에 푸쉬 보내기 (${debtorsList.length}명)`}</span>
+        </button>
+      {/if}
+
+      <!-- Debtors List -->
+      <div class="flex-1 overflow-y-auto space-y-3 pr-1">
+        {#each debtorsList as debtor}
+          <div class="bg-gray-50 dark:bg-gray-900 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 space-y-3">
+            <!-- Giver Header -->
+            <div class="flex justify-between items-center">
+              <div class="flex items-center gap-2">
+                <span class="text-xl p-1.5 bg-white dark:bg-gray-800 rounded-xl leading-none shadow-sm">
+                  {debtor.giver === "엄마" ? "👩" : debtor.giver === "아빠" ? "👨" : debtor.giver === "범수" ? "👦" : "🧑"}
+                </span>
+                <div>
+                  <p class="text-xs font-black text-gray-900 dark:text-white leading-tight">
+                    {debtor.giver} (주는 사람)
+                  </p>
+                  <p class="text-[10px] text-gray-400">
+                    미정산 이체 {debtor.items.length}건
+                  </p>
+                </div>
+              </div>
+
+              <span class="text-sm font-black text-rose-600 dark:text-rose-400">
+                {debtor.totalAmount.toLocaleString()}원
+              </span>
+            </div>
+
+            <!-- Unsettled items preview -->
+            <div class="space-y-1 bg-white dark:bg-gray-800 p-2.5 rounded-xl border border-gray-100 dark:border-gray-700 text-[11px]">
+              {#each debtor.items as it}
+                <div class="flex justify-between items-center text-gray-600 dark:text-gray-300">
+                  <span class="truncate max-w-[170px]">• {it.title} ({new Date(it.date).getDate()}일)</span>
+                  <span class="font-bold text-gray-800 dark:text-gray-200">
+                    {cleanAmount(it.amount).toLocaleString()}원
+                  </span>
+                </div>
+              {/each}
+            </div>
+
+            <!-- Send Button -->
+            <button
+              type="button"
+              on:click={() => sendNudgePush(debtor)}
+              disabled={isSendingNudge[debtor.giver]}
+              class="w-full py-2.5 bg-rose-500 hover:bg-rose-600 disabled:opacity-40 text-white rounded-xl text-xs font-bold active:scale-95 transition-all shadow-sm flex items-center justify-center gap-1.5"
+            >
+              <span>🔔</span>
+              <span>{isSendingNudge[debtor.giver] ? "푸쉬 발송 중..." : `${debtor.giver}에게 푸쉬 알림 발송`}</span>
+            </button>
+          </div>
+        {/each}
+      </div>
+    </Modal>
   {/if}
 
   <!-- Floating Add Button for Admin -->
@@ -1071,7 +1082,9 @@
     <button
       type="button"
       on:click={() => openAddForm()}
-      class="fixed bottom-24 right-6 w-14 h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-2xl flex items-center justify-center text-3xl font-light z-40 active:scale-90 transition-all border-2 border-white/20"
+      aria-label="내역 추가"
+      style="bottom: calc(5rem + env(safe-area-inset-bottom)); right: max(1.25rem, calc(50% - 14rem + 1.25rem));"
+      class="fixed w-14 h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-2xl flex items-center justify-center text-3xl font-light z-40 active:scale-90 transition-all border-2 border-white/20"
       transition:fade
     >
       +

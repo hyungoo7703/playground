@@ -1,8 +1,9 @@
 <script>
   import { onMount, onDestroy } from "svelte";
   import { fade, scale, slide } from "svelte/transition";
-  import { currentUser, isAdmin } from "../lib/store.js";
+  import { isAdmin } from "../lib/store.js";
   import { api } from "../lib/api.js";
+  import { toast, confirmDialog } from "../lib/feedback.js";
   import { readCache, writeCache } from "../lib/cache.js";
 
   // --- 상태 관리 변수 ---
@@ -11,7 +12,7 @@
   const WHO_PAY_MEMBERS = ["엄마", "현구", "범수"];
 
   let spinning = false; // 룰렛 회전 여부
-  let spinResult = "오늘 뭐 먹지?";
+  let spinResult = ""; // empty = idle, nothing drawn yet
   let spinInterval;
   let spinTimeout;
   let isLoading = true; // 초기 로딩 상태
@@ -60,7 +61,7 @@
         if (spinMode === "menu") await fetchMenu();
       }
     } catch (e) {
-      alert("추가 중 오류가 발생했습니다.");
+      toast("추가 중 오류가 발생했습니다.", "error");
     } finally {
       isAdding = false;
     }
@@ -68,22 +69,24 @@
 
   // --- 관리자 메뉴 삭제 (Delete) ---
   async function deleteMenuItem(value) {
-    if (!confirm(`'${value}' 메뉴를 정말 삭제하시겠습니까?`)) return;
+    if (!(await confirmDialog(`'${value}' 메뉴를 정말 삭제하시겠습니까?`, { danger: true }))) return;
     try {
       const data = await api.deleteManagement("roulette", value);
       if (data.success) {
         if (spinMode === "menu") await fetchMenu();
       } else {
-        alert("삭제 실패: " + data.message);
+        toast("삭제 실패: " + data.message, "error");
       }
     } catch (e) {
-      alert("삭제 중 오류가 발생했습니다.");
+      toast("삭제 중 오류가 발생했습니다.", "error");
     }
   }
 
   function switchMode(mode) {
+    clearInterval(spinInterval);
+    clearTimeout(spinTimeout);
     spinMode = mode;
-    spinResult = mode === "menu" ? "오늘 뭐 먹지?" : "누가 낼까?";
+    spinResult = "";
     spinning = false;
   }
 
@@ -98,10 +101,11 @@
     if (navigator.vibrate) navigator.vibrate(50);
 
     // 80ms 간격으로 랜덤 메뉴 표시
-    spinInterval = setInterval(() => {
-      const randomIndex = Math.floor(Math.random() * list.length);
-      spinResult = list[randomIndex];
-    }, 80);
+    const showRandom = () => {
+      spinResult = list[Math.floor(Math.random() * list.length)];
+    };
+    showRandom();
+    spinInterval = setInterval(showRandom, 80);
 
     // 2.5초 후 멈춤
     spinTimeout = setTimeout(() => {
@@ -137,13 +141,13 @@
   <div class="flex justify-center gap-2">
     <button
       on:click={() => switchMode("menu")}
-      class="px-4 py-2 rounded-2xl font-bold text-xs transition-all {spinMode === 'menu'
+      class="px-4 py-2.5 rounded-2xl font-bold text-sm transition-all {spinMode === 'menu'
         ? 'bg-indigo-600 text-white shadow-md'
         : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'}">🍽️ 메뉴 고르기</button
     >
     <button
       on:click={() => switchMode("whoPay")}
-      class="px-4 py-2 rounded-2xl font-bold text-xs transition-all {spinMode ===
+      class="px-4 py-2.5 rounded-2xl font-bold text-sm transition-all {spinMode ===
       'whoPay'
         ? 'bg-emerald-600 text-white shadow-md'
         : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'}">💸 밥값 내기</button
@@ -152,11 +156,11 @@
 
 
   <header class="text-center space-y-2">
-    <h2
+    <h1
       class="text-3xl font-black text-slate-900 dark:text-white tracking-tight"
     >
       {spinMode === "menu" ? "메뉴 룰렛 🎰" : "밥값 룰렛 💳"}
-    </h2>
+    </h1>
     <p class="text-sm text-slate-500 font-medium">
       {spinMode === "menu"
         ? "우리 가족의 식사 고민을 해결해 드립니다!"
@@ -190,13 +194,13 @@
             </div>
           {:else}
             <div in:fade>
-              {#if spinResult.includes("오늘") || spinResult.includes("누가")}
+              {#if !spinResult}
                 <span
                   class="text-slate-200 dark:text-slate-800 text-7xl block mb-2"
                   >?</span
                 >
                 <p class="text-xl font-bold text-slate-400 italic">
-                  {spinResult}
+                  {spinMode === "menu" ? "오늘 뭐 먹지?" : "누가 낼까?"}
                 </p>
               {:else}
                 <span
@@ -259,9 +263,10 @@
             <input
               type="text"
               bind:value={newItem}
+              aria-label="새로운 메뉴"
               placeholder="새로운 메뉴 입력"
               class="flex-1 px-4 py-3 rounded-xl border-none text-sm bg-white dark:bg-slate-900 dark:text-white shadow-sm focus:ring-2 focus:ring-indigo-500"
-              on:keydown={(e) => e.key === "Enter" && addMenuItem()}
+              on:keydown={(e) => e.key === "Enter" && !e.isComposing && addMenuItem()}
             />
             <button
               on:click={addMenuItem}
@@ -292,14 +297,14 @@
         <div class="flex flex-wrap justify-center gap-2">
           {#each foodList as food}
             <span
-              class="flex items-center gap-1 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl text-[11px] font-bold border border-slate-200/50 dark:border-slate-700"
+              class="flex items-center gap-1 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl text-xs font-bold border border-slate-200/50 dark:border-slate-700"
             >
               {food}
               {#if $isAdmin}
                 <button
                   on:click={() => deleteMenuItem(food)}
-                  class="ml-1 text-slate-400 hover:text-red-500 transition-colors"
-                  title="삭제하기"
+                  class="w-7 h-7 -my-1.5 -mr-2 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors"
+                  aria-label="{food} 삭제"
                 >
                   ✕
                 </button>
@@ -332,7 +337,7 @@
           <div
             class="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800 opacity-30 hover:opacity-100 transition-opacity"
           >
-            <p class="text-[10px] text-center text-slate-300 mb-2">
+            <p class="text-[10px] text-center text-slate-400 dark:text-slate-500 mb-2">
               🤫 관리자 권한: 타겟 설정 (쉿!)
             </p>
             <div class="flex justify-center gap-2">
@@ -340,10 +345,10 @@
                 <button
                   on:click={() =>
                     (targetWinner = targetWinner === mem ? null : mem)}
-                  class="px-3 py-1 text-xs rounded-lg border transition-all {targetWinner ===
+                  class="px-3 py-2 text-xs rounded-lg border transition-all {targetWinner ===
                   mem
-                    ? 'bg-red-100 text-red-600 border-red-200'
-                    : 'bg-transparent border-slate-200 text-slate-400'}"
+                    ? 'bg-red-100 text-red-600 border-red-200 dark:bg-red-950/50 dark:text-red-300 dark:border-red-800'
+                    : 'bg-transparent border-slate-200 dark:border-slate-700 text-slate-400'}"
                 >
                   {mem}
                 </button>

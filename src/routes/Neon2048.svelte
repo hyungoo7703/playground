@@ -1,8 +1,7 @@
 <script>
   import { onMount, onDestroy } from "svelte";
   import { fade, scale } from "svelte/transition";
-  import { navigate } from "svelte-routing";
-  import { base } from "../lib/store.js";
+  import GameExitButton from "../lib/components/GameExitButton.svelte";
 
   const SIZE = 4;
   const SAVE_KEY = "neon2048_save";
@@ -251,13 +250,7 @@
         밀어서 같은 숫자를 합쳐보세요!
       </p>
     </div>
-    <button
-      type="button"
-      on:click={() => navigate(`${base}/menu`)}
-      class="p-2 text-gray-400 hover:text-white bg-white/5 rounded-xl text-sm font-bold"
-    >
-      ✕
-    </button>
+    <GameExitButton />
   </div>
 
   <!-- Score Bar -->

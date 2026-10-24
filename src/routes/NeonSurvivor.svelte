@@ -5,6 +5,8 @@
     import { get } from "svelte/store";
     import { fade, fly, scale } from "svelte/transition";
     import { GameEngine } from "../lib/neon/survivor/core/GameEngine.js";
+    import GameExitButton from "../lib/components/GameExitButton.svelte";
+    import { confirmDialog } from "../lib/feedback.js";
     import {
         SHOP_ITEMS,
         WEAPONS,
@@ -37,10 +39,13 @@
     let showLevelUp = false;
     let levelUpOptions = [];
 
-    onMount(async () => {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+    let safeProbe;
 
+    function handleVisibility() {
+        if (document.hidden && gameState === "playing") togglePause();
+    }
+
+    onMount(async () => {
         engine = new GameEngine(
             canvas,
             (coins) => {
@@ -60,6 +65,9 @@
             },
         );
 
+        engine.resize(window.innerWidth, window.innerHeight);
+        engine.safeBottom = safeProbe.offsetHeight;
+
         const user = get(currentUser);
         if (get(isAdmin) && engine.upgradeSystem.getCoins() <= 1000) {
             engine.upgradeSystem.addCoins(100000);
@@ -75,6 +83,7 @@
         }, 500);
 
         window.addEventListener("resize", handleResize);
+        document.addEventListener("visibilitychange", handleVisibility);
     });
 
     onDestroy(() => {
@@ -85,13 +94,13 @@
         if (gachaTimer) clearTimeout(gachaTimer);
         if (toastTimer) clearTimeout(toastTimer);
         window.removeEventListener("resize", handleResize);
+        document.removeEventListener("visibilitychange", handleVisibility);
     });
 
     function handleResize() {
-        if (canvas && engine) {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+        if (engine) {
             engine.resize(window.innerWidth, window.innerHeight);
+            engine.safeBottom = safeProbe.offsetHeight;
         }
     }
 
@@ -136,15 +145,9 @@
 
     function handleTouchStart(e) {
         if (gameState !== "playing") return;
+        // Buttons (pause, ultimate) handle their own taps
+        if (e.target.closest("button")) return;
         const touch = e.touches[0];
-
-        // Ignore if touching Ultimate button area (Bottom Right roughly)
-        const ultX = window.innerWidth - 60;
-        const ultY = window.innerHeight - 60;
-        if (Math.hypot(touch.clientX - ultX, touch.clientY - ultY) < 80) {
-            activateUltimate();
-            return;
-        }
 
         joystickActive = true;
         joystickData.startX = touch.clientX;
@@ -189,8 +192,13 @@
         }
     }
 
-    function refundUpgrades() {
-        if (engine && confirm("초기화 하시겠습니까?")) {
+    async function refundUpgrades() {
+        if (!engine) return;
+        const ok = await confirmDialog("업그레이드를 초기화하시겠습니까?", {
+            confirmText: "초기화",
+            danger: true,
+        });
+        if (ok) {
             engine.upgradeSystem.refund();
             window.location.reload();
         }
@@ -269,6 +277,11 @@
     on:touchend={handleTouchEnd}
 >
     <canvas bind:this={canvas} class="block w-full h-full"></canvas>
+    <div
+        bind:this={safeProbe}
+        class="fixed bottom-0 invisible pointer-events-none"
+        style="height: env(safe-area-inset-bottom);"
+    ></div>
 
     <!-- Boss Warning -->
     {#if uiState.bossWarning}
@@ -331,6 +344,12 @@
             class="absolute inset-0 flex flex-col items-center justify-center bg-black/80 z-50 text-white gap-8"
             transition:fade
         >
+            <div
+                class="absolute left-4"
+                style="top: max(1rem, env(safe-area-inset-top) + 0.5rem);"
+            >
+                <GameExitButton />
+            </div>
             <h1
                 class="text-4xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 neon-text text-center px-4"
             >
@@ -402,7 +421,7 @@
                             class="text-yellow-400 text-xs sm:text-sm font-bold flex items-center gap-1 mt-0.5"
                         >
                             <span>🪙</span>
-                            <span>{uiState.coins}</span>
+                            <span>{uiState.coins.toLocaleString()}</span>
                         </div>
                     </div>
 
@@ -410,8 +429,8 @@
                     <button
                         type="button"
                         on:click={togglePause}
-                        class="pointer-events-auto w-9 h-9 sm:w-11 sm:h-11 bg-white/15 hover:bg-white/25 active:scale-95 rounded-full flex items-center justify-center text-white text-sm sm:text-base backdrop-blur-md border border-white/20 shadow-lg transition-all"
-                        aria-label="일시정지"
+                        class="pointer-events-auto w-10 h-10 sm:w-11 sm:h-11 bg-white/15 hover:bg-white/25 active:scale-95 rounded-full flex items-center justify-center text-white text-sm sm:text-base backdrop-blur-md border border-white/20 shadow-lg transition-all"
+                        aria-label={gameState === "paused" ? "계속하기" : "일시정지"}
                     >
                         {#if gameState === "paused"}▶{:else}⏸{/if}
                     </button>
@@ -445,7 +464,9 @@
         <!-- Use Ultimate -->
         <button
             on:click={activateUltimate}
-            class="absolute bottom-8 right-8 w-24 h-24 rounded-full flex items-center justify-center transition-all duration-200 active:scale-95 shadow-xl border-4 border-white/20 z-40 {uiState.ultimateGauge >=
+            aria-label="필살기"
+            style="bottom: max(2rem, env(safe-area-inset-bottom) + 1rem); right: max(2rem, env(safe-area-inset-right) + 1rem);"
+            class="absolute w-24 h-24 rounded-full flex items-center justify-center transition-all duration-200 active:scale-95 shadow-xl border-4 border-white/20 z-40 {uiState.ultimateGauge >=
             ULTIMATE_MAX
                 ? 'bg-gradient-to-br from-red-500 to-orange-600 animate-pulse cursor-pointer'
                 : 'bg-gray-800/80 grayscale'}"
@@ -479,6 +500,36 @@
         </button>
     {/if}
 
+    {#if gameState === "paused"}
+        <div
+            class="absolute inset-0 bg-black/70 z-[80] flex flex-col items-center justify-center gap-4 text-white backdrop-blur-sm"
+            transition:fade={{ duration: 150 }}
+        >
+            <h2 class="text-4xl font-black mb-4">일시정지</h2>
+            <button
+                on:click={togglePause}
+                class="w-56 py-4 bg-cyan-500 hover:bg-cyan-400 text-black font-black text-xl rounded-full shadow-lg active:scale-95 transition-all"
+            >
+                계속하기
+            </button>
+            <button
+                on:click={() => {
+                    gameState = "start";
+                    engine.restart();
+                }}
+                class="w-56 py-3 bg-gray-800 border border-gray-600 font-bold rounded-full active:scale-95 transition-all"
+            >
+                포기하고 로비로
+            </button>
+            <button
+                on:click={() => navigate(`${base}/menu`)}
+                class="w-56 py-3 text-gray-300 font-bold rounded-full active:scale-95 transition-all"
+            >
+                게임 나가기
+            </button>
+        </div>
+    {/if}
+
     <!-- Level Up Modal (FIXED SIZE) -->
     {#if showLevelUp}
         <div
@@ -497,7 +548,7 @@
                     {#each levelUpOptions as option}
                         <button
                             on:click={() => selectUpgrade(option)}
-                            class="w-full bg-gray-700 hover:bg-gray-600 active:bg-gray-500 p-4 rounded-xl border2 border-transparent hover:border-yellow-400 flex items-center gap-4 transition-all group text-left"
+                            class="w-full bg-gray-700 hover:bg-gray-600 active:bg-gray-500 p-4 rounded-xl border-2 border-transparent hover:border-yellow-400 flex items-center gap-4 transition-all group text-left"
                         >
                             <div
                                 class="text-3xl bg-gray-900 p-2 rounded-lg shrink-0"
@@ -527,19 +578,20 @@
             class="absolute inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center p-8"
         >
             {#if gachaState === "shaking"}
-                <div
+                <button
+                    type="button"
                     class="animate-bounce-wild cursor-pointer"
                     on:click={() => (gachaState = "revealed")}
                 >
-                    <div
-                        class="text-9xl mb-4 animate-shake text-center select-none"
+                    <span
+                        class="block text-9xl mb-4 animate-shake text-center select-none"
                     >
                         📦
-                    </div>
-                    <p class="text-white text-center animate-pulse">
+                    </span>
+                    <span class="block text-white text-center animate-pulse">
                         Tap to open!
-                    </p>
-                </div>
+                    </span>
+                </button>
             {:else if gachaState === "revealed"}
                 <div
                     class="text-center flex flex-col items-center animate-scale-in"
@@ -693,7 +745,7 @@
             >
                 <span class="text-white"
                     >Coins: <span class="text-yellow-400 font-bold"
-                        >{engine.upgradeSystem.getCoins()}</span
+                        >{engine.upgradeSystem.getCoins().toLocaleString()}</span
                     ></span
                 >
             </div>
@@ -725,7 +777,7 @@
                             </div>
                             <div class="text-right">
                                 <div class="text-yellow-400 font-bold">
-                                    {cost}
+                                    {cost.toLocaleString()}
                                 </div>
                             </div>
                         </button>

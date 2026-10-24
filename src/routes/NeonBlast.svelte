@@ -1,6 +1,7 @@
 <script>
   import { onMount, onDestroy, tick } from "svelte";
   import { gameStore, base } from "../lib/store.js";
+  import GameExitButton from "../lib/components/GameExitButton.svelte";
   import { generateStage } from "../lib/neon/blast/StageData.js";
   import {
     initPhysics,
@@ -16,6 +17,11 @@
   let zapAudio, bgmAudio;
   let mouseX = 200;
   let currentStageData;
+
+  // Logical playfield; the backing store is scaled by dpr for sharp edges
+  const W = 400;
+  const H = 600;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
   const playSfx = (name) => {
     if (isMuted) return;
@@ -45,6 +51,7 @@
     isStarted = true;
     await tick();
     ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     zapAudio = new Audio(`${base}/sounds/neon/blast/zap-synth.mp3`);
     zapAudio.loop = true;
     zapAudio.volume = 0.3;
@@ -67,8 +74,15 @@
     initPhysics(currentStageData);
   }
 
+  function backToTitle() {
+    cancelAnimationFrame(frame);
+    stopPersistentSounds();
+    if (bgmAudio) bgmAudio.pause();
+    isStarted = false;
+  }
+
   function loop() {
-    updatePhysics(canvas.width, canvas.height);
+    updatePhysics(W, H);
     render();
     frame = requestAnimationFrame(loop);
   }
@@ -84,7 +98,7 @@
       ctx.translate(dx, dy);
     }
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, W, H);
 
     $gameStore.zones.forEach((z) => {
       ctx.fillStyle = "rgba(217, 70, 239, 0.15)";
@@ -208,7 +222,7 @@
       ctx.textBaseline = "middle";
 
       const text = `${$gameStore.currentCombo} COMBO!`;
-      ctx.translate(canvas.width / 2, canvas.height / 2); // Center
+      ctx.translate(W / 2, H / 2); // Center
       ctx.strokeText(text, -100, 0);
       ctx.fillText(text, -100, 0);
       ctx.restore();
@@ -219,7 +233,7 @@
 
   function handleShoot(e) {
     const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
+    const scaleX = W / rect.width;
     shootBall((e.clientX - rect.left) * scaleX);
   }
 
@@ -236,7 +250,18 @@
     }
   };
 
+  function handleVisibility() {
+    if (!isStarted || !bgmAudio) return;
+    if (document.hidden) {
+      bgmAudio.pause();
+      if (zapAudio) zapAudio.pause();
+    } else if (!isMuted) {
+      bgmAudio.play().catch(() => {});
+    }
+  }
+
   onMount(() => {
+    document.addEventListener("visibilitychange", handleVisibility);
     window.addEventListener("pegHit", onPegHit);
     window.addEventListener("portalWarp", onPortalWarp);
     window.addEventListener("powerUp", onPowerUp);
@@ -245,6 +270,7 @@
   });
 
   onDestroy(() => {
+    document.removeEventListener("visibilitychange", handleVisibility);
     window.removeEventListener("pegHit", onPegHit);
     window.removeEventListener("portalWarp", onPortalWarp);
     window.removeEventListener("powerUp", onPowerUp);
@@ -260,6 +286,12 @@
   class="flex flex-col items-center w-full h-full md:h-auto md:min-h-screen bg-[#050505] text-white select-none font-sans relative overflow-hidden md:overflow-y-auto"
 >
   {#if !isStarted}
+    <div
+      class="absolute left-4 z-20"
+      style="top: max(1rem, env(safe-area-inset-top));"
+    >
+      <GameExitButton />
+    </div>
     <div
       class="flex flex-col items-center justify-center min-h-[100dvh] w-full px-6 py-20 z-10"
     >
@@ -286,15 +318,19 @@
   {:else}
     <header
       class="w-full max-w-[500px] px-5 py-1 flex justify-between items-center bg-gray-900/60 backdrop-blur-md border-b border-white/10 shrink-0 z-20"
+      style="padding-top: max(0.25rem, env(safe-area-inset-top));"
     >
-      <div class="flex flex-col">
-        <span
-          class="text-[10px] text-cyan-400 font-bold uppercase tracking-widest leading-none"
-          >Stage {$gameStore.currentLevel}</span
-        >
-        <p class="text-2xl font-black italic text-white mt-1">
-          {$gameStore.ballsLeft}
-        </p>
+      <div class="flex items-center gap-3">
+        <GameExitButton />
+        <div class="flex flex-col">
+          <span
+            class="text-[10px] text-cyan-400 font-bold uppercase tracking-widest leading-none"
+            >Stage {$gameStore.currentLevel}</span
+          >
+          <p class="text-2xl font-black italic text-white mt-1">
+            {$gameStore.ballsLeft}
+          </p>
+        </div>
       </div>
       <button
         on:click={() => {
@@ -306,17 +342,18 @@
             bgmAudio.play();
           }
         }}
-        class="p-2 bg-gray-800 rounded-xl border border-gray-700 active:scale-90"
+        aria-label={isMuted ? "소리 켜기" : "소리 끄기"}
+        class="w-10 h-10 flex items-center justify-center bg-gray-800 rounded-xl border border-gray-700 active:scale-90"
       >
         {isMuted ? "🔇" : "🔊"}
       </button>
       <div class="text-right flex flex-col">
         <span
-          class="text-[10px] text-magenta-500 font-bold uppercase tracking-widest leading-none"
+          class="text-[10px] text-fuchsia-500 font-bold uppercase tracking-widest leading-none"
           >Score</span
         >
         <p class="text-2xl font-black italic text-white mt-1">
-          {$gameStore.score}
+          {$gameStore.score.toLocaleString()}
         </p>
       </div>
     </header>
@@ -337,12 +374,12 @@
       >
         <canvas
           bind:this={canvas}
-          width="400"
-          height="600"
+          width={W * dpr}
+          height={H * dpr}
           on:click={handleShoot}
           on:mousemove={(e) => {
             const rect = canvas.getBoundingClientRect();
-            mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
+            mouseX = (e.clientX - rect.left) * (W / rect.width);
           }}
           class="w-full h-full rounded-[2.5rem] border-4 border-[#00f3ff] shadow-[0_0_40px_rgba(0,243,255,0.25)]"
           style="background: url('{base}/images/neon/blast/background.png') center/cover;"
@@ -369,14 +406,14 @@
               {:else}
                 <button
                   on:click={handleRetry}
-                  class="w-full py-4 bg-magenta-500 rounded-full font-black text-xl shadow-lg active:scale-95 transition-all"
+                  class="w-full py-4 bg-fuchsia-500 rounded-full font-black text-xl shadow-lg active:scale-95 transition-all"
                   >다시 도전</button
                 >
               {/if}
               <button
-                on:click={() => location.reload()}
+                on:click={backToTitle}
                 class="w-full py-3 bg-gray-800 rounded-full font-black text-lg border border-gray-600 active:scale-95"
-                >메인 메뉴</button
+                >처음 화면</button
               >
             </div>
           </div>
@@ -385,7 +422,8 @@
     </main>
 
     <footer
-      class="w-full py-2 shrink-0 text-center text-[10px] text-gray-500 uppercase tracking-widest bg-gradient-to-t from-black to-transparent"
+      class="w-full pt-2 shrink-0 text-center text-[10px] text-gray-500 uppercase tracking-widest bg-gradient-to-t from-black to-transparent"
+      style="padding-bottom: max(0.5rem, env(safe-area-inset-bottom));"
     >
       Neon Blast: Gravity Arena
     </footer>
@@ -409,12 +447,5 @@
       opacity: 1;
       transform: scale(1);
     }
-  }
-  :global(body) {
-    background-color: #050505;
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    min-height: 100%;
   }
 </style>

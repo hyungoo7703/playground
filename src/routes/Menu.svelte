@@ -40,7 +40,7 @@
 </script>
 
 <div class="max-w-md mx-auto space-y-6">
-  <h2 class="text-2xl font-black text-gray-900 dark:text-white">전체 메뉴</h2>
+  <h1 class="text-2xl font-black text-gray-900 dark:text-white">전체 메뉴</h1>
 
 
   {#each groups as group}

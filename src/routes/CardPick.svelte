@@ -1,10 +1,11 @@
 <script>
     import { onMount } from "svelte";
-    import { fade, scale, fly } from "svelte/transition";
+    import { fade, scale } from "svelte/transition";
     import { flip } from "svelte/animate";
     import { navigate } from "svelte-routing";
-    import { currentUser, isAdmin, base } from "../lib/store.js";
+    import { isAdmin, base } from "../lib/store.js";
     import { api } from "../lib/api.js";
+    import { toast } from "../lib/feedback.js";
     import { readCache, writeCache } from "../lib/cache.js";
 
     // --- 상태 관리 ---
@@ -21,16 +22,6 @@
     // 관리자
     let newAmount = "";
     let isAdding = false;
-
-    // 카드 뒷면 색상
-    const CARD_COLORS = [
-        "from-indigo-500 to-purple-600",
-        "from-pink-500 to-rose-600",
-        "from-amber-500 to-orange-600",
-        "from-emerald-500 to-teal-600",
-        "from-cyan-500 to-blue-600",
-        "from-violet-500 to-fuchsia-600",
-    ];
 
     /** 금액 리스트 가져오기 */
     async function fetchAmounts() {
@@ -79,7 +70,7 @@
                 await fetchAmounts();
             }
         } catch (e) {
-            alert("추가 중 오류가 발생했습니다.");
+            toast("추가 중 오류가 발생했습니다.", "error");
         } finally {
             isAdding = false;
         }
@@ -200,6 +191,7 @@
                     <button
                         on:click={() => selectCard(card)}
                         disabled={shuffling || card.flipped}
+                        aria-label={card.flipped ? `열린 카드: ${card.amount}` : "카드 뒤집기"}
                         animate:flip={{ duration: 300 }}
                         class="relative w-20 h-28 md:w-24 md:h-32 rounded-xl shadow-xl transition-all duration-300 transform
                             {selectedCard === card.id
@@ -225,8 +217,9 @@
                                 >
                             </div>
 
-                            <!-- 카드 앞면 -->
+                            <!-- 카드 앞면 (뒤집기 전에는 스크린리더에도 숨김) -->
                             <div
+                                aria-hidden={!card.flipped}
                                 class="absolute inset-0 w-full h-full rounded-xl bg-gradient-to-br from-yellow-100 to-amber-200 dark:from-yellow-900/50 dark:to-amber-800/50 flex flex-col items-center justify-center border-4 border-yellow-400 shadow-lg"
                                 style="backface-visibility: hidden; transform: rotateY(180deg);"
                             >
@@ -305,9 +298,10 @@
                     <input
                         type="text"
                         bind:value={newAmount}
+                        aria-label="새 금액"
                         placeholder="예: 10,000원"
                         class="flex-1 px-4 py-3 rounded-xl border-none text-sm bg-white dark:bg-slate-900 dark:text-white shadow-sm focus:ring-2 focus:ring-amber-500"
-                        on:keydown={(e) => e.key === "Enter" && addAmount()}
+                        on:keydown={(e) => e.key === "Enter" && !e.isComposing && addAmount()}
                     />
                     <button
                         on:click={addAmount}

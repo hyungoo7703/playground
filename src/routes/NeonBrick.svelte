@@ -1,7 +1,8 @@
 <script>
   import { onMount, onDestroy } from "svelte";
-  import { fade, fly } from "svelte/transition";
+  import { fade } from "svelte/transition";
   import { base } from "../lib/store.js";
+  import GameExitButton from "../lib/components/GameExitButton.svelte";
 
   // --- Game Constants ---
   const BALL_RADIUS = 8;
@@ -25,6 +26,11 @@
   let canvas;
   let ctx;
   let animationId;
+  let W = 0;
+  let H = 0;
+  // Capped at 2: glow-heavy frames get expensive at 3x
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let lastFrame = 0;
   let score = 0;
   let level = 1;
   let lives = 3;
@@ -88,11 +94,14 @@
     }
   });
 
+  // W/H are CSS pixels; the backing store is scaled by dpr for sharp edges
   function resizeCanvas() {
     if (!canvas) return;
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    paddle.x = (canvas.width - paddle.width) / 2;
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    paddle.x = (W - paddle.width) / 2;
   }
 
   // --- Input Handlers ---
@@ -109,14 +118,14 @@
   }
   function mouseMoveHandler(e) {
     const relativeX = e.clientX;
-    if (relativeX > 0 && relativeX < canvas.width) {
+    if (relativeX > 0 && relativeX < W) {
       paddle.x = relativeX - paddle.width / 2;
     }
   }
   function touchMoveHandler(e) {
     e.preventDefault();
     const relativeX = e.touches[0].clientX;
-    if (relativeX > 0 && relativeX < canvas.width) {
+    if (relativeX > 0 && relativeX < W) {
       paddle.x = relativeX - paddle.width / 2;
     }
   }
@@ -153,10 +162,10 @@
     // Calculate cols based on width
     const brickWidth = 60;
     const colCount = Math.floor(
-      (canvas.width - 2 * BRICK_OFFSET_LEFT) / (brickWidth + BRICK_PADDING),
+      (W - 2 * BRICK_OFFSET_LEFT) / (brickWidth + BRICK_PADDING),
     );
     const startX =
-      (canvas.width - colCount * (brickWidth + BRICK_PADDING)) / 2 +
+      (W - colCount * (brickWidth + BRICK_PADDING)) / 2 +
       BRICK_PADDING / 2;
 
     for (let c = 0; c < colCount; c++) {
@@ -316,7 +325,7 @@
       // Level Cleared
       isLevelClearing = true;
       level++;
-      createParticles(canvas.width / 2, canvas.height / 2, "#ffffff", 50);
+      createParticles(W / 2, H / 2, "#ffffff", 50);
       lives++;
       setTimeout(() => {
         initLevel();
@@ -339,12 +348,12 @@
     }
   }
 
-  function updateParticles() {
+  function updateParticles(k) {
     for (let i = particles.length - 1; i >= 0; i--) {
       let p = particles[i];
-      p.x += p.vx;
-      p.y += p.vy;
-      p.life -= 0.03;
+      p.x += p.vx * k;
+      p.y += p.vy * k;
+      p.life -= 0.03 * k;
       if (p.life <= 0) {
         particles.splice(i, 1);
       }
@@ -362,17 +371,17 @@
   function spawnBall(x, y, dx, dy) {
     const speed = 4 + level * 0.4; // Decreased speed
     // Calculate spawn Y to be above the raised paddle
-    const defaultY = canvas.height - PADDLE_BOTTOM_MARGIN - PADDLE_HEIGHT - 20;
+    const defaultY = H - PADDLE_BOTTOM_MARGIN - PADDLE_HEIGHT - 20;
 
     balls.push({
-      x: x || canvas.width / 2,
+      x: x || W / 2,
       y: y || defaultY,
       dx: dx || speed * (Math.random() > 0.5 ? 1 : -1),
       dy: dy || -speed,
       radius: BALL_RADIUS,
       color: "#ffffff",
     });
-    paddle.x = (canvas.width - paddle.width) / 2;
+    paddle.x = (W - paddle.width) / 2;
   }
 
   function spawnMultiBalls(x, y) {
@@ -392,8 +401,15 @@
   // ... (omitted) ...
 
   function draw() {
+    // Movement is tuned for 60fps; scale by elapsed time so 120Hz screens
+    // don't double the speed (clamped so a resumed tab doesn't jump)
+    const now = performance.now();
+    const k = lastFrame ? Math.min((now - lastFrame) / (1000 / 60), 2) : 1;
+    lastFrame = now;
+
     // Clear Canvas with Shake logic
     ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.save();
 
     // Apply Shake
@@ -406,11 +422,11 @@
     }
 
     // Clear wider area to handle shake offset
-    ctx.clearRect(-10, -10, canvas.width + 20, canvas.height + 20);
+    ctx.clearRect(-10, -10, W + 20, H + 20);
 
     // Update Paddle
-    if (rightPressed && paddle.x < canvas.width - paddle.width) paddle.x += 9;
-    else if (leftPressed && paddle.x > 0) paddle.x -= 9;
+    if (rightPressed && paddle.x < W - paddle.width) paddle.x += 9 * k;
+    else if (leftPressed && paddle.x > 0) paddle.x -= 9 * k;
 
     // --- Draw Bricks ---
     bricks.forEach((b) => {
@@ -440,7 +456,7 @@
     ctx.beginPath();
     ctx.rect(
       paddle.x,
-      canvas.height - PADDLE_HEIGHT - PADDLE_BOTTOM_MARGIN,
+      H - PADDLE_HEIGHT - PADDLE_BOTTOM_MARGIN,
       paddle.width,
       PADDLE_HEIGHT,
     );
@@ -467,12 +483,12 @@
         ctx.shadowBlur = 0;
 
         // Movement
-        ball.x += ball.dx;
-        ball.y += ball.dy;
+        ball.x += ball.dx * k;
+        ball.y += ball.dy * k;
 
         // Wall Collision
         if (
-          ball.x + ball.dx > canvas.width - ball.radius ||
+          ball.x + ball.dx > W - ball.radius ||
           ball.x + ball.dx < ball.radius
         ) {
           ball.dx = -ball.dx;
@@ -481,20 +497,20 @@
           ball.dy = -ball.dy;
         } else if (
           ball.y + ball.dy >
-          canvas.height - ball.radius - PADDLE_HEIGHT - PADDLE_BOTTOM_MARGIN + 5
+          H - ball.radius - PADDLE_HEIGHT - PADDLE_BOTTOM_MARGIN + 5
         ) {
           // Paddle Collision
           if (
             ball.x > paddle.x &&
             ball.x < paddle.x + paddle.width &&
-            ball.y < canvas.height - PADDLE_BOTTOM_MARGIN
+            ball.y < H - PADDLE_BOTTOM_MARGIN
           ) {
             ball.dy = -ball.dy;
             // Add some horizontal variation based on hit position
             const hitPoint = ball.x - (paddle.x + paddle.width / 2);
             ball.dx = hitPoint * 0.15;
             playPop();
-          } else if (ball.y > canvas.height - ball.radius) {
+          } else if (ball.y > H - ball.radius) {
             // Ball lost
             balls.splice(i, 1);
           }
@@ -502,7 +518,7 @@
       }
 
       collisionDetection();
-      updateParticles();
+      updateParticles(k);
 
       // Death Condition: No balls left AND not processing special event
       if (balls.length === 0 && !isProcessingBlackHole && !isLevelClearing) {
@@ -556,21 +572,25 @@
   </div>
 
   <!-- Canvas Game Layer -->
-  <canvas bind:this={canvas} class="absolute inset-0 z-10 block"></canvas>
+  <canvas bind:this={canvas} class="absolute inset-0 z-10 block w-full h-full"></canvas>
 
   <!-- UI Layer -->
   <div
-    class="absolute inset-0 z-20 pointer-events-none p-4 flex flex-col justify-between"
+    class="absolute inset-0 z-40 pointer-events-none px-4 flex flex-col justify-between"
+    style="padding-top: max(1rem, env(safe-area-inset-top)); padding-bottom: max(1rem, env(safe-area-inset-bottom));"
   >
     <!-- Top HUD -->
     <div class="flex justify-between items-start text-white drop-shadow-lg">
-      <div class="flex flex-col">
-        <span class="text-xs text-gray-400 font-bold uppercase">레벨</span>
-        <span class="text-3xl font-black text-yellow-400">{level}</span>
+      <div class="flex items-start gap-3">
+        <GameExitButton class="pointer-events-auto bg-white/10 text-gray-300 border border-white/15" />
+        <div class="flex flex-col">
+          <span class="text-xs text-gray-400 font-bold uppercase">레벨</span>
+          <span class="text-3xl font-black text-yellow-400">{level}</span>
+        </div>
       </div>
       <div class="flex flex-col items-end">
         <span class="text-xs text-gray-400 font-bold uppercase">점수</span>
-        <span class="text-3xl font-black text-cyan-400">{score}</span>
+        <span class="text-3xl font-black text-cyan-400">{score.toLocaleString()}</span>
       </div>
     </div>
 
@@ -587,21 +607,22 @@
 
   <!-- Overlay Screens -->
   {#if !isGameStarted && !isGameOver}
-    <div
-      class="absolute inset-0 z-30 flex items-center justify-center bg-black/60 backdrop-blur-sm pointer-events-auto"
+    <button
+      type="button"
+      class="absolute inset-0 z-30 w-full flex items-center justify-center bg-black/60 backdrop-blur-sm pointer-events-auto"
       on:click={launchGame}
     >
-      <div class="text-center animate-bounce">
-        <p
-          class="text-cyan-400 text-lg font-bold mb-2 uppercase tracking-widest"
+      <span class="block text-center animate-bounce">
+        <span
+          class="block text-cyan-400 text-lg font-bold mb-2 uppercase tracking-widest"
         >
           터치하여 시작
-        </p>
-        <div class="text-white text-opacity-50 text-sm">
+        </span>
+        <span class="block text-white text-opacity-50 text-sm">
           화면을 드래그하여 패들을 움직이세요
-        </div>
-      </div>
-    </div>
+        </span>
+      </span>
+    </button>
   {/if}
 
   {#if isGameOver}
@@ -616,7 +637,7 @@
           GAME OVER
         </h2>
         <p class="text-gray-400 mb-8">도달한 레벨: {level}</p>
-        <div class="text-3xl font-bold text-white mb-8">최종 점수: {score}</div>
+        <div class="text-3xl font-bold text-white mb-8">최종 점수: {score.toLocaleString()}</div>
 
         <button
           on:click={restartGame}
