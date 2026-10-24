@@ -1,6 +1,7 @@
 <script>
   import { onMount, onDestroy, tick } from "svelte";
   import { gameStore, base } from "../lib/store.js";
+  import GameExitButton from "../lib/components/GameExitButton.svelte";
   import { generateStage } from "../lib/neon/blast/StageData.js";
   import {
     initPhysics,
@@ -65,6 +66,13 @@
     stopPersistentSounds();
     currentStageData = generateStage($gameStore.currentLevel);
     initPhysics(currentStageData);
+  }
+
+  function backToTitle() {
+    cancelAnimationFrame(frame);
+    stopPersistentSounds();
+    if (bgmAudio) bgmAudio.pause();
+    isStarted = false;
   }
 
   function loop() {
@@ -260,6 +268,9 @@
   class="flex flex-col items-center w-full h-full md:h-auto md:min-h-screen bg-[#050505] text-white select-none font-sans relative overflow-hidden md:overflow-y-auto"
 >
   {#if !isStarted}
+    <div class="absolute top-4 left-4 z-20">
+      <GameExitButton />
+    </div>
     <div
       class="flex flex-col items-center justify-center min-h-[100dvh] w-full px-6 py-20 z-10"
     >
@@ -287,14 +298,17 @@
     <header
       class="w-full max-w-[500px] px-5 py-1 flex justify-between items-center bg-gray-900/60 backdrop-blur-md border-b border-white/10 shrink-0 z-20"
     >
-      <div class="flex flex-col">
-        <span
-          class="text-[10px] text-cyan-400 font-bold uppercase tracking-widest leading-none"
-          >Stage {$gameStore.currentLevel}</span
-        >
-        <p class="text-2xl font-black italic text-white mt-1">
-          {$gameStore.ballsLeft}
-        </p>
+      <div class="flex items-center gap-3">
+        <GameExitButton />
+        <div class="flex flex-col">
+          <span
+            class="text-[10px] text-cyan-400 font-bold uppercase tracking-widest leading-none"
+            >Stage {$gameStore.currentLevel}</span
+          >
+          <p class="text-2xl font-black italic text-white mt-1">
+            {$gameStore.ballsLeft}
+          </p>
+        </div>
       </div>
       <button
         on:click={() => {
@@ -374,9 +388,9 @@
                 >
               {/if}
               <button
-                on:click={() => location.reload()}
+                on:click={backToTitle}
                 class="w-full py-3 bg-gray-800 rounded-full font-black text-lg border border-gray-600 active:scale-95"
-                >메인 메뉴</button
+                >처음 화면</button
               >
             </div>
           </div>

@@ -4,6 +4,7 @@
   import { quintOut, bounceOut } from "svelte/easing";
   import { base } from "../lib/store.js";
   import { audioManager } from "../lib/audioManager.js";
+  import GameExitButton from "../lib/components/GameExitButton.svelte";
   import {
     createGrid,
     getConnectedGroup,
@@ -174,12 +175,17 @@
   class="flex flex-col items-center justify-between w-full h-[100dvh] bg-slate-50 dark:bg-gray-900 px-0 py-2 select-none overflow-hidden font-sans"
 >
   <div class="w-full max-w-xs space-y-1.5 px-4 pt-1">
-    <div
-      class="text-center bg-indigo-600 text-white py-1 rounded-full shadow-md"
-    >
-      <p class="text-[11px] font-black italic">
-        🍎 2개 이상 연결된 과일을 터치!
-      </p>
+    <div class="flex items-center gap-2">
+      <GameExitButton
+        class="bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-300 shadow-md"
+      />
+      <div
+        class="flex-1 text-center bg-indigo-600 text-white py-1 rounded-full shadow-md"
+      >
+        <p class="text-[11px] font-black italic">
+          🍎 2개 이상 연결된 과일을 터치!
+        </p>
+      </div>
     </div>
 
     <!-- Compact Score Board -->

@@ -2,6 +2,7 @@
   import { onMount, onDestroy } from "svelte";
   import { fade, fly } from "svelte/transition";
   import { base } from "../lib/store.js";
+  import GameExitButton from "../lib/components/GameExitButton.svelte";
 
   // --- Game Constants ---
   const BALL_RADIUS = 8;
@@ -560,13 +561,16 @@
 
   <!-- UI Layer -->
   <div
-    class="absolute inset-0 z-20 pointer-events-none p-4 flex flex-col justify-between"
+    class="absolute inset-0 z-40 pointer-events-none p-4 flex flex-col justify-between"
   >
     <!-- Top HUD -->
     <div class="flex justify-between items-start text-white drop-shadow-lg">
-      <div class="flex flex-col">
-        <span class="text-xs text-gray-400 font-bold uppercase">레벨</span>
-        <span class="text-3xl font-black text-yellow-400">{level}</span>
+      <div class="flex items-start gap-3">
+        <GameExitButton class="pointer-events-auto bg-white/10 text-gray-300 border border-white/15" />
+        <div class="flex flex-col">
+          <span class="text-xs text-gray-400 font-bold uppercase">레벨</span>
+          <span class="text-3xl font-black text-yellow-400">{level}</span>
+        </div>
       </div>
       <div class="flex flex-col items-end">
         <span class="text-xs text-gray-400 font-bold uppercase">점수</span>

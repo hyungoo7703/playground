@@ -5,6 +5,7 @@
     import { get } from "svelte/store";
     import { fade, fly, scale } from "svelte/transition";
     import { GameEngine } from "../lib/neon/survivor/core/GameEngine.js";
+    import GameExitButton from "../lib/components/GameExitButton.svelte";
     import {
         SHOP_ITEMS,
         WEAPONS,
@@ -331,6 +332,12 @@
             class="absolute inset-0 flex flex-col items-center justify-center bg-black/80 z-50 text-white gap-8"
             transition:fade
         >
+            <div
+                class="absolute left-4"
+                style="top: max(1rem, env(safe-area-inset-top) + 0.5rem);"
+            >
+                <GameExitButton />
+            </div>
             <h1
                 class="text-4xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 neon-text text-center px-4"
             >
@@ -477,6 +484,36 @@
                 />
             </svg>
         </button>
+    {/if}
+
+    {#if gameState === "paused"}
+        <div
+            class="absolute inset-0 bg-black/70 z-[80] flex flex-col items-center justify-center gap-4 text-white backdrop-blur-sm"
+            transition:fade={{ duration: 150 }}
+        >
+            <h2 class="text-4xl font-black mb-4">일시정지</h2>
+            <button
+                on:click={togglePause}
+                class="w-56 py-4 bg-cyan-500 hover:bg-cyan-400 text-black font-black text-xl rounded-full shadow-lg active:scale-95 transition-all"
+            >
+                계속하기
+            </button>
+            <button
+                on:click={() => {
+                    gameState = "start";
+                    engine.restart();
+                }}
+                class="w-56 py-3 bg-gray-800 border border-gray-600 font-bold rounded-full active:scale-95 transition-all"
+            >
+                포기하고 로비로
+            </button>
+            <button
+                on:click={() => navigate(`${base}/menu`)}
+                class="w-56 py-3 text-gray-300 font-bold rounded-full active:scale-95 transition-all"
+            >
+                게임 나가기
+            </button>
+        </div>
     {/if}
 
     <!-- Level Up Modal (FIXED SIZE) -->
