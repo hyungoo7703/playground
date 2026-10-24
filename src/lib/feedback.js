@@ -19,6 +19,10 @@ export const confirmState = writable(null);
 
 export function confirmDialog(message, { confirmText = "확인", danger = false } = {}) {
   return new Promise((resolve) => {
-    confirmState.set({ message, confirmText, danger, resolve });
+    // A newer confirm replaces an open one; settle the old caller as cancelled
+    confirmState.update((prev) => {
+      prev?.resolve(false);
+      return { message, confirmText, danger, resolve };
+    });
   });
 }

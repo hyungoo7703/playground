@@ -1,7 +1,7 @@
 <script context="module">
   // Shared across instances: nested modals lock scroll once and only the
-  // topmost one reacts to Escape
-  let depth = 0;
+  // topmost one reacts to Escape, even if a lower one closes first
+  const stack = [];
 </script>
 
 <script>
@@ -15,23 +15,23 @@
 
   const dispatch = createEventDispatcher();
   let panel;
-  let myDepth;
+  const id = {};
 
   onMount(() => {
     const prevFocus = document.activeElement;
-    myDepth = ++depth;
-    if (depth === 1) document.body.style.overflow = "hidden";
+    stack.push(id);
+    document.body.style.overflow = "hidden";
     panel.focus({ preventScroll: true });
 
     return () => {
-      depth--;
-      if (depth === 0) document.body.style.overflow = "";
+      stack.splice(stack.indexOf(id), 1);
+      if (stack.length === 0) document.body.style.overflow = "";
       prevFocus?.focus?.({ preventScroll: true });
     };
   });
 
   function onKeydown(e) {
-    if (e.key === "Escape" && myDepth === depth) dispatch("close");
+    if (e.key === "Escape" && stack[stack.length - 1] === id) dispatch("close");
   }
 </script>
 

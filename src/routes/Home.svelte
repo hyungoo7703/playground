@@ -6,12 +6,17 @@
   import { api } from "../lib/api.js";
   import { formatDate } from "../lib/utils.js";
   import { readCache, writeCache } from "../lib/cache.js";
+  import { toast } from "../lib/feedback.js";
   let isButlerOpen = false;
   // The butler pulls in marked + DOMPurify; load it on first open
   let FamilyButlerModal = null;
   async function openButler() {
-    FamilyButlerModal ??= (await import("../lib/components/FamilyButlerModal.svelte")).default;
-    isButlerOpen = true;
+    try {
+      FamilyButlerModal ??= (await import("../lib/components/FamilyButlerModal.svelte")).default;
+      isButlerOpen = true;
+    } catch {
+      toast("AI 집사를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.", "error");
+    }
   }
 
   let monthlyEvents = [];
