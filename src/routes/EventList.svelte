@@ -184,18 +184,14 @@
 
   // Refreshed when events load or the push picker opens, so it doesn't go stale past midnight
   let todayStr = formatDate(new Date());
-  $: upcomingEvents = events.filter((e) => e.date >= todayStr);
-  // Push picker: upcoming first (nearest on top), then past events newest first
-  $: pushCandidates = [
-    ...upcomingEvents,
-    ...events.filter((e) => e.date < todayStr).reverse(),
-  ];
-  $: nearestUpcomingEvent =
-    upcomingEvents.length > 0
-      ? upcomingEvents[0]
-      : events.length > 0
-        ? events[events.length - 1]
-        : null;
+  // Push targets: only today and later, nearest first. Sorted here because
+  // the cached list written by Home isn't sorted.
+  const getUpcoming = (list, today) =>
+    list
+      .filter((e) => e.date >= today)
+      .sort((a, b) => a.date.localeCompare(b.date));
+  $: upcomingEvents = getUpcoming(events, todayStr);
+  $: nearestUpcomingEvent = upcomingEvents[0] ?? null;
 
   function generateEventPushMessage(event) {
     if (!event)
@@ -222,11 +218,9 @@
     } else if (diffDays === 2) {
       timingPhrase = `모레는 '${event.title}' 날이에요! 🗓️`;
       pushTitle = `[다가오는 가족 일정] 📅`;
-    } else if (diffDays > 2) {
+    } else {
       timingPhrase = `${diffDays}일 뒤(${event.date.slice(5)})는 '${event.title}' 날이에요! 🗓️`;
       pushTitle = `[다가오는 가족 일정] 📅`;
-    } else {
-      timingPhrase = `'${event.title}' (${event.date.slice(5)}) 일정이 있습니다!`;
     }
 
     return {
@@ -237,12 +231,12 @@
   }
 
   function openEventPushModal() {
-    todayStr = formatDate(new Date());
     if (!$isAdmin) return toast("관리자만 일정을 푸쉬할 수 있습니다.", "info");
-    if (events.length === 0) return toast("등록된 일정이 없습니다.", "info");
-    selectedPushEventId = nearestUpcomingEvent
-      ? nearestUpcomingEvent.id
-      : events[0]?.id;
+    todayStr = formatDate(new Date());
+    // upcomingEvents only recomputes after this handler, so filter here
+    const nearest = getUpcoming(events, todayStr)[0];
+    if (!nearest) return toast("알림을 보낼 다가오는 일정이 없습니다.", "info");
+    selectedPushEventId = nearest.id;
     showEventPushModal = true;
   }
 
@@ -704,7 +698,7 @@
             알림 보낼 일정 선택
           </span>
           <div class="space-y-2">
-            {#each pushCandidates as ev}
+            {#each upcomingEvents as ev}
               {@const msg = generateEventPushMessage(ev)}
               <button
                 type="button"
