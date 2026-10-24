@@ -6,6 +6,7 @@
     import { api } from "../lib/api.js";
     import { formatDate } from "../lib/utils.js";
     import { readCache, writeCache } from "../lib/cache.js";
+    import Modal from "../lib/components/Modal.svelte";
 
     let attendance = [];
     let ledgerItems = [];
@@ -911,123 +912,102 @@
 
 <!-- Reward Use Modal -->
 {#if showUseRewardModal}
-    <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
-    <div
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-        role="dialog"
-        tabindex="-1"
-        aria-modal="true"
-        aria-label="보상 사용 모달"
-        on:click|self={() => (showUseRewardModal = false)}
-        on:keydown={(e) => e.key === "Escape" && (showUseRewardModal = false)}
-        transition:fade={{ duration: 200 }}
+    <Modal
+        label="보상 사용하기"
+        class="max-w-sm p-6"
+        on:close={() => (showUseRewardModal = false)}
     >
-        <div
-            class="w-full max-w-sm bg-white dark:bg-gray-800 rounded-[2rem] p-6 shadow-2xl"
-            in:scale={{ duration: 300, start: 0.9 }}
-        >
-            <h3 class="text-xl font-black text-gray-900 dark:text-white mb-1">
-                보상 사용하기 🎁
-            </h3>
-            <p class="text-sm text-gray-500 mb-5">
-                잔액: <span class="font-bold text-amber-600"
-                    >{rewardBalance.toLocaleString()}원</span
-                >
-            </p>
+        <h3 class="text-xl font-black text-gray-900 dark:text-white mb-1">
+            보상 사용하기 🎁
+        </h3>
+        <p class="text-sm text-gray-500 mb-5">
+            잔액: <span class="font-bold text-amber-600"
+                >{rewardBalance.toLocaleString()}원</span
+            >
+        </p>
 
-            <div class="space-y-3">
-                <input
-                    type="number"
-                    bind:value={useAmount}
-                    placeholder="사용할 금액 (예: 500)"
-                    class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-2xl text-lg font-black focus:outline-none focus:ring-2 focus:ring-rose-400 dark:text-white"
-                />
-                <input
-                    type="text"
-                    bind:value={useDescription}
-                    placeholder="사용 목적 (예: 커피값)"
-                    class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-rose-400 dark:text-white"
-                />
-            </div>
-
-            <div class="flex gap-3 mt-5">
-                <button
-                    on:click={() => (showUseRewardModal = false)}
-                    class="flex-1 py-3 rounded-xl font-bold text-gray-500 bg-gray-100 dark:bg-gray-700 active:scale-95 transition-all"
-                >
-                    취소
-                </button>
-                <button
-                    on:click={submitUseReward}
-                    disabled={isUseSubmitting}
-                    class="flex-1 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-rose-500 to-pink-500 active:scale-95 transition-all shadow-lg disabled:opacity-50"
-                >
-                    {#if isUseSubmitting}
-                        <span
-                            class="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"
-                        ></span>
-                    {:else}
-                        사용하기
-                    {/if}
-                </button>
-            </div>
+        <div class="space-y-3">
+            <input
+                type="number"
+                bind:value={useAmount}
+                placeholder="사용할 금액 (예: 500)"
+                class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-2xl text-lg font-black focus:outline-none focus:ring-2 focus:ring-rose-400 dark:text-white"
+            />
+            <input
+                type="text"
+                bind:value={useDescription}
+                placeholder="사용 목적 (예: 커피값)"
+                class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-rose-400 dark:text-white"
+            />
         </div>
-    </div>
+
+        <div class="flex gap-3 mt-5">
+            <button
+                on:click={() => (showUseRewardModal = false)}
+                class="flex-1 py-3 rounded-xl font-bold text-gray-500 bg-gray-100 dark:bg-gray-700 active:scale-95 transition-all"
+            >
+                취소
+            </button>
+            <button
+                on:click={submitUseReward}
+                disabled={isUseSubmitting}
+                class="flex-1 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-rose-500 to-pink-500 active:scale-95 transition-all shadow-lg disabled:opacity-50"
+            >
+                {#if isUseSubmitting}
+                    <span
+                        class="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"
+                    ></span>
+                {:else}
+                    사용하기
+                {/if}
+            </button>
+        </div>
+    </Modal>
 {/if}
 
 <!-- 100-Day Streak Celebration Modal -->
 {#if show100Modal}
-    <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
-    <div
-        class="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-md p-4"
-        role="dialog"
-        tabindex="-1"
-        aria-modal="true"
-        aria-label="100일 연속 출석 축하 모달"
-        on:click|self={() => (show100Modal = false)}
-        on:keydown={(e) => e.key === "Escape" && (show100Modal = false)}
-        transition:fade={{ duration: 300 }}
+    <Modal
+        label="100일 연속 출석 축하"
+        z="z-[70]"
+        class="max-w-sm p-8 text-center bg-gradient-to-b from-amber-50 to-white dark:from-gray-800 dark:to-gray-900"
+        on:close={() => (show100Modal = false)}
     >
-        <div
-            class="w-full max-w-sm bg-gradient-to-b from-amber-50 to-white dark:from-gray-800 dark:to-gray-900 rounded-[2.5rem] p-8 shadow-2xl text-center"
-            in:scale={{ duration: 500, start: 0.5 }}
+        <div class="text-6xl mb-4 animate-bounce">🎉</div>
+        <h3 class="text-2xl font-black text-gray-900 dark:text-white mb-2">
+            축하합니다! 🏆
+        </h3>
+        <p
+            class="text-lg font-bold text-amber-600 dark:text-amber-400 mb-1"
         >
-            <div class="text-6xl mb-4 animate-bounce">🎉</div>
-            <h3 class="text-2xl font-black text-gray-900 dark:text-white mb-2">
-                축하합니다! 🏆
-            </h3>
-            <p
-                class="text-lg font-bold text-amber-600 dark:text-amber-400 mb-1"
-            >
-                100일 연속 출석 달성!
-            </p>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                대단한 끈기에요! 🔥<br />특별 보상으로 용돈카드 뽑기 기회를
-                드려요! <br />따로 저장되지 않기 때문에
-                <b>현구를 호출하세요!</b>
-            </p>
+            100일 연속 출석 달성!
+        </p>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
+            대단한 끈기에요! 🔥<br />특별 보상으로 용돈카드 뽑기 기회를
+            드려요! <br />따로 저장되지 않기 때문에
+            <b>현구를 호출하세요!</b>
+        </p>
 
-            <div class="flex flex-col gap-3">
-                <button
-                    on:click={() => {
-                        show100Modal = false;
-                        localStorage.setItem(cardPickKey, "used");
-                        cardPickAvailable = false;
-                        navigate(`${base}/card-pick`);
-                    }}
-                    class="w-full py-4 rounded-2xl font-black text-white text-lg bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 active:scale-95 transition-all shadow-lg"
-                >
-                    🃏 용돈카드 뽑으러 가기!
-                </button>
-                <button
-                    on:click={() => (show100Modal = false)}
-                    class="w-full py-3 rounded-2xl font-bold text-gray-400 bg-gray-100 dark:bg-gray-700 active:scale-95 transition-all"
-                >
-                    나중에
-                </button>
-            </div>
+        <div class="flex flex-col gap-3">
+            <button
+                on:click={() => {
+                    show100Modal = false;
+                    localStorage.setItem(cardPickKey, "used");
+                    cardPickAvailable = false;
+                    navigate(`${base}/card-pick`);
+                }}
+                class="w-full py-4 rounded-2xl font-black text-white text-lg bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 active:scale-95 transition-all shadow-lg"
+            >
+                🃏 용돈카드 뽑으러 가기!
+            </button>
+            <button
+                on:click={() => (show100Modal = false)}
+                class="w-full py-3 rounded-2xl font-bold text-gray-400 bg-gray-100 dark:bg-gray-700 active:scale-95 transition-all"
+            >
+                나중에
+            </button>
         </div>
-    </div>
+    </Modal>
 {/if}
 
 <!-- Toast -->

@@ -280,16 +280,19 @@ ${eventsStr}
   }
 </script>
 
+<svelte:window on:keydown={(e) => isOpen && e.key === "Escape" && handleClose()} />
+
 {#if isOpen}
   <!-- Full Screen on Mobile, Centered Modal on Tablet/Desktop -->
   <div
     class="fixed inset-0 z-50 bg-white dark:bg-gray-900 sm:bg-black/60 sm:backdrop-blur-sm transition-opacity flex items-center justify-center p-0 sm:p-4"
     transition:fade={{ duration: 150 }}
-    on:keydown={(e) => e.key === 'Escape' && handleClose()}
-    role="presentation"
   >
     <!-- Main Chat Window (100% full viewport height on mobile, 720px on desktop) -->
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="우리집 AI 집사"
       class="w-full h-[100dvh] sm:h-[720px] sm:max-w-xl bg-white dark:bg-gray-900 rounded-none sm:rounded-[2rem] shadow-2xl flex flex-col overflow-hidden sm:border border-gray-100 dark:border-gray-800"
       transition:fly={{ y: 150, duration: 200 }}
     >
@@ -315,8 +318,8 @@ ${eventsStr}
           <button
             type="button"
             on:click={handleClose}
-            class="p-2 text-white/80 hover:text-white hover:bg-white/20 rounded-xl transition-all text-sm font-bold w-9 h-9 flex items-center justify-center"
-            title="닫기"
+            class="text-white/80 hover:text-white hover:bg-white/20 rounded-xl transition-all text-sm font-bold w-10 h-10 flex items-center justify-center"
+            aria-label="닫기"
           >
             ✕
           </button>
@@ -340,6 +343,7 @@ ${eventsStr}
       <!-- Messages Area (Full Height Scrollable) -->
       <div
         bind:this={chatContainer}
+        aria-live="polite"
         class="flex-1 p-4 overflow-y-auto overscroll-contain space-y-4 bg-gray-50/50 dark:bg-gray-900/50"
       >
         {#each messages as msg, idx}
