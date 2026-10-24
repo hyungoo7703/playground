@@ -423,8 +423,8 @@
                     <button
                         type="button"
                         on:click={togglePause}
-                        class="pointer-events-auto w-9 h-9 sm:w-11 sm:h-11 bg-white/15 hover:bg-white/25 active:scale-95 rounded-full flex items-center justify-center text-white text-sm sm:text-base backdrop-blur-md border border-white/20 shadow-lg transition-all"
-                        aria-label="일시정지"
+                        class="pointer-events-auto w-10 h-10 sm:w-11 sm:h-11 bg-white/15 hover:bg-white/25 active:scale-95 rounded-full flex items-center justify-center text-white text-sm sm:text-base backdrop-blur-md border border-white/20 shadow-lg transition-all"
+                        aria-label={gameState === "paused" ? "계속하기" : "일시정지"}
                     >
                         {#if gameState === "paused"}▶{:else}⏸{/if}
                     </button>
@@ -458,6 +458,7 @@
         <!-- Use Ultimate -->
         <button
             on:click={activateUltimate}
+            aria-label="필살기"
             class="absolute bottom-8 right-8 w-24 h-24 rounded-full flex items-center justify-center transition-all duration-200 active:scale-95 shadow-xl border-4 border-white/20 z-40 {uiState.ultimateGauge >=
             ULTIMATE_MAX
                 ? 'bg-gradient-to-br from-red-500 to-orange-600 animate-pulse cursor-pointer'
@@ -570,19 +571,20 @@
             class="absolute inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center p-8"
         >
             {#if gachaState === "shaking"}
-                <div
+                <button
+                    type="button"
                     class="animate-bounce-wild cursor-pointer"
                     on:click={() => (gachaState = "revealed")}
                 >
-                    <div
-                        class="text-9xl mb-4 animate-shake text-center select-none"
+                    <span
+                        class="block text-9xl mb-4 animate-shake text-center select-none"
                     >
                         📦
-                    </div>
-                    <p class="text-white text-center animate-pulse">
+                    </span>
+                    <span class="block text-white text-center animate-pulse">
                         Tap to open!
-                    </p>
-                </div>
+                    </span>
+                </button>
             {:else if gachaState === "revealed"}
                 <div
                     class="text-center flex flex-col items-center animate-scale-in"

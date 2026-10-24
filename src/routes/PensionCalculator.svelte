@@ -8,7 +8,7 @@
 
   $: taxRate = salaryCondition === "low" ? 16.5 : 13.2;
   $: refundableAmount = Math.floor(
-    Math.min(annualContribution, LIMIT) * (taxRate / 100),
+    Math.min(Math.max(0, annualContribution || 0), LIMIT) * (taxRate / 100),
   );
 
   // --- 2. 복리 수익률 계산 로직 ---
@@ -21,16 +21,17 @@
   let interestEarned = 0;
 
   function calculateROI() {
+    const invest = Math.max(0, monthlyInvest || 0);
     let months = investYears * 12;
-    let monthlyRate = expectedRate / 100 / 12;
+    let monthlyRate = (expectedRate || 0) / 100 / 12;
 
     let current = 0;
     for (let i = 0; i < months; i++) {
-      current = (current + monthlyInvest) * (1 + monthlyRate);
+      current = (current + invest) * (1 + monthlyRate);
     }
 
     finalAsset = Math.floor(current);
-    totalPrincipal = monthlyInvest * months;
+    totalPrincipal = invest * months;
     interestEarned = finalAsset - totalPrincipal;
   }
 
@@ -156,6 +157,8 @@
               id="annual-contrib"
               type="number"
               bind:value={annualContribution}
+              min="0"
+              inputmode="numeric"
               step="100000"
               class="w-full p-3.5 pr-12 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-base font-bold text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
             />
@@ -192,6 +195,8 @@
               id="monthly-invest"
               type="number"
               bind:value={monthlyInvest}
+              min="0"
+              inputmode="numeric"
               step="50000"
               class="w-full p-3.5 pr-12 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-base font-bold text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
             />

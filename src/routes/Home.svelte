@@ -434,7 +434,7 @@
       </h2>
       <button
         on:click={() => navigateTo("events")}
-        class="text-xs font-bold text-indigo-600">전체보기</button
+        class="text-xs font-bold text-indigo-600 dark:text-indigo-400 px-2 py-2 -my-2 -mr-2">전체보기</button
       >
     </div>
 
@@ -554,8 +554,8 @@
               <button
                 type="button"
                 on:click={() => handleDeleteKnowledge(item)}
-                class="text-gray-400 hover:text-red-500 transition-colors p-0.5 rounded ml-0.5"
-                title="메모 삭제"
+                class="w-6 h-6 -my-1 -mr-1.5 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors rounded"
+                aria-label="메모 삭제"
               >
                 ✕
               </button>
@@ -569,6 +569,7 @@
         <input
           type="text"
           bind:value={newKnowledgeText}
+          aria-label="AI 집사용 가족 메모"
           placeholder="예: 엄마 매운음식 못드심, 분리수거 화요일"
           class="flex-1 min-w-0 px-3.5 py-2.5 bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-xl text-xs sm:text-sm border border-indigo-100 dark:border-indigo-900/60 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-inner"
         />
@@ -587,7 +588,8 @@
   <button
     type="button"
     on:click={() => (isButlerOpen = true)}
-    class="fixed bottom-24 right-5 sm:right-8 z-50 bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white pl-3.5 pr-4 py-3 rounded-full shadow-2xl flex items-center gap-2 border-2 border-white/20 active:scale-95 transition-all group"
+    style="bottom: calc(5rem + env(safe-area-inset-bottom)); right: max(1.25rem, calc(50% - 14rem + 1.25rem));"
+    class="fixed z-50 bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white pl-3.5 pr-4 py-3 rounded-full shadow-2xl flex items-center gap-2 border-2 border-white/20 active:scale-95 transition-all group"
     aria-label="우리집 AI 집사 열기"
     in:fade={{ duration: 400 }}
   >

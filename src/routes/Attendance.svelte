@@ -33,6 +33,9 @@
     $: currentYear = currentDate.getFullYear();
     $: currentMonth = currentDate.getMonth();
     $: monthName = currentDate.toLocaleString("ko-KR", { month: "long" });
+    $: isThisMonth =
+        currentYear === new Date().getFullYear() &&
+        currentMonth === new Date().getMonth();
     $: daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
     $: firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
     $: calendarDays = buildCalendarDays(daysInMonth, firstDayOfMonth);
@@ -687,6 +690,7 @@
         <div class="flex items-center justify-between mb-6">
             <button
                 on:click={prevMonth}
+                aria-label="이전 달"
                 class="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 active:scale-90 transition-all"
             >
                 <svg
@@ -707,7 +711,9 @@
             </h2>
             <button
                 on:click={nextMonth}
-                class="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 active:scale-90 transition-all"
+                disabled={isThisMonth}
+                aria-label="다음 달"
+                class="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 active:scale-90 transition-all disabled:opacity-30 disabled:active:scale-100"
             >
                 <svg
                     class="w-5 h-5"
@@ -926,12 +932,14 @@
             <input
                 type="number"
                 bind:value={useAmount}
+                aria-label="사용할 금액"
                 placeholder="사용할 금액 (예: 500)"
                 class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-2xl text-lg font-black focus:outline-none focus:ring-2 focus:ring-rose-400 dark:text-white"
             />
             <input
                 type="text"
                 bind:value={useDescription}
+                aria-label="사용 목적"
                 placeholder="사용 목적 (예: 커피값)"
                 class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-rose-400 dark:text-white"
             />

@@ -471,7 +471,8 @@
           <button
             type="button"
             on:click={prevMonth}
-            class="text-indigo-200 hover:text-white active:scale-75 transition-all p-1"
+            class="w-8 h-8 -my-1 flex items-center justify-center text-indigo-200 hover:text-white active:scale-75 transition-all"
+            aria-label="이전 달"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" />
@@ -483,7 +484,8 @@
           <button
             type="button"
             on:click={nextMonth}
-            class="text-indigo-200 hover:text-white active:scale-75 transition-all p-1"
+            class="w-8 h-8 -my-1 flex items-center justify-center text-indigo-200 hover:text-white active:scale-75 transition-all"
+            aria-label="다음 달"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
@@ -524,6 +526,7 @@
         <div class="flex items-center gap-1.5">
           <select
             bind:value={viewAsUser}
+            aria-label="기준 사용자"
             disabled={!$isAdmin}
             class="bg-black/25 text-indigo-100 text-xs font-bold py-1.5 px-2.5 rounded-xl border-none outline-none backdrop-blur-md"
           >
@@ -584,9 +587,12 @@
           ></div>
 
           <!-- Item Details -->
-          <div
-            class="pl-2 flex-1 {$isAdmin ? 'cursor-pointer' : ''}"
+          <svelte:element
+            this={$isAdmin ? "button" : "div"}
+            type={$isAdmin ? "button" : undefined}
+            class="pl-2 flex-1 min-w-0 text-left {$isAdmin ? 'cursor-pointer' : ''}"
             on:click={() => $isAdmin && openEditForm(item)}
+            role={$isAdmin ? undefined : "presentation"}
           >
             <div class="flex items-center gap-2 mb-1">
               <span class="text-[10px] font-black px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
@@ -610,12 +616,10 @@
               <span class="text-gray-300">→</span>
               <span>{item.receiver}</span>
               {#if $isAdmin}
-                <span class="text-[10px] text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity ml-1">
-                  ✏️ 수정
-                </span>
+                <span class="text-[10px] text-indigo-400 ml-1">✏️ 수정</span>
               {/if}
             </div>
-          </div>
+          </svelte:element>
 
           <!-- Amount & Settle Toggle -->
           <div class="flex flex-col items-end gap-1.5 text-right">
@@ -774,7 +778,7 @@
           type="button"
           on:click={handleSubmit}
           disabled={isSubmitting}
-          class="flex-1 py-3.5 font-black text-xs text-white bg-indigo-600 hover:bg-indigo-700 rounded-2xl shadow-md active:scale-95 transition-all"
+          class="flex-1 py-3.5 font-black text-xs text-white bg-indigo-600 hover:bg-indigo-700 rounded-2xl shadow-md active:scale-95 transition-all disabled:opacity-40"
         >
           {isSubmitting ? "저장 중..." : "저장하기"}
         </button>
@@ -799,7 +803,8 @@
         <button
           type="button"
           on:click={() => (showRuleModal = false)}
-          class="p-2 bg-gray-100 dark:bg-gray-700 rounded-full text-xs font-bold"
+          class="w-10 h-10 shrink-0 flex items-center justify-center bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 rounded-full text-sm font-bold"
+          aria-label="닫기"
         >
           ✕
         </button>
@@ -849,8 +854,8 @@
                 type="button"
                 disabled={deletingRuleId === rule.id}
                 on:click={() => handleDeleteRule(rule.id)}
-                class="p-2 text-gray-400 hover:text-rose-500 disabled:opacity-40 transition-colors text-xs flex items-center justify-center min-w-[28px]"
-                title="삭제"
+                class="w-10 h-10 shrink-0 text-gray-400 hover:text-rose-500 disabled:opacity-40 transition-colors text-sm flex items-center justify-center"
+                aria-label="고정 이체 삭제"
               >
                 {#if deletingRuleId === rule.id}
                   <svg class="animate-spin h-3.5 w-3.5 text-rose-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -881,6 +886,7 @@
               min="1"
               max="31"
               bind:value={newRuleDay}
+              aria-label="매월 이체일"
               class="w-7 text-center text-xs font-black bg-transparent text-gray-900 dark:text-white outline-none"
             />
             <span class="text-[10px] text-gray-400 font-bold">일</span>
@@ -888,6 +894,7 @@
           <input
             type="text"
             bind:value={newRuleTitle}
+            aria-label="내역 이름"
             placeholder="내역 이름 (예: 범수 정기입금)"
             class="flex-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 rounded-xl text-xs font-bold outline-none border border-gray-200 dark:border-gray-700"
           />
@@ -899,6 +906,7 @@
             <input
               type="text"
               bind:value={newRuleAmount}
+              aria-label="이체 금액"
               placeholder="이체 금액 입력"
               class="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2.5 rounded-xl text-xs font-black outline-none border border-gray-200 dark:border-gray-700 pr-8"
             />
@@ -908,28 +916,28 @@
             <button
               type="button"
               on:click={() => addRuleAmount(100000)}
-              class="flex-1 py-1 bg-white dark:bg-gray-800 text-[10px] font-bold text-gray-600 dark:text-gray-300 rounded-lg border border-gray-200 dark:border-gray-700 active:scale-95"
+              class="flex-1 py-2 bg-white dark:bg-gray-800 text-xs font-bold text-gray-600 dark:text-gray-300 rounded-lg border border-gray-200 dark:border-gray-700 active:scale-95"
             >
               +10만
             </button>
             <button
               type="button"
               on:click={() => addRuleAmount(300000)}
-              class="flex-1 py-1 bg-white dark:bg-gray-800 text-[10px] font-bold text-gray-600 dark:text-gray-300 rounded-lg border border-gray-200 dark:border-gray-700 active:scale-95"
+              class="flex-1 py-2 bg-white dark:bg-gray-800 text-xs font-bold text-gray-600 dark:text-gray-300 rounded-lg border border-gray-200 dark:border-gray-700 active:scale-95"
             >
               +30만
             </button>
             <button
               type="button"
               on:click={() => addRuleAmount(500000)}
-              class="flex-1 py-1 bg-white dark:bg-gray-800 text-[10px] font-bold text-gray-600 dark:text-gray-300 rounded-lg border border-gray-200 dark:border-gray-700 active:scale-95"
+              class="flex-1 py-2 bg-white dark:bg-gray-800 text-xs font-bold text-gray-600 dark:text-gray-300 rounded-lg border border-gray-200 dark:border-gray-700 active:scale-95"
             >
               +50만
             </button>
             <button
               type="button"
               on:click={() => addRuleAmount(1000000)}
-              class="flex-1 py-1 bg-white dark:bg-gray-800 text-[10px] font-bold text-gray-600 dark:text-gray-300 rounded-lg border border-gray-200 dark:border-gray-700 active:scale-95"
+              class="flex-1 py-2 bg-white dark:bg-gray-800 text-xs font-bold text-gray-600 dark:text-gray-300 rounded-lg border border-gray-200 dark:border-gray-700 active:scale-95"
             >
               +100만
             </button>
@@ -942,6 +950,7 @@
             <span class="text-[9px] font-bold text-gray-400 pl-1">보내는 사람</span>
             <select
               bind:value={newRuleGiver}
+              aria-label="보내는 사람"
               class="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-2.5 py-1.5 rounded-xl text-xs font-bold outline-none border border-gray-200 dark:border-gray-700"
             >
               {#each USERS as u}<option value={u}>{u}</option>{/each}
@@ -952,6 +961,7 @@
             <span class="text-[9px] font-bold text-gray-400 pl-1">받는 사람</span>
             <select
               bind:value={newRuleReceiver}
+              aria-label="받는 사람"
               class="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-2.5 py-1.5 rounded-xl text-xs font-bold outline-none border border-gray-200 dark:border-gray-700"
             >
               {#each USERS as u}<option value={u}>{u}</option>{/each}
@@ -993,7 +1003,8 @@
         <button
           type="button"
           on:click={() => (showNudgeModal = false)}
-          class="p-2 bg-gray-100 dark:bg-gray-700 rounded-full text-xs font-bold"
+          class="w-10 h-10 shrink-0 flex items-center justify-center bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 rounded-full text-sm font-bold"
+          aria-label="닫기"
         >
           ✕
         </button>
@@ -1071,7 +1082,9 @@
     <button
       type="button"
       on:click={() => openAddForm()}
-      class="fixed bottom-24 right-6 w-14 h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-2xl flex items-center justify-center text-3xl font-light z-40 active:scale-90 transition-all border-2 border-white/20"
+      aria-label="내역 추가"
+      style="bottom: calc(5rem + env(safe-area-inset-bottom)); right: max(1.25rem, calc(50% - 14rem + 1.25rem));"
+      class="fixed w-14 h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-2xl flex items-center justify-center text-3xl font-light z-40 active:scale-90 transition-all border-2 border-white/20"
       transition:fade
     >
       +

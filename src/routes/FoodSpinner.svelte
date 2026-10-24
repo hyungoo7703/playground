@@ -141,13 +141,13 @@
   <div class="flex justify-center gap-2">
     <button
       on:click={() => switchMode("menu")}
-      class="px-4 py-2 rounded-2xl font-bold text-xs transition-all {spinMode === 'menu'
+      class="px-4 py-2.5 rounded-2xl font-bold text-sm transition-all {spinMode === 'menu'
         ? 'bg-indigo-600 text-white shadow-md'
         : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'}">🍽️ 메뉴 고르기</button
     >
     <button
       on:click={() => switchMode("whoPay")}
-      class="px-4 py-2 rounded-2xl font-bold text-xs transition-all {spinMode ===
+      class="px-4 py-2.5 rounded-2xl font-bold text-sm transition-all {spinMode ===
       'whoPay'
         ? 'bg-emerald-600 text-white shadow-md'
         : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'}">💸 밥값 내기</button
@@ -263,6 +263,7 @@
             <input
               type="text"
               bind:value={newItem}
+              aria-label="새로운 메뉴"
               placeholder="새로운 메뉴 입력"
               class="flex-1 px-4 py-3 rounded-xl border-none text-sm bg-white dark:bg-slate-900 dark:text-white shadow-sm focus:ring-2 focus:ring-indigo-500"
               on:keydown={(e) => e.key === "Enter" && !e.isComposing && addMenuItem()}
@@ -296,14 +297,14 @@
         <div class="flex flex-wrap justify-center gap-2">
           {#each foodList as food}
             <span
-              class="flex items-center gap-1 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl text-[11px] font-bold border border-slate-200/50 dark:border-slate-700"
+              class="flex items-center gap-1 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl text-xs font-bold border border-slate-200/50 dark:border-slate-700"
             >
               {food}
               {#if $isAdmin}
                 <button
                   on:click={() => deleteMenuItem(food)}
-                  class="ml-1 text-slate-400 hover:text-red-500 transition-colors"
-                  title="삭제하기"
+                  class="w-7 h-7 -my-1.5 -mr-2 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors"
+                  aria-label="{food} 삭제"
                 >
                   ✕
                 </button>
@@ -344,7 +345,7 @@
                 <button
                   on:click={() =>
                     (targetWinner = targetWinner === mem ? null : mem)}
-                  class="px-3 py-1 text-xs rounded-lg border transition-all {targetWinner ===
+                  class="px-3 py-2 text-xs rounded-lg border transition-all {targetWinner ===
                   mem
                     ? 'bg-red-100 text-red-600 border-red-200'
                     : 'bg-transparent border-slate-200 text-slate-400'}"

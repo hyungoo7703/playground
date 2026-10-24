@@ -305,14 +305,16 @@
       </div>
       <button
         on:click={() => isDarkMode.set(!$isDarkMode)}
-        class="relative inline-flex items-center h-6 rounded-full w-11 transition-colors {$isDarkMode
+        class="relative inline-flex items-center h-8 rounded-full w-14 shrink-0 transition-colors {$isDarkMode
           ? 'bg-indigo-600'
-          : 'bg-gray-300'}"
-        aria-label="다크 모드 토글"
+          : 'bg-gray-300 dark:bg-gray-600'}"
+        role="switch"
+        aria-checked={$isDarkMode}
+        aria-label="다크 모드"
       >
         <span
-          class="inline-block w-4 h-4 transform bg-white rounded-full transition-transform {$isDarkMode
-            ? 'translate-x-6'
+          class="inline-block w-6 h-6 transform bg-white rounded-full shadow transition-transform {$isDarkMode
+            ? 'translate-x-7'
             : 'translate-x-1'}"
         ></span>
       </button>
@@ -357,7 +359,7 @@
         <button
           type="button"
           on:click={() => (showToken = !showToken)}
-          class="text-[11px] text-indigo-600 dark:text-indigo-400 font-bold"
+          class="text-[11px] text-indigo-600 dark:text-indigo-400 font-bold px-2 py-1.5 -my-1.5 -mr-2"
         >
           {showToken ? "숨기기 🙈" : "보기 👁️"}
         </button>
@@ -437,14 +439,16 @@
       </div>
       <button
         on:click={toggleGeoWeather}
-        class="relative inline-flex items-center h-6 rounded-full w-11 flex-shrink-0 transition-colors {useGeoWeather
+        class="relative inline-flex items-center h-8 rounded-full w-14 shrink-0 transition-colors {useGeoWeather
           ? 'bg-indigo-600'
           : 'bg-gray-300 dark:bg-gray-600'}"
+        role="switch"
+        aria-checked={useGeoWeather}
         aria-label="내 위치 날씨 사용"
       >
         <span
-          class="inline-block w-4 h-4 transform bg-white rounded-full transition-transform {useGeoWeather
-            ? 'translate-x-6'
+          class="inline-block w-6 h-6 transform bg-white rounded-full shadow transition-transform {useGeoWeather
+            ? 'translate-x-7'
             : 'translate-x-1'}"
         ></span>
       </button>

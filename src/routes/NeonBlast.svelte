@@ -320,7 +320,8 @@
             bgmAudio.play();
           }
         }}
-        class="p-2 bg-gray-800 rounded-xl border border-gray-700 active:scale-90"
+        aria-label={isMuted ? "소리 켜기" : "소리 끄기"}
+        class="w-10 h-10 flex items-center justify-center bg-gray-800 rounded-xl border border-gray-700 active:scale-90"
       >
         {isMuted ? "🔇" : "🔊"}
       </button>

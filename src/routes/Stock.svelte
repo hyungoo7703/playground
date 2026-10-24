@@ -348,6 +348,7 @@
         <input
           type="text"
           bind:value={newStock.name}
+          aria-label="종목명"
           placeholder="목록에 없는 경우 직접 입력"
           class="w-full p-3 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-2xl font-bold text-xs outline-none focus:ring-2 focus:ring-emerald-500 border border-gray-200 dark:border-gray-700"
         />
@@ -422,28 +423,28 @@
           <button
             type="button"
             on:click={() => addQuantity(1)}
-            class="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
+            class="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
           >
             +1주
           </button>
           <button
             type="button"
             on:click={() => addQuantity(5)}
-            class="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
+            class="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
           >
             +5주
           </button>
           <button
             type="button"
             on:click={() => addQuantity(10)}
-            class="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
+            class="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
           >
             +10주
           </button>
           <button
             type="button"
             on:click={() => addQuantity(50)}
-            class="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
+            class="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
           >
             +50주
           </button>
@@ -478,7 +479,8 @@
           <button
             type="button"
             on:click={() => applyPayerMode("mom")}
-            class="p-3.5 rounded-2xl text-left border transition-all {payerMode === 'mom'
+            disabled={calculatedTotal <= 0}
+            class="p-3.5 rounded-2xl text-left border transition-all disabled:opacity-50 {payerMode === 'mom'
               ? 'bg-pink-50 dark:bg-pink-950/40 border-pink-500 text-pink-700 dark:text-pink-300 ring-2 ring-pink-500 font-black'
               : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold'}"
           >
@@ -489,7 +491,8 @@
           <button
             type="button"
             on:click={() => applyPayerMode("bum")}
-            class="p-3.5 rounded-2xl text-left border transition-all {payerMode === 'bum'
+            disabled={calculatedTotal <= 0}
+            class="p-3.5 rounded-2xl text-left border transition-all disabled:opacity-50 {payerMode === 'bum'
               ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-500 text-amber-700 dark:text-amber-300 ring-2 ring-amber-500 font-black'
               : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold'}"
           >
@@ -500,7 +503,8 @@
           <button
             type="button"
             on:click={() => applyPayerMode("half")}
-            class="p-3.5 rounded-2xl text-left border transition-all {payerMode === 'half'
+            disabled={calculatedTotal <= 0}
+            class="p-3.5 rounded-2xl text-left border transition-all disabled:opacity-50 {payerMode === 'half'
               ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-500 font-black'
               : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold'}"
           >
@@ -511,7 +515,8 @@
           <button
             type="button"
             on:click={() => applyPayerMode("all")}
-            class="p-3.5 rounded-2xl text-left border transition-all {payerMode === 'all'
+            disabled={calculatedTotal <= 0}
+            class="p-3.5 rounded-2xl text-left border transition-all disabled:opacity-50 {payerMode === 'all'
               ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-500 text-indigo-700 dark:text-indigo-300 ring-2 ring-indigo-500 font-black'
               : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold'}"
           >
@@ -538,6 +543,7 @@
                   <input
                     type="number"
                     bind:value={contributions[mem]}
+                    aria-label="{mem} 부담 금액"
                     placeholder="0"
                     class="w-full p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl text-xs font-bold text-right pr-8 outline-none border border-gray-200 dark:border-gray-700"
                   />
@@ -659,8 +665,8 @@
                         <button
                           type="button"
                           on:click={() => deleteStock(stock.id)}
-                          class="p-1.5 text-gray-400 hover:text-rose-500 transition-colors"
-                          title="삭제하기"
+                          class="w-10 h-10 -mr-2 flex items-center justify-center text-gray-400 hover:text-rose-500 transition-colors"
+                          aria-label="매입 내역 삭제"
                         >
                           🗑️
                         </button>

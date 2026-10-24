@@ -591,21 +591,22 @@
 
   <!-- Overlay Screens -->
   {#if !isGameStarted && !isGameOver}
-    <div
-      class="absolute inset-0 z-30 flex items-center justify-center bg-black/60 backdrop-blur-sm pointer-events-auto"
+    <button
+      type="button"
+      class="absolute inset-0 z-30 w-full flex items-center justify-center bg-black/60 backdrop-blur-sm pointer-events-auto"
       on:click={launchGame}
     >
-      <div class="text-center animate-bounce">
-        <p
-          class="text-cyan-400 text-lg font-bold mb-2 uppercase tracking-widest"
+      <span class="block text-center animate-bounce">
+        <span
+          class="block text-cyan-400 text-lg font-bold mb-2 uppercase tracking-widest"
         >
           터치하여 시작
-        </p>
-        <div class="text-white text-opacity-50 text-sm">
+        </span>
+        <span class="block text-white text-opacity-50 text-sm">
           화면을 드래그하여 패들을 움직이세요
-        </div>
-      </div>
-    </div>
+        </span>
+      </span>
+    </button>
   {/if}
 
   {#if isGameOver}

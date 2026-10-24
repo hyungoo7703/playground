@@ -6,7 +6,7 @@
   let calculated = 0;
   let copied = false;
 
-  $: calculated = Math.floor((parseFloat(amount) || 0) * 0.15);
+  $: calculated = Math.floor(Math.max(0, parseFloat(amount) || 0) * 0.15);
 
   function formatNumber(num) {
     return (num || 0).toLocaleString();
@@ -52,6 +52,8 @@
         id="calc-amount"
         type="number"
         bind:value={amount}
+        min="0"
+        inputmode="numeric"
         placeholder="0"
         class="w-full p-4 pr-12 bg-gray-50 dark:bg-gray-900 rounded-2xl text-2xl font-black text-right outline-none ring-2 ring-transparent focus:ring-indigo-500 text-gray-900 dark:text-white transition-all"
       />
@@ -63,35 +65,35 @@
       <button
         type="button"
         on:click={() => addAmount(10000)}
-        class="px-2.5 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95 transition-all"
+        class="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95 transition-all"
       >
         +1만
       </button>
       <button
         type="button"
         on:click={() => addAmount(50000)}
-        class="px-2.5 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95 transition-all"
+        class="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95 transition-all"
       >
         +5만
       </button>
       <button
         type="button"
         on:click={() => addAmount(100000)}
-        class="px-2.5 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95 transition-all"
+        class="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95 transition-all"
       >
         +10만
       </button>
       <button
         type="button"
         on:click={() => addAmount(1000000)}
-        class="px-2.5 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95 transition-all"
+        class="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95 transition-all"
       >
         +100만
       </button>
       <button
         type="button"
         on:click={resetAmount}
-        class="px-2.5 py-1.5 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-300 font-bold rounded-xl text-xs active:scale-95 transition-all ml-auto"
+        class="px-3 py-2 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-300 font-bold rounded-xl text-xs active:scale-95 transition-all ml-auto"
       >
         초기화
       </button>

@@ -497,10 +497,12 @@
             <button
               type="button"
               on:click={() => toggleDDay(event)}
-              class="p-2 rounded-xl text-sm transition-all active:scale-90 {isDDayPinned
+              class="w-9 h-9 flex items-center justify-center rounded-xl text-sm transition-all active:scale-90 {isDDayPinned
                 ? 'bg-rose-500 text-white shadow-sm'
                 : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 text-gray-400 hover:text-rose-500'}"
               title={isDDayPinned ? "홈 D-Day 해제" : "홈 D-Day로 설정"}
+              aria-label={isDDayPinned ? "홈 D-Day 해제" : "홈 D-Day로 설정"}
+              aria-pressed={isDDayPinned}
             >
               {isDDayPinned ? "⭐" : "☆"}
             </button>
@@ -509,8 +511,9 @@
               <button
                 type="button"
                 on:click={() => openEditModal(event)}
-                class="p-2 bg-gray-100 hover:bg-indigo-50 dark:bg-gray-700 dark:hover:bg-indigo-950 text-gray-400 hover:text-indigo-600 rounded-xl text-xs font-bold transition-all"
+                class="w-9 h-9 flex items-center justify-center bg-gray-100 hover:bg-indigo-50 dark:bg-gray-700 dark:hover:bg-indigo-950 text-gray-400 hover:text-indigo-600 rounded-xl text-xs font-bold transition-all"
                 title="수정"
+                aria-label="일정 수정"
               >
                 ✏️
               </button>
@@ -518,8 +521,9 @@
                 type="button"
                 disabled={deletingId === event.id}
                 on:click={() => handleDelete(event.id)}
-                class="p-2 bg-gray-100 hover:bg-rose-50 dark:bg-gray-700 dark:hover:bg-rose-950 text-gray-400 hover:text-rose-500 disabled:opacity-40 rounded-xl text-xs font-bold transition-all flex items-center justify-center min-w-[32px]"
+                class="w-9 h-9 bg-gray-100 hover:bg-rose-50 dark:bg-gray-700 dark:hover:bg-rose-950 text-gray-400 hover:text-rose-500 disabled:opacity-40 rounded-xl text-xs font-bold transition-all flex items-center justify-center"
                 title="삭제"
+                aria-label="일정 삭제"
               >
                 {#if deletingId === event.id}
                   <svg class="animate-spin h-3.5 w-3.5 text-rose-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -550,7 +554,8 @@
         <button
           type="button"
           on:click={() => (showFormModal = false)}
-          class="p-2 bg-gray-100 dark:bg-gray-700 rounded-full text-xs font-bold"
+          class="w-10 h-10 shrink-0 flex items-center justify-center bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 rounded-full text-sm font-bold"
+          aria-label="닫기"
         >
           ✕
         </button>
@@ -572,21 +577,21 @@
             <button
               type="button"
               on:click={() => setDateShortcut(0)}
-              class="flex-1 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
+              class="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
             >
               오늘
             </button>
             <button
               type="button"
               on:click={() => setDateShortcut(1)}
-              class="flex-1 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
+              class="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
             >
               내일
             </button>
             <button
               type="button"
               on:click={setWeekendShortcut}
-              class="flex-1 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
+              class="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
             >
               이번 주말
             </button>
@@ -631,7 +636,7 @@
               <button
                 type="button"
                 on:click={() => (newTitle = sugg)}
-                class="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-[10px] font-bold text-gray-600 dark:text-gray-300 rounded-lg whitespace-nowrap hover:bg-rose-50 hover:text-rose-600"
+                class="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-xs font-bold text-gray-600 dark:text-gray-300 rounded-lg whitespace-nowrap hover:bg-rose-50 hover:text-rose-600"
               >
                 + {sugg}
               </button>
@@ -679,7 +684,8 @@
         <button
           type="button"
           on:click={() => (showEventPushModal = false)}
-          class="p-2 bg-gray-100 dark:bg-gray-700 rounded-full text-xs font-bold"
+          class="w-10 h-10 shrink-0 flex items-center justify-center bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 rounded-full text-sm font-bold"
+          aria-label="닫기"
         >
           ✕
         </button>

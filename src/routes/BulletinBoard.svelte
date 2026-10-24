@@ -370,7 +370,8 @@
         <button
           type="button"
           on:click={() => (showWriteModal = false)}
-          class="p-2 bg-gray-100 dark:bg-gray-700 rounded-full text-xs font-bold"
+          class="w-10 h-10 shrink-0 flex items-center justify-center bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 rounded-full text-sm font-bold"
+          aria-label="닫기"
         >
           ✕
         </button>
@@ -379,15 +380,15 @@
       <div class="space-y-3 overflow-y-auto flex-1 pr-1">
         <!-- Category Select -->
         <div>
-          <label for="post-cat" class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1.5">
+          <span id="post-cat-label" class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1.5">
             분류 선택
-          </label>
-          <div id="post-cat" class="flex gap-1.5 overflow-x-auto pb-1">
+          </span>
+          <div role="group" aria-labelledby="post-cat-label" class="flex gap-1.5 overflow-x-auto pb-1">
             {#each CATEGORIES as cat}
               <button
                 type="button"
                 on:click={() => (formData.category = cat)}
-                class="px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all {formData.category ===
+                class="px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all {formData.category ===
                 cat
                   ? 'bg-indigo-600 text-white shadow-sm'
                   : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}"
@@ -486,14 +487,14 @@
                 showDetailModal = false;
                 openWriteModal(currentPost);
               }}
-              class="text-xs font-bold text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-full bg-indigo-50 dark:bg-indigo-950/40"
+              class="text-xs font-bold text-indigo-600 dark:text-indigo-400 px-3.5 py-2 rounded-full bg-indigo-50 dark:bg-indigo-950/40"
             >
               수정
             </button>
             <button
               type="button"
               on:click={() => deletePost(currentPost.id)}
-              class="text-xs font-bold text-rose-600 dark:text-rose-400 px-3 py-1.5 rounded-full bg-rose-50 dark:bg-rose-950/40"
+              class="text-xs font-bold text-rose-600 dark:text-rose-400 px-3.5 py-2 rounded-full bg-rose-50 dark:bg-rose-950/40"
             >
               삭제
             </button>
@@ -587,7 +588,7 @@
                     {MEMBER_AVATARS[comment.author] || "👤"}
                   </span>
                   <div class="flex-1 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-2xl space-y-1 relative group">
-                    <div class="flex justify-between items-center">
+                    <div class="flex justify-between items-center pr-7">
                       <span class="text-xs font-black text-gray-800 dark:text-gray-200">
                         {comment.author}
                       </span>
@@ -603,8 +604,8 @@
                       <button
                         type="button"
                         on:click={() => deleteComment(comment.id)}
-                        class="absolute right-2.5 top-2.5 text-gray-400 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity text-xs"
-                        title="삭제"
+                        class="absolute right-1 top-1 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-rose-500 transition-colors text-xs"
+                        aria-label="댓글 삭제"
                       >
                         ✕
                       </button>

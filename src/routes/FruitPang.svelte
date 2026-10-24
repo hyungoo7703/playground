@@ -203,7 +203,8 @@
           isMuted = !isMuted;
           audioManager.setMute(isMuted);
         }}
-        class="p-2 bg-slate-100 dark:bg-gray-700 rounded-xl text-lg"
+        aria-label={isMuted ? "소리 켜기" : "소리 끄기"}
+        class="w-10 h-10 flex items-center justify-center bg-slate-100 dark:bg-gray-700 rounded-xl text-lg"
       >
         {isMuted ? "🔇" : "🔊"}
       </button>
@@ -235,7 +236,7 @@
           isHardMode = false;
           initGame(true);
         }}
-        class="py-1.5 rounded-xl font-black text-[11px] transition-all {!isHardMode
+        class="py-2.5 rounded-xl font-black text-xs transition-all {!isHardMode
           ? 'bg-white text-indigo-600 shadow-sm border border-indigo-100'
           : 'text-gray-400 bg-slate-100 dark:bg-gray-800 dark:text-gray-500'}"
       >
@@ -246,7 +247,7 @@
           isHardMode = true;
           initGame(true);
         }}
-        class="py-1.5 rounded-xl font-black text-[11px] transition-all {isHardMode
+        class="py-2.5 rounded-xl font-black text-xs transition-all {isHardMode
           ? 'bg-red-500 text-white shadow-md'
           : 'text-gray-400 bg-slate-100 dark:bg-gray-800 dark:text-gray-500'}"
       >
