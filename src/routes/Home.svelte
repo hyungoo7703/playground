@@ -6,9 +6,13 @@
   import { api } from "../lib/api.js";
   import { formatDate } from "../lib/utils.js";
   import { readCache, writeCache } from "../lib/cache.js";
-  import FamilyButlerModal from "../lib/components/FamilyButlerModal.svelte";
-
   let isButlerOpen = false;
+  // The butler pulls in marked + DOMPurify; load it on first open
+  let FamilyButlerModal = null;
+  async function openButler() {
+    FamilyButlerModal ??= (await import("../lib/components/FamilyButlerModal.svelte")).default;
+    isButlerOpen = true;
+  }
 
   let monthlyEvents = [];
   let isLoading = true;
@@ -587,7 +591,7 @@
   <!-- Floating AI Butler Button -->
   <button
     type="button"
-    on:click={() => (isButlerOpen = true)}
+    on:click={openButler}
     style="bottom: calc(5rem + env(safe-area-inset-bottom)); right: max(1.25rem, calc(50% - 14rem + 1.25rem));"
     class="fixed z-50 bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white pl-3.5 pr-4 py-3 rounded-full shadow-2xl flex items-center gap-2 border-2 border-white/20 active:scale-95 transition-all group"
     aria-label="우리집 AI 집사 열기"
@@ -607,7 +611,8 @@
   </button>
 
   <!-- Family Butler Modal -->
-  <FamilyButlerModal
+  <svelte:component
+    this={FamilyButlerModal}
     isOpen={isButlerOpen}
     onClose={() => (isButlerOpen = false)}
     {userName}

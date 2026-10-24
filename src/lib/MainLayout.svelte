@@ -7,24 +7,12 @@
   import Toaster from "./components/Toaster.svelte";
   import ConfirmDialog from "./components/ConfirmDialog.svelte";
 
+  // Tabs and home shortcuts load up front
   import Home from "../routes/Home.svelte";
   import EventList from "../routes/EventList.svelte";
   import BulletinBoard from "../routes/BulletinBoard.svelte";
   import Ledger from "../routes/Ledger.svelte";
-  import Calculator15 from "../routes/Calculator15.svelte";
-  import PensionCalculator from "../routes/PensionCalculator.svelte";
-  import Stock from "../routes/Stock.svelte";
-
-
-  // Games
-  import FruitPang from "../routes/FruitPang.svelte";
-  import NeonBlast from "../routes/NeonBlast.svelte";
-  import NeonBrick from "../routes/NeonBrick.svelte";
-  import NeonSurvivor from "../routes/NeonSurvivor.svelte";
-  import Neon2048 from "../routes/Neon2048.svelte";
-
   import FoodSpinner from "../routes/FoodSpinner.svelte";
-  import CardPick from "../routes/CardPick.svelte";
   import Attendance from "../routes/Attendance.svelte";
   import Settings from "../routes/Settings.svelte";
   import Menu from "../routes/Menu.svelte";
@@ -34,6 +22,31 @@
   import { autoRegisterPushIfGranted } from "./notification.js";
 
   const location = useLocation();
+
+  // Games and occasional tools load on first visit (svelte-routing awaits
+  // a function component). A tab left open across a deploy can request
+  // chunk hashes that no longer exist, so reload once to pick up the new build.
+  const lazy = (load) => () =>
+    load()
+      .then((mod) => {
+        sessionStorage.removeItem("chunkReload");
+        return mod;
+      })
+      .catch((err) => {
+        if (sessionStorage.getItem("chunkReload")) throw err;
+        sessionStorage.setItem("chunkReload", "1");
+        window.location.reload();
+      });
+
+  const Calculator15 = lazy(() => import("../routes/Calculator15.svelte"));
+  const PensionCalculator = lazy(() => import("../routes/PensionCalculator.svelte"));
+  const Stock = lazy(() => import("../routes/Stock.svelte"));
+  const CardPick = lazy(() => import("../routes/CardPick.svelte"));
+  const FruitPang = lazy(() => import("../routes/FruitPang.svelte"));
+  const NeonBlast = lazy(() => import("../routes/NeonBlast.svelte"));
+  const NeonBrick = lazy(() => import("../routes/NeonBrick.svelte"));
+  const NeonSurvivor = lazy(() => import("../routes/NeonSurvivor.svelte"));
+  const Neon2048 = lazy(() => import("../routes/Neon2048.svelte"));
 
   // 로그인 상태 및 경로 체크 함수 (백틱 사용하여 경로 수정)
   function checkAuth() {
