@@ -402,7 +402,7 @@
 
     <button
       on:click={handleSaveAiConfig}
-      class="w-full py-2 bg-gray-50 hover:bg-gray-100 dark:bg-gray-750 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95 transition-all"
+      class="w-full py-2 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95 transition-all"
     >
       💾 직접 입력값 로컬 저장
     </button>

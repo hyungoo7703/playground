@@ -331,7 +331,7 @@ ${eventsStr}
       </div>
 
       <!-- Quick Prompt Chips (Horizontal Scroll) -->
-      <div class="px-4 py-2.5 bg-gray-50 dark:bg-gray-800/60 border-b border-gray-100 dark:border-gray-800 shrink-0 overflow-x-auto no-scrollbar flex items-center gap-1.5">
+      <div class="px-4 py-2.5 bg-gray-50 dark:bg-gray-800/60 border-b border-gray-100 dark:border-gray-800 shrink-0 overflow-x-auto scrollbar-none flex items-center gap-1.5">
         {#each QUICK_PROMPTS as chip}
           <button
             type="button"
@@ -420,14 +420,6 @@ ${eventsStr}
 {/if}
 
 <style>
-  .no-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-  .no-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-
   .markdown-content {
     font-size: 14.5px;
     line-height: 1.68;

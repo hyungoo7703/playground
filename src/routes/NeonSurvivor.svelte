@@ -497,7 +497,7 @@
                     {#each levelUpOptions as option}
                         <button
                             on:click={() => selectUpgrade(option)}
-                            class="w-full bg-gray-700 hover:bg-gray-600 active:bg-gray-500 p-4 rounded-xl border2 border-transparent hover:border-yellow-400 flex items-center gap-4 transition-all group text-left"
+                            class="w-full bg-gray-700 hover:bg-gray-600 active:bg-gray-500 p-4 rounded-xl border-2 border-transparent hover:border-yellow-400 flex items-center gap-4 transition-all group text-left"
                         >
                             <div
                                 class="text-3xl bg-gray-900 p-2 rounded-lg shrink-0"

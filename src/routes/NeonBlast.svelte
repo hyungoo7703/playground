@@ -312,7 +312,7 @@
       </button>
       <div class="text-right flex flex-col">
         <span
-          class="text-[10px] text-magenta-500 font-bold uppercase tracking-widest leading-none"
+          class="text-[10px] text-fuchsia-500 font-bold uppercase tracking-widest leading-none"
           >Score</span
         >
         <p class="text-2xl font-black italic text-white mt-1">
@@ -369,7 +369,7 @@
               {:else}
                 <button
                   on:click={handleRetry}
-                  class="w-full py-4 bg-magenta-500 rounded-full font-black text-xl shadow-lg active:scale-95 transition-all"
+                  class="w-full py-4 bg-fuchsia-500 rounded-full font-black text-xl shadow-lg active:scale-95 transition-all"
                   >다시 도전</button
                 >
               {/if}
