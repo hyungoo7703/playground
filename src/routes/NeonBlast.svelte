@@ -410,11 +410,4 @@
       transform: scale(1);
     }
   }
-  :global(body) {
-    background-color: #050505;
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    min-height: 100%;
-  }
 </style>

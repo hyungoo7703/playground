@@ -334,11 +334,6 @@
       transform: translate3d(3px, 0, 0);
     }
   }
-  :global(body) {
-    background-color: #f8fafc;
-    margin: 0;
-    padding: 0;
-  }
   button {
     -webkit-tap-highlight-color: transparent;
     outline: none;
