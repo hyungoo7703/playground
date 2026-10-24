@@ -264,7 +264,7 @@
               bind:value={newItem}
               placeholder="새로운 메뉴 입력"
               class="flex-1 px-4 py-3 rounded-xl border-none text-sm bg-white dark:bg-slate-900 dark:text-white shadow-sm focus:ring-2 focus:ring-indigo-500"
-              on:keydown={(e) => e.key === "Enter" && addMenuItem()}
+              on:keydown={(e) => e.key === "Enter" && !e.isComposing && addMenuItem()}
             />
             <button
               on:click={addMenuItem}

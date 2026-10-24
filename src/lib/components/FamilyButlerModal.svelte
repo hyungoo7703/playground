@@ -278,13 +278,6 @@ ${eventsStr}
       await scrollToBottom();
     }
   }
-
-  function handleKeydown(e) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  }
 </script>
 
 {#if isOpen}
@@ -394,8 +387,6 @@ ${eventsStr}
           <input
             type="text"
             bind:value={inputText}
-            on:keydown={handleKeydown}
-            disabled={isStreaming}
             placeholder="우리 가족 일정, 가계부, 날씨, 오늘 저녁 요리 등 물어보세요..."
             class="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-2xl text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 border border-transparent dark:border-gray-700 transition-all disabled:opacity-50"
           />

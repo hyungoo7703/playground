@@ -307,7 +307,7 @@
                         bind:value={newAmount}
                         placeholder="예: 10,000원"
                         class="flex-1 px-4 py-3 rounded-xl border-none text-sm bg-white dark:bg-slate-900 dark:text-white shadow-sm focus:ring-2 focus:ring-amber-500"
-                        on:keydown={(e) => e.key === "Enter" && addAmount()}
+                        on:keydown={(e) => e.key === "Enter" && !e.isComposing && addAmount()}
                     />
                     <button
                         on:click={addAmount}

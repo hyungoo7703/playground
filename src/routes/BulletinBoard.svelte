@@ -171,7 +171,7 @@
   }
 
   async function addComment() {
-    if (!commentContent.trim()) return;
+    if (!commentContent.trim() || isCommentSubmitting) return;
     isCommentSubmitting = true;
 
     const res = await api.addComment({
@@ -619,23 +619,21 @@
 
         <!-- Sticky Comment Input Bar -->
         <div class="p-3 bg-gray-50 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-700 shrink-0">
-          <div class="flex gap-2">
+          <form on:submit|preventDefault={addComment} class="flex gap-2">
             <input
               type="text"
               bind:value={commentContent}
               placeholder="댓글을 남겨보세요..."
               class="flex-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-4 py-2.5 rounded-2xl text-xs outline-none focus:ring-2 focus:ring-indigo-500 border border-gray-200 dark:border-gray-700"
-              on:keypress={(e) => e.key === "Enter" && addComment()}
             />
             <button
-              type="button"
-              on:click={addComment}
+              type="submit"
               disabled={!commentContent.trim() || isCommentSubmitting}
               class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white font-black text-xs rounded-2xl transition-all active:scale-95"
             >
               전송
             </button>
-          </div>
+          </form>
         </div>
       </div>
     </div>
