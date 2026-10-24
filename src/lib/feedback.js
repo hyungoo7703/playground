@@ -17,7 +17,7 @@ export function toast(message, type = "info", duration = Math.max(2800, message.
 
 export const confirmState = writable(null);
 
-export function confirmDialog(message, { confirmText = "확인", danger = false } = {}) {
+export function confirmDialog(message, { danger = false, confirmText = danger ? "삭제" : "확인" } = {}) {
   return new Promise((resolve) => {
     // A newer confirm replaces an open one; settle the old caller as cancelled
     confirmState.update((prev) => {
