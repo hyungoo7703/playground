@@ -353,7 +353,7 @@
           >Score</span
         >
         <p class="text-2xl font-black italic text-white mt-1">
-          {$gameStore.score}
+          {$gameStore.score.toLocaleString()}
         </p>
       </div>
     </header>

@@ -39,6 +39,10 @@
   const roundMoney = (v, cur) =>
     cur === "USD" ? Math.round(v * 100) / 100 : Math.round(v);
 
+  // 소수 주식은 최대 소수 2자리까지만, 정수면 소수점 없이
+  const fmtQty = (q) =>
+    Number(q).toLocaleString(undefined, { maximumFractionDigits: 2 });
+
   const fmtMoney = (v, cur = "KRW") =>
     cur === "USD"
       ? `$${Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -596,7 +600,7 @@
               </div>
               <div class="text-right">
                 <span class="block text-xl font-black text-emerald-600 dark:text-emerald-400">
-                  {item.quantity.toFixed(2)}주
+                  {fmtQty(item.quantity)}주
                 </span>
                 <span class="text-xs font-bold text-gray-400 block">
                   총 {fmtMoney(item.total_price, item.currency)}
@@ -630,7 +634,7 @@
                   <div class="flex items-center gap-1.5 text-xs font-bold bg-gray-50 dark:bg-gray-700/50 px-2.5 py-1 rounded-xl">
                     <span class="w-2 h-2 rounded-full {MEMBER_COLORS[owner] || 'bg-gray-400'}"></span>
                     <span class="text-gray-700 dark:text-gray-300">{owner}</span>
-                    <span class="text-gray-400 font-normal">{qty.toFixed(2)}주 ({pct}%)</span>
+                    <span class="text-gray-400 font-normal">{fmtQty(qty)}주 ({pct}%)</span>
                   </div>
                 {/if}
               {/each}
@@ -655,7 +659,7 @@
                     <div class="flex items-center gap-3">
                       <div class="text-right">
                         <p class="font-bold text-gray-900 dark:text-white">
-                          {Number(stock.quantity).toFixed(2)}주
+                          {fmtQty(stock.quantity)}주
                         </p>
                         <p class="text-[10px] text-gray-400">
                           @{fmtMoney(stock.price, stock.currency || "KRW")}

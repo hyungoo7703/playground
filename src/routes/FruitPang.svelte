@@ -211,7 +211,7 @@
       <div class="flex flex-col">
         <span class="text-[9px] font-bold text-gray-400 uppercase">Score</span>
         <span class="text-2xl font-black text-indigo-600 leading-none"
-          >{score}</span
+          >{score.toLocaleString()}</span
         >
       </div>
       <button
@@ -229,7 +229,7 @@
         <span
           class="text-2xl font-black {isNewRecord
             ? 'text-orange-500 animate-bounce'
-            : 'text-purple-600'} leading-none">{bestScore}</span
+            : 'text-purple-600'} leading-none">{bestScore.toLocaleString()}</span
         >
       </div>
     </div>
@@ -320,7 +320,7 @@
       >
         <span class="text-6xl mb-4">😵</span>
         <h2 class="text-3xl font-black text-white mb-2">게임 종료!</h2>
-        <p class="text-indigo-300 font-bold text-xl mb-6">{score} 점 획득!</p>
+        <p class="text-indigo-300 font-bold text-xl mb-6">{score.toLocaleString()} 점 획득!</p>
         <button
           on:click={() => initGame(true)}
           class="bg-white text-indigo-600 px-8 py-3 rounded-2xl font-black shadow-2xl active:scale-95 transition-all"

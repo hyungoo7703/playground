@@ -421,7 +421,7 @@
                             class="text-yellow-400 text-xs sm:text-sm font-bold flex items-center gap-1 mt-0.5"
                         >
                             <span>🪙</span>
-                            <span>{uiState.coins}</span>
+                            <span>{uiState.coins.toLocaleString()}</span>
                         </div>
                     </div>
 
@@ -745,7 +745,7 @@
             >
                 <span class="text-white"
                     >Coins: <span class="text-yellow-400 font-bold"
-                        >{engine.upgradeSystem.getCoins()}</span
+                        >{engine.upgradeSystem.getCoins().toLocaleString()}</span
                     ></span
                 >
             </div>
@@ -777,7 +777,7 @@
                             </div>
                             <div class="text-right">
                                 <div class="text-yellow-400 font-bold">
-                                    {cost}
+                                    {cost.toLocaleString()}
                                 </div>
                             </div>
                         </button>

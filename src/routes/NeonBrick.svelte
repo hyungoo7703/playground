@@ -590,7 +590,7 @@
       </div>
       <div class="flex flex-col items-end">
         <span class="text-xs text-gray-400 font-bold uppercase">점수</span>
-        <span class="text-3xl font-black text-cyan-400">{score}</span>
+        <span class="text-3xl font-black text-cyan-400">{score.toLocaleString()}</span>
       </div>
     </div>
 
@@ -637,7 +637,7 @@
           GAME OVER
         </h2>
         <p class="text-gray-400 mb-8">도달한 레벨: {level}</p>
-        <div class="text-3xl font-bold text-white mb-8">최종 점수: {score}</div>
+        <div class="text-3xl font-bold text-white mb-8">최종 점수: {score.toLocaleString()}</div>
 
         <button
           on:click={restartGame}
