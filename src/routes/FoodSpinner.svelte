@@ -3,6 +3,7 @@
   import { fade, scale, slide } from "svelte/transition";
   import { currentUser, isAdmin } from "../lib/store.js";
   import { api } from "../lib/api.js";
+  import { toast, confirmDialog } from "../lib/feedback.js";
   import { readCache, writeCache } from "../lib/cache.js";
 
   // --- 상태 관리 변수 ---
@@ -60,7 +61,7 @@
         if (spinMode === "menu") await fetchMenu();
       }
     } catch (e) {
-      alert("추가 중 오류가 발생했습니다.");
+      toast("추가 중 오류가 발생했습니다.", "error");
     } finally {
       isAdding = false;
     }
@@ -68,16 +69,16 @@
 
   // --- 관리자 메뉴 삭제 (Delete) ---
   async function deleteMenuItem(value) {
-    if (!confirm(`'${value}' 메뉴를 정말 삭제하시겠습니까?`)) return;
+    if (!(await confirmDialog(`'${value}' 메뉴를 정말 삭제하시겠습니까?`, { danger: true }))) return;
     try {
       const data = await api.deleteManagement("roulette", value);
       if (data.success) {
         if (spinMode === "menu") await fetchMenu();
       } else {
-        alert("삭제 실패: " + data.message);
+        toast("삭제 실패: " + data.message, "error");
       }
     } catch (e) {
-      alert("삭제 중 오류가 발생했습니다.");
+      toast("삭제 중 오류가 발생했습니다.", "error");
     }
   }
 

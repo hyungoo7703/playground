@@ -6,6 +6,7 @@
     import { fade, fly, scale } from "svelte/transition";
     import { GameEngine } from "../lib/neon/survivor/core/GameEngine.js";
     import GameExitButton from "../lib/components/GameExitButton.svelte";
+    import { confirmDialog } from "../lib/feedback.js";
     import {
         SHOP_ITEMS,
         WEAPONS,
@@ -190,8 +191,13 @@
         }
     }
 
-    function refundUpgrades() {
-        if (engine && confirm("초기화 하시겠습니까?")) {
+    async function refundUpgrades() {
+        if (!engine) return;
+        const ok = await confirmDialog("업그레이드를 초기화하시겠습니까?", {
+            confirmText: "초기화",
+            danger: true,
+        });
+        if (ok) {
             engine.upgradeSystem.refund();
             window.location.reload();
         }

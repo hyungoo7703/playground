@@ -4,6 +4,8 @@
   import { base, deferredPrompt, isLoggedIn } from "./store.js";
 
   import TabBar from "./TabBar.svelte";
+  import Toaster from "./components/Toaster.svelte";
+  import ConfirmDialog from "./components/ConfirmDialog.svelte";
 
   import Home from "../routes/Home.svelte";
   import EventList from "../routes/EventList.svelte";
@@ -129,4 +131,7 @@
   {#if $isLoggedIn && $location.pathname !== `${base}/login` && !isGameplayPage}
     <TabBar />
   {/if}
+
+  <Toaster />
+  <ConfirmDialog />
 </div>

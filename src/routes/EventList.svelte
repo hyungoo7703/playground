@@ -1,6 +1,7 @@
 <script>
   import { onMount } from "svelte";
   import { api } from "../lib/api.js";
+  import { toast, confirmDialog } from "../lib/feedback.js";
   import { formatDate } from "../lib/utils.js";
   import { isAdmin } from "../lib/store.js";
   import { readCache, writeCache } from "../lib/cache.js";
@@ -75,6 +76,8 @@
     if (res.success) {
       events = res.events.sort((a, b) => a.date.localeCompare(b.date));
       writeCache("events", events);
+    } else if (!cached) {
+      toast("일정을 불러오지 못했습니다.", "error");
     }
     isLoading = false;
   }
@@ -110,7 +113,7 @@
   }
 
   async function handleSubmit() {
-    if (!newDate || !newTitle.trim()) return alert("날짜와 일정 제목을 입력해주세요.");
+    if (!newDate || !newTitle.trim()) return toast("날짜와 일정 제목을 입력해주세요.", "info");
     isSubmitting = true;
 
     const payload = {
@@ -131,17 +134,17 @@
         await fetchEvents();
         loadDDay();
       } else {
-        alert(result.message || "저장에 실패했습니다.");
+        toast(result.message || "저장에 실패했습니다.", "error");
       }
     } catch {
-      alert("통신 오류가 발생했습니다.");
+      toast("통신 오류가 발생했습니다.", "error");
     } finally {
       isSubmitting = false;
     }
   }
 
   async function handleDelete(id) {
-    if (!confirm("정말 이 일정을 삭제하시겠습니까?")) return;
+    if (!(await confirmDialog("정말 이 일정을 삭제하시겠습니까?", { danger: true }))) return;
     deletingId = id;
     try {
       const res = await api.deleteEvent(id);
@@ -152,10 +155,10 @@
         }
         await fetchEvents();
       } else {
-        alert("삭제 실패: " + res.message);
+        toast("삭제 실패: " + res.message, "error");
       }
     } catch {
-      alert("통신 오류가 발생했습니다.");
+      toast("통신 오류가 발생했습니다.", "error");
     } finally {
       deletingId = null;
     }
@@ -165,11 +168,11 @@
     if (currentDDayId === event.id) {
       localStorage.removeItem("dDayEvent");
       loadDDay();
-      alert("홈 화면 D-Day 설정이 해제되었습니다.");
+      toast("홈 화면 D-Day 설정이 해제되었습니다.", "success");
     } else {
       localStorage.setItem("dDayEvent", JSON.stringify(event));
       loadDDay();
-      alert(`'${event.title}' 일정이 홈 화면 D-Day로 설정되었습니다! 🎉`);
+      toast(`'${event.title}' 일정이 홈 화면 D-Day로 설정되었습니다! 🎉`, "success");
     }
   }
 
@@ -229,8 +232,8 @@
   }
 
   function openEventPushModal() {
-    if (!$isAdmin) return alert("관리자만 일정을 푸쉬할 수 있습니다.");
-    if (events.length === 0) return alert("등록된 일정이 없습니다.");
+    if (!$isAdmin) return toast("관리자만 일정을 푸쉬할 수 있습니다.", "info");
+    if (events.length === 0) return toast("등록된 일정이 없습니다.", "info");
     selectedPushEventId = nearestUpcomingEvent
       ? nearestUpcomingEvent.id
       : events[0]?.id;
@@ -242,7 +245,7 @@
   $: currentPushPreview = generateEventPushMessage(selectedPushEvent);
 
   async function sendEventPushToAll() {
-    if (!selectedPushEvent) return alert("발송할 일정을 선택해주세요.");
+    if (!selectedPushEvent) return toast("발송할 일정을 선택해주세요.", "info");
     isSendingEventPush = true;
 
     const { title, body } = currentPushPreview;
@@ -262,17 +265,19 @@
       showEventPushModal = false;
 
       if (res && res.success) {
-        alert(
+        toast(
           `🚀 가족 전체 푸쉬 알림 발송 완료!\n\n📢 ${title}\n💬 "${body}"\n\n📌 발송 결과: ${res.message || res.count + "개 기기로 전송되었습니다."}`,
+          "success",
         );
       } else {
-        alert(
+        toast(
           `[알림 발송 안내]\n${res?.message || "등록된 기기가 없습니다."}\n\n※ 부모님 스마트폰에서 사이트를 한 번 새로고침하여 기기가 등록되었는지 확인해주세요!`,
+          "info",
         );
       }
     } catch (e) {
       isSendingEventPush = false;
-      alert("푸쉬 발송 중 오류가 발생했습니다: " + e.message);
+      toast("푸쉬 발송 중 오류가 발생했습니다: " + e.message, "error");
     }
   }
 

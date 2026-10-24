@@ -5,6 +5,7 @@
     import { navigate } from "svelte-routing";
     import { currentUser, isAdmin, base } from "../lib/store.js";
     import { api } from "../lib/api.js";
+  import { toast } from "../lib/feedback.js";
     import { readCache, writeCache } from "../lib/cache.js";
 
     // --- 상태 관리 ---
@@ -79,7 +80,7 @@
                 await fetchAmounts();
             }
         } catch (e) {
-            alert("추가 중 오류가 발생했습니다.");
+            toast("추가 중 오류가 발생했습니다.", "error");
         } finally {
             isAdding = false;
         }

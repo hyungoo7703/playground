@@ -1,20 +1,19 @@
 <script>
     import { onMount } from "svelte";
-    import { fade, fly, scale } from "svelte/transition";
+    import { fade, scale } from "svelte/transition";
     import { navigate } from "svelte-routing";
     import { base, currentUser } from "../lib/store.js";
     import { api } from "../lib/api.js";
     import { formatDate } from "../lib/utils.js";
     import { readCache, writeCache } from "../lib/cache.js";
     import Modal from "../lib/components/Modal.svelte";
+    import { toast } from "../lib/feedback.js";
 
     let attendance = [];
     let ledgerItems = [];
     let isLoading = true;
     let todayChecked = false;
     let isSubmitting = false;
-    let toastMessage = "";
-    let toastType = "success";
     let showRules = false;
 
     // Reward usage modal
@@ -301,12 +300,12 @@
                     $currentUser,
                 );
                 if (lastMonthDays === daysInLastMonth && thisMonthCount === 1) {
-                    showToast(
+                    toast(
                         `🎉 출석 완료! +${todayReward}원 🎰 | 올출석 보너스 +${perfectBonus.toLocaleString()}원 🌟`,
                         "success",
                     );
                 } else {
-                    showToast(
+                    toast(
                         `출석 완료! +${todayReward}원 보상 획득! 🎰`,
                         "success",
                     );
@@ -361,10 +360,10 @@
                     }, 800);
                 }
             } else {
-                showToast(result.message || "출석에 실패했습니다.", "error");
+                toast(result.message || "출석에 실패했습니다.", "error");
             }
         } catch (e) {
-            showToast("오류가 발생했습니다.", "error");
+            toast("오류가 발생했습니다.", "error");
         } finally {
             isSubmitting = false;
         }
@@ -372,14 +371,14 @@
 
     async function submitUseReward() {
         const amt = parseInt(String(useAmount).replace(/[^\d]/g, ""), 10);
-        if (!amt || amt <= 0) return showToast("금액을 입력해주세요.", "error");
+        if (!amt || amt <= 0) return toast("금액을 입력해주세요.", "error");
         if (amt > rewardBalance)
-            return showToast(
-                `잔액이 부족합니다. (잔액: ${rewardBalance}원)`,
+            return toast(
+                `잔액이 부족합니다. (잔액: ${rewardBalance.toLocaleString()}원)`,
                 "error",
             );
         if (!useDescription.trim())
-            return showToast("사용 목적을 입력해주세요.", "error");
+            return toast("사용 목적을 입력해주세요.", "error");
 
         isUseSubmitting = true;
         try {
@@ -399,30 +398,24 @@
                 showUseRewardModal = false;
                 useAmount = "";
                 useDescription = "";
-                showToast(
-                    `${amt}원 보상 사용 완료! 장부에 기록됨 💰`,
+                toast(
+                    `${amt.toLocaleString()}원 보상 사용 완료! 장부에 기록됨 💰`,
                     "success",
                 );
                 // Refresh ledger data
                 const refreshed = await api.getLedger();
                 if (refreshed.success) ledgerItems = refreshed.ledger || [];
             } else {
-                showToast(
+                toast(
                     result.message || "보상 사용에 실패했습니다.",
                     "error",
                 );
             }
         } catch (e) {
-            showToast("오류가 발생했습니다.", "error");
+            toast("오류가 발생했습니다.", "error");
         } finally {
             isUseSubmitting = false;
         }
-    }
-
-    function showToast(msg, type = "success") {
-        toastMessage = msg;
-        toastType = type;
-        setTimeout(() => (toastMessage = ""), 3000);
     }
 
     onMount(async () => {
@@ -457,6 +450,9 @@
             if (ledgerResult.success) {
                 ledgerItems = ledgerResult.ledger || [];
                 writeCache("ledger", ledgerItems);
+            }
+            if (!attResult.success && !cachedAtt) {
+                toast("출석 정보를 불러오지 못했습니다.", "error");
             }
         } catch (e) {
             console.error("출석 데이터 로드 실패:", e);
@@ -1008,18 +1004,4 @@
             </button>
         </div>
     </Modal>
-{/if}
-
-<!-- Toast -->
-{#if toastMessage}
-    <div
-        class="fixed bottom-24 left-1/2 -translate-x-1/2 z-[60] px-6 py-3 rounded-2xl shadow-2xl font-bold text-sm max-w-[90vw]
-      {toastType === 'success'
-            ? 'bg-green-500 text-white'
-            : 'bg-red-500 text-white'}"
-        in:fly={{ y: 30, duration: 300 }}
-        out:fade={{ duration: 200 }}
-    >
-        {toastMessage}
-    </div>
 {/if}

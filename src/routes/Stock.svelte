@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { fade, slide } from "svelte/transition";
   import { api } from "../lib/api.js";
+  import { toast, confirmDialog } from "../lib/feedback.js";
   import { formatDate } from "../lib/utils.js";
   import { readCache, writeCache } from "../lib/cache.js";
   import Spinner from "../lib/components/Spinner.svelte";
@@ -118,19 +119,20 @@
       stocks = res.stocks;
       writeCache("stocks", stocks);
     } else if (!cached) {
-      alert("데이터 불러오기 실패");
+      toast("데이터 불러오기 실패", "error");
     }
     isLoading = false;
   }
 
   async function handleSubmit() {
     if (!newStock.name || !newStock.price || !newStock.quantity)
-      return alert("종목명, 단가, 수량을 모두 입력해주세요.");
+      return toast("종목명, 단가, 수량을 모두 입력해주세요.", "info");
 
     // 센트 단위 정수 비교 (부동소수점 오차 회피)
     if (Math.round(totalContributed * 100) !== Math.round(calculatedTotal * 100))
-      return alert(
+      return toast(
         `총 매입액(${fmtMoney(calculatedTotal, newStock.currency)})과 분배금액(${fmtMoney(totalContributed, newStock.currency)})을 맞춰주세요.`,
+        "info",
       );
 
     isSubmitting = true;
@@ -155,12 +157,12 @@
 
     const res = await api.batchAddStock(items);
     if (res.success) {
-      alert("성공적으로 저장되었습니다! 📈");
+      toast("성공적으로 저장되었습니다! 📈", "success");
       showAddForm = false;
       resetForm();
       loadStocks();
     } else {
-      alert("저장 실패: " + res.message);
+      toast("저장 실패: " + res.message, "error");
     }
     isSubmitting = false;
   }
@@ -178,9 +180,10 @@
   }
 
   async function deleteStock(id) {
-    if (!confirm("정말 삭제하시겠습니까?")) return;
+    if (!(await confirmDialog("정말 삭제하시겠습니까?", { danger: true }))) return;
     const res = await api.deleteStock(id);
     if (res.success) loadStocks();
+    else toast("삭제 실패: " + res.message, "error");
   }
 
   // USD→KRW 환율 (frankfurter, 무키·무료, 1시간 캐시) — 달러 종목 원화 환산 표시용

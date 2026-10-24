@@ -1,6 +1,7 @@
 <script>
   import { onMount } from "svelte";
   import { api } from "../lib/api.js";
+  import { toast, confirmDialog } from "../lib/feedback.js";
   import { formatDate } from "../lib/utils.js";
   import { readCache, writeCache } from "../lib/cache.js";
   import Spinner from "../lib/components/Spinner.svelte";
@@ -91,7 +92,7 @@
       posts = res.posts;
       writeCache("posts", posts);
     } else if (!cached) {
-      alert("게시글 불러오기 실패");
+      toast("게시글 불러오기 실패", "error");
     }
     isLoading = false;
   }
@@ -115,7 +116,7 @@
 
   async function savePost() {
     if (!formData.title || !formData.content)
-      return alert("제목과 내용을 입력해주세요.");
+      return toast("제목과 내용을 입력해주세요.", "info");
     isSubmitting = true;
 
     if (!formData.author) formData.author = displayName;
@@ -128,19 +129,19 @@
       showWriteModal = false;
       loadPosts();
     } else {
-      alert("저장 실패: " + res.message);
+      toast("저장 실패: " + res.message, "error");
     }
     isSubmitting = false;
   }
 
   async function deletePost(id) {
-    if (!confirm("정말 삭제하시겠습니까? 관련 댓글도 모두 삭제됩니다.")) return;
+    if (!(await confirmDialog("정말 삭제하시겠습니까? 관련 댓글도 모두 삭제됩니다.", { danger: true }))) return;
     const res = await api.deletePost(id);
     if (res.success) {
       showDetailModal = false;
       loadPosts();
     } else {
-      alert("삭제 실패: " + res.message);
+      toast("삭제 실패: " + res.message, "error");
     }
   }
 
@@ -157,6 +158,8 @@
     const res = await api.getComments(post.id);
     if (res.success) {
       comments = res.comments;
+    } else {
+      toast("댓글을 불러오지 못했습니다.", "error");
     }
     isCommentLoading = false;
   }
@@ -186,18 +189,22 @@
       const r = await api.getComments(currentPost.id);
       if (r.success) comments = r.comments;
       isCommentLoading = false;
+    } else {
+      toast("댓글 등록 실패: " + res.message, "error");
     }
     isCommentSubmitting = false;
   }
 
   async function deleteComment(id) {
-    if (!confirm("댓글을 삭제하시겠습니까?")) return;
+    if (!(await confirmDialog("댓글을 삭제하시겠습니까?", { danger: true }))) return;
     const res = await api.deleteComment(id);
     if (res.success) {
       isCommentLoading = true;
       const r = await api.getComments(currentPost.id);
       if (r.success) comments = r.comments;
       isCommentLoading = false;
+    } else {
+      toast("댓글 삭제 실패: " + res.message, "error");
     }
   }
 

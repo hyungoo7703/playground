@@ -3,6 +3,7 @@
   import { fade } from "svelte/transition";
   import { isDarkMode, deferredPrompt, isAdmin, currentUser } from "../lib/store.js";
   import { api } from "../lib/api.js";
+  import { toast, confirmDialog } from "../lib/feedback.js";
   import {
     getAiConfig,
     saveAiConfig,
@@ -88,7 +89,7 @@
     }
 
     if (!("geolocation" in navigator)) {
-      alert("이 기기는 위치 정보를 지원하지 않습니다.");
+      toast("이 기기는 위치 정보를 지원하지 않습니다.", "info");
       return;
     }
 
@@ -110,18 +111,20 @@
       (err) => {
         if (err.code === 1) {
           // PERMISSION_DENIED — 한 번 차단하면 팝업 없이 즉시 거부됨
-          alert(
+          toast(
             "위치 권한이 차단되어 있습니다.\n\n" +
               "· Android: 폰 설정 → 애플리케이션 → 가족의 공간 → 권한 → 위치 허용\n" +
               "· iPhone: 설정 → 개인정보 보호 → 위치 서비스 → Safari 웹사이트 → 앱 사용 중 허용\n" +
               "· PC: 주소창 자물쇠 아이콘 → 사이트 설정 → 위치 허용",
+            "error",
           );
         } else if (err.code === 2) {
-          alert(
+          toast(
             "위치를 확인할 수 없습니다.\n기기의 위치(GPS) 기능이 켜져 있는지 확인해주세요.",
+            "error",
           );
         } else {
-          alert("위치 확인 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.");
+          toast("위치 확인 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.", "error");
         }
       },
       { timeout: 5000 },
@@ -216,9 +219,9 @@
     const targets = pushTargets;
 
     if (
-      !confirm(
-        `나(${me})를 제외한 가족(${targets.join(", ")})에게 업데이트 알림을 전송할까요?\n\n📢 "${updatePushBody}"`
-      )
+      !(await confirmDialog(
+        `나(${me})를 제외한 가족(${targets.join(", ")})에게 업데이트 알림을 전송할까요?\n\n📢 "${updatePushBody}"`,
+      ))
     ) {
       return;
     }
@@ -251,18 +254,28 @@
           : `🚀 가족 ${targets.length}명(${targets.join(", ")}) 중 ${successCount}명에게 알림을 보냈습니다.`;
     } catch (e) {
       updatePushResult = `⚠️ 발송 중 오류: ${e.message}`;
-      alert("푸시 알림 발송 중 오류가 발생했습니다: " + e.message);
+      toast("푸시 알림 발송 중 오류가 발생했습니다: " + e.message, "error");
     } finally {
       isSendingUpdatePush = false;
     }
   }
 
-  function logout() {
-    if (!confirm("로그아웃 하시겠습니까?")) return;
+  async function logout() {
+    if (!(await confirmDialog("로그아웃 하시겠습니까?"))) return;
     // 로그인 정보만 삭제 (게임 세이브, 다크모드 등은 유지)
     ["accessCode", "userName", "currentUser", "role", "aiToken"].forEach((key) =>
       localStorage.removeItem(key),
     );
+    location.reload();
+  }
+
+  async function resetStorage() {
+    const ok = await confirmDialog(
+      "로컬스토리지를 초기화하면 로그인 정보, AI 설정, 다크모드 등 모든 설정이 삭제됩니다. 계속하시겠습니까?",
+      { confirmText: "초기화", danger: true },
+    );
+    if (!ok) return;
+    localStorage.clear();
     location.reload();
   }
 
@@ -598,16 +611,7 @@
     </button>
 
     <button
-      on:click={() => {
-        if (
-          confirm(
-            "로컬스토리지를 초기화하면 로그인 정보, AI 설정, 다크모드 등 모든 설정이 삭제됩니다. 계속하시겠습니까?",
-          )
-        ) {
-          localStorage.clear();
-          location.reload();
-        }
-      }}
+      on:click={resetStorage}
       class="w-full flex items-center justify-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl text-red-600 dark:text-red-400 font-bold active:scale-95 transition-all text-xs"
     >
       <span>🗑️</span> 로컬스토리지 초기화

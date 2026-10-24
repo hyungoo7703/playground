@@ -1,4 +1,5 @@
 <script>
+  import { toast } from "../lib/feedback.js";
   import { fade } from "svelte/transition";
 
   let amount = "";
@@ -27,7 +28,7 @@
       copied = true;
       setTimeout(() => (copied = false), 2000);
     } catch (err) {
-      alert("복사 실패: " + err);
+      toast("복사 실패: " + err, "error");
     }
   }
 </script>

@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { fade } from "svelte/transition";
   import { api } from "../lib/api.js";
+  import { toast, confirmDialog } from "../lib/feedback.js";
   import { formatDate } from "../lib/utils.js";
   import { readCache, writeCache } from "../lib/cache.js";
   import { currentUser, isAdmin } from "../lib/store.js";
@@ -46,7 +47,7 @@
       );
       writeCache("ledger", ledgerItems);
     } else if (!cached) {
-      alert("장부 불러오기 실패: " + (res.message || "알 수 없는 오류"));
+      toast("장부 불러오기 실패: " + (res.message || "알 수 없는 오류"), "error");
     }
     isLoading = false;
   }
@@ -86,7 +87,7 @@
   }
 
   function openRuleModal() {
-    if (!$isAdmin) return alert("관리자만 접근할 수 있습니다.");
+    if (!$isAdmin) return toast("관리자만 접근할 수 있습니다.", "info");
     showRuleModal = true;
     loadRules();
   }
@@ -100,7 +101,7 @@
   async function handleAddRule() {
     const ruleAmount = cleanAmount(newRuleAmount);
     if (!newRuleTitle.trim() || !ruleAmount)
-      return alert("내역 이름과 금액을 모두 입력해주세요.");
+      return toast("내역 이름과 금액을 모두 입력해주세요.", "info");
 
     isRuleSubmitting = true;
     const payload = {
@@ -119,14 +120,14 @@
       const r = await api.getRules();
       if (r.success) rules = r.rules;
     } else {
-      alert("고정 규칙 등록 실패: " + res.message);
+      toast("고정 규칙 등록 실패: " + res.message, "error");
     }
     isRuleSubmitting = false;
   }
 
 
   async function handleDeleteRule(id) {
-    if (!confirm("고정 내역을 삭제하시겠습니까?")) return;
+    if (!(await confirmDialog("고정 내역을 삭제하시겠습니까?", { danger: true }))) return;
     deletingRuleId = id;
     try {
       const res = await api.deleteRule(id);
@@ -134,21 +135,21 @@
         const r = await api.getRules();
         if (r.success) rules = r.rules;
       } else {
-        alert("삭제 실패: " + res.message);
+        toast("삭제 실패: " + res.message, "error");
       }
     } catch (e) {
-      alert("삭제 중 오류가 발생했습니다.");
+      toast("삭제 중 오류가 발생했습니다.", "error");
     } finally {
       deletingRuleId = null;
     }
   }
 
   async function applyRulesToMonth() {
-    if (rules.length === 0) return alert("등록된 고정 내역 규칙이 없습니다.");
+    if (rules.length === 0) return toast("등록된 고정 내역 규칙이 없습니다.", "info");
     if (
-      !confirm(
+      !(await confirmDialog(
         `${displayMonth}월 장부에 ${rules.length}개의 고정 이체 내역을 일괄 추가하시겠습니까?`,
-      )
+      ))
     )
       return;
 
@@ -185,18 +186,19 @@
 
     if (newItems.length === 0) {
       isBatchSubmitting = false;
-      return alert(
+      return toast(
         "이번 달에 추가할 내역이 없습니다. (이미 추가된 내역은 중복 방지를 위해 건너뛰었습니다)",
+        "info",
       );
     }
 
     const res = await api.batchAddLedger(newItems);
     if (res.success) {
-      alert(`총 ${newItems.length}건이 성공적으로 추가되었습니다!`);
+      toast(`총 ${newItems.length}건이 성공적으로 추가되었습니다!`, "success");
       showRuleModal = false;
       loadLedger();
     } else {
-      alert("일괄 추가 실패: " + res.message);
+      toast("일괄 추가 실패: " + res.message, "error");
     }
     isBatchSubmitting = false;
   }
@@ -226,7 +228,7 @@
   async function handleSubmit() {
     const amount = cleanAmount(formData.amount);
     if (!formData.title || !amount)
-      return alert("내용과 금액을 입력해주세요.");
+      return toast("내용과 금액을 입력해주세요.", "info");
 
     isSubmitting = true;
     let res;
@@ -247,13 +249,13 @@
       showForm = false;
       loadLedger();
     } else {
-      alert("저장 실패: " + res.message);
+      toast("저장 실패: " + res.message, "error");
     }
     isSubmitting = false;
   }
 
   async function handleDelete(id) {
-    if (!confirm("정말 삭제하시겠습니까?")) return;
+    if (!(await confirmDialog("정말 삭제하시겠습니까?", { danger: true }))) return;
 
     isDeleting = true;
     try {
@@ -262,10 +264,10 @@
         showForm = false;
         await loadLedger();
       } else {
-        alert("삭제 실패: " + res.message);
+        toast("삭제 실패: " + res.message, "error");
       }
     } catch (e) {
-      alert("삭제 중 오류가 발생했습니다.");
+      toast("삭제 중 오류가 발생했습니다.", "error");
     } finally {
       isDeleting = false;
     }
@@ -283,10 +285,10 @@
       if (res.success) {
         await loadLedger();
       } else {
-        alert("정산 처리 실패: " + (res.message || "알 수 없는 오류"));
+        toast("정산 처리 실패: " + (res.message || "알 수 없는 오류"), "error");
       }
     } catch (e) {
-      alert("정산 처리 중 오류가 발생했습니다.");
+      toast("정산 처리 중 오류가 발생했습니다.", "error");
     } finally {
       settlingId = null;
     }
@@ -371,9 +373,9 @@
   );
 
   function openNudgeModal() {
-    if (!$isAdmin) return alert("관리자만 독촉할 수 있습니다.");
+    if (!$isAdmin) return toast("관리자만 독촉할 수 있습니다.", "info");
     if (debtorsList.length === 0) {
-      return alert("현재 미정산된 이체 내역이 없습니다! 🎉");
+      return toast("현재 미정산된 이체 내역이 없습니다! 🎉", "info");
     }
     showNudgeModal = true;
   }
@@ -393,14 +395,15 @@
       });
 
       if (res && res.success) {
-        alert(`${debtor.giver}님에게 푸쉬 알림을 성공적으로 보냈습니다! 🚀`);
+        toast(`${debtor.giver}님에게 푸쉬 알림을 성공적으로 보냈습니다! 🚀`, "success");
       } else {
-        alert(
+        toast(
           `[알림 발송 상태]\n서버 응답: ${res?.message || "기기 미등록"}\n\n※ ${debtor.giver}님의 기기에서 '설정' ➔ '알림 권한 허용 및 기기 등록'을 완료했는지 확인해주세요!`,
+          "error",
         );
       }
     } catch (e) {
-      alert("푸쉬 발송 중 오류가 발생했습니다: " + e.message);
+      toast("푸쉬 발송 중 오류가 발생했습니다: " + e.message, "error");
     } finally {
       isSendingNudge = { ...isSendingNudge, [debtor.giver]: false };
     }
@@ -408,9 +411,9 @@
 
   async function sendAllNudgePush() {
     if (
-      !confirm(
+      !(await confirmDialog(
         `미정산 이체가 있는 모든 가족(${debtorsList.length}명)에게 푸쉬 알림을 보낼까요?`,
-      )
+      ))
     )
       return;
     isBatchSendingNudge = true;
@@ -442,12 +445,14 @@
     isBatchSendingNudge = false;
 
     if (serverMessages.length > 0 && successCount === 0) {
-      alert(
+      toast(
         `[알림 발송 상태]\n서버 응답: ${serverMessages[0]}\n\n※ 상대방 기기가 '설정' 화면에서 '알림 허용 및 기기 등록'을 완료했는지 확인해주세요!`,
+        "error",
       );
     } else {
-      alert(
+      toast(
         `총 ${debtorsList.length}명 중 ${successCount}명에게 푸쉬 알림 발송 완료! 🚀`,
+        "success",
       );
     }
   }
