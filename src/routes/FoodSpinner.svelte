@@ -11,7 +11,7 @@
   const WHO_PAY_MEMBERS = ["엄마", "현구", "범수"];
 
   let spinning = false; // 룰렛 회전 여부
-  let spinResult = "오늘 뭐 먹지?";
+  let spinResult = ""; // empty = idle, nothing drawn yet
   let spinInterval;
   let spinTimeout;
   let isLoading = true; // 초기 로딩 상태
@@ -82,8 +82,10 @@
   }
 
   function switchMode(mode) {
+    clearInterval(spinInterval);
+    clearTimeout(spinTimeout);
     spinMode = mode;
-    spinResult = mode === "menu" ? "오늘 뭐 먹지?" : "누가 낼까?";
+    spinResult = "";
     spinning = false;
   }
 
@@ -98,10 +100,11 @@
     if (navigator.vibrate) navigator.vibrate(50);
 
     // 80ms 간격으로 랜덤 메뉴 표시
-    spinInterval = setInterval(() => {
-      const randomIndex = Math.floor(Math.random() * list.length);
-      spinResult = list[randomIndex];
-    }, 80);
+    const showRandom = () => {
+      spinResult = list[Math.floor(Math.random() * list.length)];
+    };
+    showRandom();
+    spinInterval = setInterval(showRandom, 80);
 
     // 2.5초 후 멈춤
     spinTimeout = setTimeout(() => {
@@ -190,13 +193,13 @@
             </div>
           {:else}
             <div in:fade>
-              {#if spinResult.includes("오늘") || spinResult.includes("누가")}
+              {#if !spinResult}
                 <span
                   class="text-slate-200 dark:text-slate-800 text-7xl block mb-2"
                   >?</span
                 >
                 <p class="text-xl font-bold text-slate-400 italic">
-                  {spinResult}
+                  {spinMode === "menu" ? "오늘 뭐 먹지?" : "누가 낼까?"}
                 </p>
               {:else}
                 <span

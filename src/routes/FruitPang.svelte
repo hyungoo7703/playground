@@ -305,7 +305,7 @@
         <h2 class="text-3xl font-black text-white mb-2">게임 종료!</h2>
         <p class="text-indigo-300 font-bold text-xl mb-6">{score} 점 획득!</p>
         <button
-          on:click={() => initGame()}
+          on:click={() => initGame(true)}
           class="bg-white text-indigo-600 px-8 py-3 rounded-2xl font-black shadow-2xl active:scale-95 transition-all"
         >
           다시 도전하기
