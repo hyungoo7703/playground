@@ -294,7 +294,7 @@
 </script>
 
 <div class="space-y-6 max-w-md mx-auto">
-  <h2 class="text-2xl font-black text-gray-800 dark:text-gray-200">설정</h2>
+  <h1 class="text-2xl font-black text-gray-900 dark:text-white">설정</h1>
 
   <!-- 1. 기본 설정 (다크모드) -->
   <section class="p-6 bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 rounded-3xl">

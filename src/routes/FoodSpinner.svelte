@@ -156,11 +156,11 @@
 
 
   <header class="text-center space-y-2">
-    <h2
+    <h1
       class="text-3xl font-black text-slate-900 dark:text-white tracking-tight"
     >
       {spinMode === "menu" ? "메뉴 룰렛 🎰" : "밥값 룰렛 💳"}
-    </h2>
+    </h1>
     <p class="text-sm text-slate-500 font-medium">
       {spinMode === "menu"
         ? "우리 가족의 식사 고민을 해결해 드립니다!"

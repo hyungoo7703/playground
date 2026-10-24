@@ -48,11 +48,11 @@
   >
     <div>
       <span class="block text-center text-5xl">🏡</span>
-      <h2
+      <h1
         class="mt-4 text-center text-3xl font-black text-gray-900 dark:text-white tracking-tight"
       >
         가족의 공간
-      </h2>
+      </h1>
       <p class="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
         가족에게 받은 접속 코드를 입력해주세요
       </p>

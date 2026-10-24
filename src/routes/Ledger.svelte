@@ -460,6 +460,7 @@
 </script>
 
 <div class="space-y-6 max-w-md mx-auto relative">
+  <h1 class="sr-only">가족 장부</h1>
   <!-- Header Card -->
   <header
     class="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 p-7 text-white shadow-xl space-y-5"
@@ -511,9 +512,9 @@
         </span>
 
         <div class="flex items-baseline justify-center gap-1">
-          <h1 class="text-4xl font-black tracking-tight text-white">
+          <p class="text-4xl font-black tracking-tight text-white">
             {unsettledAmount.toLocaleString()}
-          </h1>
+          </p>
           <span class="text-lg font-bold text-indigo-200">원</span>
         </div>
         <p class="text-[11px] text-indigo-300 font-medium">

@@ -36,7 +36,7 @@
 <div class="max-w-md mx-auto space-y-6">
   <!-- Header -->
   <div class="text-left space-y-1">
-    <h2 class="text-2xl font-black text-gray-900 dark:text-white">15% 계산기 🧮</h2>
+    <h1 class="text-2xl font-black text-gray-900 dark:text-white">15% 계산기 🧮</h1>
     <p class="text-xs font-bold text-gray-400 dark:text-gray-500">
       입력한 금액의 15%를 즉시 계산합니다.
     </p>
@@ -108,7 +108,7 @@
 
     <p class="text-indigo-200 font-bold mb-1 text-xs uppercase tracking-widest">Calculated 15%</p>
     <div class="flex items-baseline justify-center gap-1.5">
-      <h1 class="text-4xl font-black tracking-tight">{formatNumber(calculated)}</h1>
+      <p class="text-4xl font-black tracking-tight">{formatNumber(calculated)}</p>
       <span class="text-lg font-bold text-indigo-200">원</span>
     </div>
   </div>

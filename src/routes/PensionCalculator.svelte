@@ -74,7 +74,7 @@
 <div class="max-w-md mx-auto space-y-6">
   <!-- Header -->
   <div class="text-left space-y-1">
-    <h2 class="text-2xl font-black text-gray-900 dark:text-white">연금저축 계산기 📈</h2>
+    <h1 class="text-2xl font-black text-gray-900 dark:text-white">연금저축 계산기 📈</h1>
     <p class="text-xs font-bold text-gray-400 dark:text-gray-500">
       절세 혜택과 복리 수익 시뮬레이션을 한눈에 확인하세요.
     </p>
