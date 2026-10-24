@@ -1,6 +1,6 @@
 <script>
   import { onMount, onDestroy } from "svelte";
-  import { fade, fly } from "svelte/transition";
+  import { fade } from "svelte/transition";
   import { base } from "../lib/store.js";
   import GameExitButton from "../lib/components/GameExitButton.svelte";
 

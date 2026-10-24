@@ -1,7 +1,7 @@
 <script>
   import { onMount, onDestroy } from "svelte";
   import { fly, fade } from "svelte/transition";
-  import { quintOut, bounceOut } from "svelte/easing";
+  import { bounceOut } from "svelte/easing";
   import { base } from "../lib/store.js";
   import { audioManager } from "../lib/audioManager.js";
   import GameExitButton from "../lib/components/GameExitButton.svelte";

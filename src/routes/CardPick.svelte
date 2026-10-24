@@ -1,9 +1,9 @@
 <script>
     import { onMount } from "svelte";
-    import { fade, scale, fly } from "svelte/transition";
+    import { fade, scale } from "svelte/transition";
     import { flip } from "svelte/animate";
     import { navigate } from "svelte-routing";
-    import { currentUser, isAdmin, base } from "../lib/store.js";
+    import { isAdmin, base } from "../lib/store.js";
     import { api } from "../lib/api.js";
     import { toast } from "../lib/feedback.js";
     import { readCache, writeCache } from "../lib/cache.js";
@@ -22,16 +22,6 @@
     // 관리자
     let newAmount = "";
     let isAdding = false;
-
-    // 카드 뒷면 색상
-    const CARD_COLORS = [
-        "from-indigo-500 to-purple-600",
-        "from-pink-500 to-rose-600",
-        "from-amber-500 to-orange-600",
-        "from-emerald-500 to-teal-600",
-        "from-cyan-500 to-blue-600",
-        "from-violet-500 to-fuchsia-600",
-    ];
 
     /** 금액 리스트 가져오기 */
     async function fetchAmounts() {

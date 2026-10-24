@@ -1,12 +1,12 @@
 <script>
   import { onMount } from "svelte";
-  import { fade, slide } from "svelte/transition";
+  import { slide } from "svelte/transition";
   import { api } from "../lib/api.js";
   import { toast, confirmDialog } from "../lib/feedback.js";
   import { formatDate } from "../lib/utils.js";
   import { readCache, writeCache } from "../lib/cache.js";
   import Spinner from "../lib/components/Spinner.svelte";
-  import { currentUser, isAdmin } from "../lib/store.js";
+  import { isAdmin } from "../lib/store.js";
 
   let stocks = [];
   let isLoading = true;

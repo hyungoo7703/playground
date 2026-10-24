@@ -6,7 +6,6 @@
   import { formatDate } from "../lib/utils.js";
   import { readCache, writeCache } from "../lib/cache.js";
   import { currentUser, isAdmin } from "../lib/store.js";
-  import { showLocalNotification } from "../lib/notification.js";
   import Spinner from "../lib/components/Spinner.svelte";
   import Modal from "../lib/components/Modal.svelte";
 

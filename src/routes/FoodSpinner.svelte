@@ -1,7 +1,7 @@
 <script>
   import { onMount, onDestroy } from "svelte";
   import { fade, scale, slide } from "svelte/transition";
-  import { currentUser, isAdmin } from "../lib/store.js";
+  import { isAdmin } from "../lib/store.js";
   import { api } from "../lib/api.js";
   import { toast, confirmDialog } from "../lib/feedback.js";
   import { readCache, writeCache } from "../lib/cache.js";

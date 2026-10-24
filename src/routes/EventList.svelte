@@ -177,8 +177,6 @@
     }
   }
 
-  import { showLocalNotification } from "../lib/notification.js";
-
   // Push Notification State (Admin only)
   let showEventPushModal = false;
   let selectedPushEventId = null;
