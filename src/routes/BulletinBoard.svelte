@@ -322,7 +322,7 @@
 
           <!-- Title & Content Snippet -->
           <div class="space-y-1">
-            <h3 class="text-base font-black text-gray-900 dark:text-white leading-snug line-clamp-1 group-hover:text-indigo-600 transition-colors">
+            <h3 class="text-base font-black text-gray-900 dark:text-white leading-snug line-clamp-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
               {post.title}
             </h3>
             <p class="text-xs text-gray-600 dark:text-gray-300 line-clamp-2 leading-relaxed">
@@ -569,7 +569,7 @@
         <div class="pt-4 border-t border-gray-100 dark:border-gray-700 space-y-3">
           <h4 class="text-xs font-black text-gray-900 dark:text-white flex items-center gap-1.5">
             <span>💬 댓글</span>
-            <span class="text-indigo-600 font-bold">({comments.length})</span>
+            <span class="text-indigo-600 dark:text-indigo-400 font-bold">({comments.length})</span>
           </h4>
 
           {#if isCommentLoading}

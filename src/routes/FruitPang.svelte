@@ -190,7 +190,7 @@
 
     <!-- Compact Score Board -->
     <div
-      class="flex justify-between items-center bg-white dark:bg-gray-800 p-3 rounded-[1.5rem] shadow-xl border-b-4 border-indigo-100"
+      class="flex justify-between items-center bg-white dark:bg-gray-800 p-3 rounded-[1.5rem] shadow-xl border-b-4 border-indigo-100 dark:border-gray-700"
     >
       <div class="flex flex-col">
         <span class="text-[9px] font-bold text-gray-400 uppercase">Score</span>
@@ -237,7 +237,7 @@
           initGame(true);
         }}
         class="py-2.5 rounded-xl font-black text-xs transition-all {!isHardMode
-          ? 'bg-white text-indigo-600 shadow-sm border border-indigo-100'
+          ? 'bg-white text-indigo-600 shadow-sm border border-indigo-100 dark:bg-gray-700 dark:text-indigo-300 dark:border-gray-600'
           : 'text-gray-400 bg-slate-100 dark:bg-gray-800 dark:text-gray-500'}"
       >
         일반 모드
@@ -263,7 +263,7 @@
   >
     <!-- Board Wrapper: Constrained by height and width to prevent overflow -->
     <div
-      class="max-h-full max-w-[96%] min-w-0 w-auto h-auto aspect-[7/9] mx-auto bg-indigo-200 dark:bg-gray-700 p-1 rounded-[1.5rem] shadow-2xl border-2 border-white flex flex-col justify-center"
+      class="max-h-full max-w-[96%] min-w-0 w-auto h-auto aspect-[7/9] mx-auto bg-indigo-200 dark:bg-gray-700 p-1 rounded-[1.5rem] shadow-2xl border-2 border-white dark:border-gray-600 flex flex-col justify-center"
     >
       <div
         class="grid grid-cols-7 gap-px bg-white/40 rounded-[1.2rem] p-1 w-full h-full"

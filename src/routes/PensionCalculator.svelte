@@ -85,7 +85,7 @@
     <button
       class="py-2.5 px-2 text-xs font-bold rounded-xl transition-all {activeTab === 'tax'
         ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-white shadow-sm'
-        : 'text-gray-500 dark:text-gray-400 hover:text-gray-800'}"
+        : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}"
       on:click={() => (activeTab = "tax")}
     >
       💰 세액공제
@@ -93,7 +93,7 @@
     <button
       class="py-2.5 px-2 text-xs font-bold rounded-xl transition-all {activeTab === 'roi'
         ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-white shadow-sm'
-        : 'text-gray-500 dark:text-gray-400 hover:text-gray-800'}"
+        : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}"
       on:click={() => (activeTab = "roi")}
     >
       📈 복리수익
@@ -101,7 +101,7 @@
     <button
       class="py-2.5 px-2 text-xs font-bold rounded-xl transition-all {activeTab === 'products'
         ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-white shadow-sm'
-        : 'text-gray-500 dark:text-gray-400 hover:text-gray-800'}"
+        : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}"
       on:click={() => (activeTab = "products")}
     >
       🏆 포트폴리오

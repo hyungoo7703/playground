@@ -441,7 +441,7 @@
     <div class="space-y-4">
       {#if isLoading}
         <div class="animate-pulse flex flex-col gap-3">
-          <div class="h-16 bg-gray-50 rounded-2xl"></div>
+          <div class="h-16 bg-gray-50 dark:bg-gray-700/30 rounded-2xl"></div>
         </div>
       {:else if monthlyEvents.length > 0}
         <ul class="space-y-3 list-none p-0 m-0">
@@ -458,7 +458,7 @@
                     month: "short",
                   })}</span
                 >
-                <span class="text-lg font-black text-indigo-600 leading-none"
+                <span class="text-lg font-black text-indigo-600 dark:text-indigo-400 leading-none"
                   >{getDay(event.date)}</span
                 >
               </div>

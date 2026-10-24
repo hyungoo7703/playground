@@ -499,7 +499,7 @@
               on:click={() => toggleDDay(event)}
               class="w-9 h-9 flex items-center justify-center rounded-xl text-sm transition-all active:scale-90 {isDDayPinned
                 ? 'bg-rose-500 text-white shadow-sm'
-                : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 text-gray-400 hover:text-rose-500'}"
+                : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-400 hover:text-rose-500'}"
               title={isDDayPinned ? "홈 D-Day 해제" : "홈 D-Day로 설정"}
               aria-label={isDDayPinned ? "홈 D-Day 해제" : "홈 D-Day로 설정"}
               aria-pressed={isDDayPinned}
@@ -636,7 +636,7 @@
               <button
                 type="button"
                 on:click={() => (newTitle = sugg)}
-                class="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-xs font-bold text-gray-600 dark:text-gray-300 rounded-lg whitespace-nowrap hover:bg-rose-50 hover:text-rose-600"
+                class="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-xs font-bold text-gray-600 dark:text-gray-300 rounded-lg whitespace-nowrap hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
               >
                 + {sugg}
               </button>

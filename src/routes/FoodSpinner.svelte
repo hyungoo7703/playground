@@ -337,7 +337,7 @@
           <div
             class="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800 opacity-30 hover:opacity-100 transition-opacity"
           >
-            <p class="text-[10px] text-center text-slate-300 mb-2">
+            <p class="text-[10px] text-center text-slate-400 dark:text-slate-500 mb-2">
               🤫 관리자 권한: 타겟 설정 (쉿!)
             </p>
             <div class="flex justify-center gap-2">
@@ -347,8 +347,8 @@
                     (targetWinner = targetWinner === mem ? null : mem)}
                   class="px-3 py-2 text-xs rounded-lg border transition-all {targetWinner ===
                   mem
-                    ? 'bg-red-100 text-red-600 border-red-200'
-                    : 'bg-transparent border-slate-200 text-slate-400'}"
+                    ? 'bg-red-100 text-red-600 border-red-200 dark:bg-red-950/50 dark:text-red-300 dark:border-red-800'
+                    : 'bg-transparent border-slate-200 dark:border-slate-700 text-slate-400'}"
                 >
                   {mem}
                 </button>

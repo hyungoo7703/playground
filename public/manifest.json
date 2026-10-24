@@ -3,8 +3,8 @@
   "short_name": "가족의 공간",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#ffffff",
+  "background_color": "#f3f4f6",
+  "theme_color": "#f3f4f6",
   "icons": [
     {
       "src": "./icon-192x192.png",

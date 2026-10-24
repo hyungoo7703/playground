@@ -325,7 +325,7 @@
       <!-- STEP 1: 종목 선택 -->
       <div class="space-y-2">
         <div class="flex items-center gap-1.5">
-          <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-black flex items-center justify-center">1</span>
+          <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300 text-xs font-black flex items-center justify-center">1</span>
           <span class="text-xs font-black text-gray-800 dark:text-gray-200">어떤 주식을 사셨나요?</span>
         </div>
 
@@ -357,7 +357,7 @@
       <!-- STEP 2: 단가 및 수량 입력 -->
       <div class="space-y-3">
         <div class="flex items-center gap-1.5">
-          <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-black flex items-center justify-center">2</span>
+          <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300 text-xs font-black flex items-center justify-center">2</span>
           <span class="text-xs font-black text-gray-800 dark:text-gray-200">얼마에 몇 주 사셨나요?</span>
         </div>
 
@@ -423,28 +423,28 @@
           <button
             type="button"
             on:click={() => addQuantity(1)}
-            class="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
+            class="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
           >
             +1주
           </button>
           <button
             type="button"
             on:click={() => addQuantity(5)}
-            class="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
+            class="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
           >
             +5주
           </button>
           <button
             type="button"
             on:click={() => addQuantity(10)}
-            class="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
+            class="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
           >
             +10주
           </button>
           <button
             type="button"
             on:click={() => addQuantity(50)}
-            class="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
+            class="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95"
           >
             +50주
           </button>
@@ -471,7 +471,7 @@
       <!-- STEP 3: 누구 돈으로 샀나요? (초간단 버튼) -->
       <div class="space-y-3">
         <div class="flex items-center gap-1.5">
-          <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-black flex items-center justify-center">3</span>
+          <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300 text-xs font-black flex items-center justify-center">3</span>
           <span class="text-xs font-black text-gray-800 dark:text-gray-200">누구 돈으로 샀나요? (클릭 한 번으로 선택)</span>
         </div>
 

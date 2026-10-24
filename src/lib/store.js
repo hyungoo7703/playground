@@ -80,20 +80,21 @@ const createDarkModeStore = () => {
 
   const { subscribe, set, update } = writable(initialValue);
 
-  if (typeof window !== "undefined") {
-    // 테마 초기 적용
-    document.documentElement.classList.toggle("dark", initialValue);
-  }
+  // 테마 + 상태바 색상 적용 (gray-100 / gray-900)
+  const apply = (value) => {
+    document.documentElement.classList.toggle("dark", value);
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute("content", value ? "#111827" : "#f3f4f6");
+  };
+
+  if (typeof window !== "undefined") apply(initialValue);
 
   return {
     subscribe,
     set: (value) => {
       if (typeof window !== "undefined") {
-        if (value) {
-          document.documentElement.classList.add("dark");
-        } else {
-          document.documentElement.classList.remove("dark");
-        }
+        apply(value);
         localStorage.setItem("isDarkMode", String(value));
       }
       set(value);
