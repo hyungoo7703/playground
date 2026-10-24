@@ -73,6 +73,7 @@
     }
 
     const res = await api.getEvents();
+    todayStr = formatDate(new Date());
     if (res.success) {
       events = res.events.sort((a, b) => a.date.localeCompare(b.date));
       writeCache("events", events);
@@ -183,8 +184,14 @@
   let selectedPushEventId = null;
   let isSendingEventPush = false;
 
-  $: todayStr = formatDate(new Date());
+  // Refreshed when events load or the push picker opens, so it doesn't go stale past midnight
+  let todayStr = formatDate(new Date());
   $: upcomingEvents = events.filter((e) => e.date >= todayStr);
+  // Push picker: upcoming first (nearest on top), then past events newest first
+  $: pushCandidates = [
+    ...upcomingEvents,
+    ...events.filter((e) => e.date < todayStr).reverse(),
+  ];
   $: nearestUpcomingEvent =
     upcomingEvents.length > 0
       ? upcomingEvents[0]
@@ -232,6 +239,7 @@
   }
 
   function openEventPushModal() {
+    todayStr = formatDate(new Date());
     if (!$isAdmin) return toast("관리자만 일정을 푸쉬할 수 있습니다.", "info");
     if (events.length === 0) return toast("등록된 일정이 없습니다.", "info");
     selectedPushEventId = nearestUpcomingEvent
@@ -698,7 +706,7 @@
             알림 보낼 일정 선택
           </span>
           <div class="space-y-2">
-            {#each events as ev}
+            {#each pushCandidates as ev}
               {@const msg = generateEventPushMessage(ev)}
               <button
                 type="button"
