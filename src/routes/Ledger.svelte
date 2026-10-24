@@ -56,6 +56,7 @@
 
   // Fixed Rules State
   let rules = [];
+  let isRulesLoading = false;
   let showRuleModal = false;
   let isRuleSubmitting = false;
   let isBatchSubmitting = false;
@@ -72,19 +73,21 @@
 
   onMount(() => {
     loadLedger();
+    // 헤더의 '고정 이체 (N)' 개수를 바로 보여주기 위해 미리 로드
+    if ($isAdmin) loadRules();
   });
 
-  async function openRuleModal() {
+  async function loadRules() {
+    isRulesLoading = true;
+    const res = await api.getRules();
+    if (res.success) rules = res.rules;
+    isRulesLoading = false;
+  }
+
+  function openRuleModal() {
     if (!$isAdmin) return alert("관리자만 접근할 수 있습니다.");
     showRuleModal = true;
-    isLoading = true;
-    const res = await api.getRules();
-    if (res.success) {
-      rules = res.rules;
-    } else {
-      rules = [];
-    }
-    isLoading = false;
+    loadRules();
   }
 
   function addRuleAmount(val) {
@@ -328,16 +331,16 @@
     return true;
   });
 
-  $: totalAmount = filteredItems.reduce((sum, item) => {
-    const n = parseFloat(item.amount);
-    return sum + (isNaN(n) ? 0 : n);
-  }, 0);
+  $: totalAmount = filteredItems.reduce(
+    (sum, item) => sum + cleanAmount(item.amount),
+    0,
+  );
 
   $: unsettledItems = filteredItems.filter((i) => !i.is_settled);
-  $: unsettledAmount = unsettledItems.reduce((sum, item) => {
-    const n = parseFloat(item.amount);
-    return sum + (isNaN(n) ? 0 : n);
-  }, 0);
+  $: unsettledAmount = unsettledItems.reduce(
+    (sum, item) => sum + cleanAmount(item.amount),
+    0,
+  );
 
   // Nudge Push State
   let showNudgeModal = false;
@@ -360,7 +363,7 @@
           items: [],
         };
       }
-      acc[giver].totalAmount += parseFloat(item.amount) || 0;
+      acc[giver].totalAmount += cleanAmount(item.amount);
       acc[giver].items.push(item);
       return acc;
     }, {}),
@@ -550,7 +553,7 @@
 
   <!-- Items List -->
   <div class="space-y-3">
-    {#if isLoading && !showRuleModal}
+    {#if isLoading}
       <div class="flex flex-col items-center justify-center py-16">
         <Spinner label="장부를 불러오는 중..." />
       </div>
@@ -558,7 +561,9 @@
       <div class="bg-white dark:bg-gray-800 rounded-3xl p-10 text-center shadow-sm border border-gray-100 dark:border-gray-700 text-gray-400">
         <span class="text-4xl block mb-2">💸</span>
         <p class="text-sm font-bold text-gray-600 dark:text-gray-300">내역이 없습니다.</p>
-        <p class="text-xs text-gray-400 mt-1">우측 하단의 '+' 버튼으로 새 내역을 추가해보세요!</p>
+        {#if $isAdmin}
+          <p class="text-xs text-gray-400 mt-1">우측 하단의 '+' 버튼으로 새 내역을 추가해보세요!</p>
+        {/if}
       </div>
     {:else}
       {#each filteredItems as item (item.id)}
@@ -820,7 +825,9 @@
 
         <!-- Rules List (Scrollable) -->
         <div class="flex-1 overflow-y-auto space-y-2 pr-1 min-h-[100px] max-h-[220px]">
-          {#if rules.length === 0}
+          {#if isRulesLoading && rules.length === 0}
+            <Spinner label="고정 이체 불러오는 중..." />
+          {:else if rules.length === 0}
             <div class="text-center py-6 text-gray-400 text-xs bg-gray-50 dark:bg-gray-900 rounded-2xl">
               아직 등록된 고정 이체 규칙이 없습니다.<br />아래 폼에서 규칙을 등록해보세요!
             </div>
@@ -1040,9 +1047,9 @@
               <div class="space-y-1 bg-white dark:bg-gray-800 p-2.5 rounded-xl border border-gray-100 dark:border-gray-700 text-[11px]">
                 {#each debtor.items as it}
                   <div class="flex justify-between items-center text-gray-600 dark:text-gray-300">
-                    <span class="truncate max-w-[170px]">• {it.title} ({it.date.slice(5)})</span>
+                    <span class="truncate max-w-[170px]">• {it.title} ({new Date(it.date).getDate()}일)</span>
                     <span class="font-bold text-gray-800 dark:text-gray-200">
-                      {Number(it.amount).toLocaleString()}원
+                      {cleanAmount(it.amount).toLocaleString()}원
                     </span>
                   </div>
                 {/each}

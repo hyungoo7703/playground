@@ -56,6 +56,9 @@
   let updatePushTitle = "가족 놀이터 업데이트 알림 🚀";
   let updatePushBody = "새로운 업데이트가 되었어요! 지금 확인해보세요 ✨";
   let updatePushResult = "";
+  const ALL_FAMILY = ["아빠", "엄마", "현구", "범수"];
+  $: me = $currentUser || "현구";
+  $: pushTargets = ALL_FAMILY.filter((name) => name !== me);
 
   onMount(() => {
     // 1. AI 설정 불러오기
@@ -186,6 +189,8 @@
         notiMessage = "🔔 알림 권한 허용 및 구글 시트에 기기 등록이 완료되었습니다!";
       } else if (result.permission === "denied") {
         notiMessage = "🚫 알림 권한이 차단되었습니다. 브라우저 사이트 설정에서 권한을 변경해주세요.";
+      } else {
+        notiMessage = `⚠️ 기기 등록에 실패했습니다. 잠시 후 다시 시도해주세요.${result.message ? ` (${result.message})` : ""}`;
       }
     } catch (e) {
       notiMessage = `알림 등록 오류: ${e.message}`;
@@ -208,13 +213,11 @@
 
   // 관리자 전용: 나를 제외한 가족들에게 업데이트 알림 전송
   async function handleSendUpdatePush() {
-    const current = $currentUser || "현구";
-    const ALL_FAMILY = ["아빠", "엄마", "현구", "범수"];
-    const targets = ALL_FAMILY.filter((name) => name !== current);
+    const targets = pushTargets;
 
     if (
       !confirm(
-        `나(${current})를 제외한 가족(${targets.join(", ")})에게 업데이트 알림을 전송할까요?\n\n📢 "${updatePushBody}"`
+        `나(${me})를 제외한 가족(${targets.join(", ")})에게 업데이트 알림을 전송할까요?\n\n📢 "${updatePushBody}"`
       )
     ) {
       return;
@@ -242,10 +245,10 @@
         }
       });
 
-      updatePushResult = `🚀 가족 ${targets.length}명(${targets.join(", ")}) 중 등록된 기기로 알림 전송 완료! (${successCount}건 성공)`;
-      alert(
-        `🚀 가족 업데이트 알림 발송 완료!\n\n발송 대상: ${targets.join(", ")}\n성공 응답: ${successCount}건\n\n📢 ${updatePushTitle}\n💬 "${updatePushBody}"`
-      );
+      updatePushResult =
+        successCount === 0
+          ? `⚠️ 가족 ${targets.length}명 모두에게 전송하지 못했습니다. 가족들의 기기 등록 여부를 확인해주세요.`
+          : `🚀 가족 ${targets.length}명(${targets.join(", ")}) 중 ${successCount}명에게 알림을 보냈습니다.`;
     } catch (e) {
       updatePushResult = `⚠️ 발송 중 오류: ${e.message}`;
       alert("푸시 알림 발송 중 오류가 발생했습니다: " + e.message);
@@ -277,7 +280,7 @@
   }
 </script>
 
-<div class="space-y-6 max-w-md mx-auto pb-24">
+<div class="space-y-6 max-w-md mx-auto">
   <h2 class="text-2xl font-black text-gray-800 dark:text-gray-200">설정</h2>
 
   <!-- 1. 기본 설정 (다크모드) -->
@@ -524,7 +527,7 @@
       </div>
 
       <p class="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
-        새로운 기능이나 패치가 배포되었을 때, <strong>나({$currentUser || '현구'})를 제외한 가족(아빠, 엄마, 범수)</strong>의 스마트폰으로 업데이트 알림을 즉시 발송합니다.
+        새로운 기능이나 패치가 배포되었을 때, <strong>나({me})를 제외한 가족({pushTargets.join(", ")})</strong>의 스마트폰으로 업데이트 알림을 즉시 발송합니다.
       </p>
 
       <!-- Message input / preview -->

@@ -513,7 +513,7 @@
                 {currentPost.author}
               </p>
               <p class="text-xs text-gray-400 font-medium">
-                {currentPost.date} · 조회 {currentPost.view_count + 1}
+                {currentPost.date} · 조회 {(Number(currentPost.view_count) || 0) + 1}
               </p>
             </div>
             <span class="ml-auto text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-300">

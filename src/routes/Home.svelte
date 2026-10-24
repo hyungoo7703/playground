@@ -268,7 +268,7 @@
   }
 </script>
 
-<div class="space-y-6 max-w-md mx-auto pb-36">
+<div class="space-y-6 max-w-md mx-auto pb-16">
 
   <header
     in:fade={{ duration: 800 }}
