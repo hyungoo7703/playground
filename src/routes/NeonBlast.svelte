@@ -18,6 +18,11 @@
   let mouseX = 200;
   let currentStageData;
 
+  // Logical playfield; the backing store is scaled by dpr for sharp edges
+  const W = 400;
+  const H = 600;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
   const playSfx = (name) => {
     if (isMuted) return;
     const audio = new Audio(`${base}/sounds/neon/blast/${name}.mp3`);
@@ -46,6 +51,7 @@
     isStarted = true;
     await tick();
     ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     zapAudio = new Audio(`${base}/sounds/neon/blast/zap-synth.mp3`);
     zapAudio.loop = true;
     zapAudio.volume = 0.3;
@@ -76,7 +82,7 @@
   }
 
   function loop() {
-    updatePhysics(canvas.width, canvas.height);
+    updatePhysics(W, H);
     render();
     frame = requestAnimationFrame(loop);
   }
@@ -92,7 +98,7 @@
       ctx.translate(dx, dy);
     }
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, W, H);
 
     $gameStore.zones.forEach((z) => {
       ctx.fillStyle = "rgba(217, 70, 239, 0.15)";
@@ -216,7 +222,7 @@
       ctx.textBaseline = "middle";
 
       const text = `${$gameStore.currentCombo} COMBO!`;
-      ctx.translate(canvas.width / 2, canvas.height / 2); // Center
+      ctx.translate(W / 2, H / 2); // Center
       ctx.strokeText(text, -100, 0);
       ctx.fillText(text, -100, 0);
       ctx.restore();
@@ -227,7 +233,7 @@
 
   function handleShoot(e) {
     const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
+    const scaleX = W / rect.width;
     shootBall((e.clientX - rect.left) * scaleX);
   }
 
@@ -244,7 +250,18 @@
     }
   };
 
+  function handleVisibility() {
+    if (!isStarted || !bgmAudio) return;
+    if (document.hidden) {
+      bgmAudio.pause();
+      if (zapAudio) zapAudio.pause();
+    } else if (!isMuted) {
+      bgmAudio.play().catch(() => {});
+    }
+  }
+
   onMount(() => {
+    document.addEventListener("visibilitychange", handleVisibility);
     window.addEventListener("pegHit", onPegHit);
     window.addEventListener("portalWarp", onPortalWarp);
     window.addEventListener("powerUp", onPowerUp);
@@ -253,6 +270,7 @@
   });
 
   onDestroy(() => {
+    document.removeEventListener("visibilitychange", handleVisibility);
     window.removeEventListener("pegHit", onPegHit);
     window.removeEventListener("portalWarp", onPortalWarp);
     window.removeEventListener("powerUp", onPowerUp);
@@ -268,7 +286,10 @@
   class="flex flex-col items-center w-full h-full md:h-auto md:min-h-screen bg-[#050505] text-white select-none font-sans relative overflow-hidden md:overflow-y-auto"
 >
   {#if !isStarted}
-    <div class="absolute top-4 left-4 z-20">
+    <div
+      class="absolute left-4 z-20"
+      style="top: max(1rem, env(safe-area-inset-top));"
+    >
       <GameExitButton />
     </div>
     <div
@@ -297,6 +318,7 @@
   {:else}
     <header
       class="w-full max-w-[500px] px-5 py-1 flex justify-between items-center bg-gray-900/60 backdrop-blur-md border-b border-white/10 shrink-0 z-20"
+      style="padding-top: max(0.25rem, env(safe-area-inset-top));"
     >
       <div class="flex items-center gap-3">
         <GameExitButton />
@@ -352,12 +374,12 @@
       >
         <canvas
           bind:this={canvas}
-          width="400"
-          height="600"
+          width={W * dpr}
+          height={H * dpr}
           on:click={handleShoot}
           on:mousemove={(e) => {
             const rect = canvas.getBoundingClientRect();
-            mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
+            mouseX = (e.clientX - rect.left) * (W / rect.width);
           }}
           class="w-full h-full rounded-[2.5rem] border-4 border-[#00f3ff] shadow-[0_0_40px_rgba(0,243,255,0.25)]"
           style="background: url('{base}/images/neon/blast/background.png') center/cover;"
@@ -400,7 +422,8 @@
     </main>
 
     <footer
-      class="w-full py-2 shrink-0 text-center text-[10px] text-gray-500 uppercase tracking-widest bg-gradient-to-t from-black to-transparent"
+      class="w-full pt-2 shrink-0 text-center text-[10px] text-gray-500 uppercase tracking-widest bg-gradient-to-t from-black to-transparent"
+      style="padding-bottom: max(0.5rem, env(safe-area-inset-bottom));"
     >
       Neon Blast: Gravity Arena
     </footer>

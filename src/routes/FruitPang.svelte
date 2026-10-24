@@ -53,8 +53,12 @@
   }
 
   function startEnergyDrain() {
-    stopEnergyDrain();
     energy = 100;
+    runEnergyDrain();
+  }
+
+  function runEnergyDrain() {
+    stopEnergyDrain();
     gameInterval = setInterval(() => {
       if (isHardMode && !gameOver) {
         const speedMultiplier = 1 + score / 5000;
@@ -168,11 +172,23 @@
     }, 300);
   }
 
-  onDestroy(() => stopEnergyDrain());
+  // Don't drain energy while the app is in the background
+  function handleVisibility() {
+    if (document.hidden) stopEnergyDrain();
+    else if (isHardMode && !gameOver) runEnergyDrain();
+  }
+
+  onMount(() => document.addEventListener("visibilitychange", handleVisibility));
+
+  onDestroy(() => {
+    stopEnergyDrain();
+    document.removeEventListener("visibilitychange", handleVisibility);
+  });
 </script>
 
 <div
-  class="flex flex-col items-center justify-between w-full h-[100dvh] bg-slate-50 dark:bg-gray-900 px-0 py-2 select-none overflow-hidden font-sans"
+  class="flex flex-col items-center justify-between w-full h-[100dvh] bg-slate-50 dark:bg-gray-900 px-0 select-none overflow-hidden font-sans"
+  style="padding-top: max(0.5rem, env(safe-area-inset-top)); padding-bottom: max(0.5rem, env(safe-area-inset-bottom));"
 >
   <div class="w-full max-w-xs space-y-1.5 px-4 pt-1">
     <div class="flex items-center gap-2">

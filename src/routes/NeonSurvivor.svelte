@@ -39,10 +39,13 @@
     let showLevelUp = false;
     let levelUpOptions = [];
 
-    onMount(async () => {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+    let safeProbe;
 
+    function handleVisibility() {
+        if (document.hidden && gameState === "playing") togglePause();
+    }
+
+    onMount(async () => {
         engine = new GameEngine(
             canvas,
             (coins) => {
@@ -62,6 +65,9 @@
             },
         );
 
+        engine.resize(window.innerWidth, window.innerHeight);
+        engine.safeBottom = safeProbe.offsetHeight;
+
         const user = get(currentUser);
         if (get(isAdmin) && engine.upgradeSystem.getCoins() <= 1000) {
             engine.upgradeSystem.addCoins(100000);
@@ -77,6 +83,7 @@
         }, 500);
 
         window.addEventListener("resize", handleResize);
+        document.addEventListener("visibilitychange", handleVisibility);
     });
 
     onDestroy(() => {
@@ -87,13 +94,13 @@
         if (gachaTimer) clearTimeout(gachaTimer);
         if (toastTimer) clearTimeout(toastTimer);
         window.removeEventListener("resize", handleResize);
+        document.removeEventListener("visibilitychange", handleVisibility);
     });
 
     function handleResize() {
-        if (canvas && engine) {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+        if (engine) {
             engine.resize(window.innerWidth, window.innerHeight);
+            engine.safeBottom = safeProbe.offsetHeight;
         }
     }
 
@@ -138,15 +145,9 @@
 
     function handleTouchStart(e) {
         if (gameState !== "playing") return;
+        // Buttons (pause, ultimate) handle their own taps
+        if (e.target.closest("button")) return;
         const touch = e.touches[0];
-
-        // Ignore if touching Ultimate button area (Bottom Right roughly)
-        const ultX = window.innerWidth - 60;
-        const ultY = window.innerHeight - 60;
-        if (Math.hypot(touch.clientX - ultX, touch.clientY - ultY) < 80) {
-            activateUltimate();
-            return;
-        }
 
         joystickActive = true;
         joystickData.startX = touch.clientX;
@@ -276,6 +277,11 @@
     on:touchend={handleTouchEnd}
 >
     <canvas bind:this={canvas} class="block w-full h-full"></canvas>
+    <div
+        bind:this={safeProbe}
+        class="fixed bottom-0 invisible pointer-events-none"
+        style="height: env(safe-area-inset-bottom);"
+    ></div>
 
     <!-- Boss Warning -->
     {#if uiState.bossWarning}
@@ -459,7 +465,8 @@
         <button
             on:click={activateUltimate}
             aria-label="필살기"
-            class="absolute bottom-8 right-8 w-24 h-24 rounded-full flex items-center justify-center transition-all duration-200 active:scale-95 shadow-xl border-4 border-white/20 z-40 {uiState.ultimateGauge >=
+            style="bottom: max(2rem, env(safe-area-inset-bottom) + 1rem); right: max(2rem, env(safe-area-inset-right) + 1rem);"
+            class="absolute w-24 h-24 rounded-full flex items-center justify-center transition-all duration-200 active:scale-95 shadow-xl border-4 border-white/20 z-40 {uiState.ultimateGauge >=
             ULTIMATE_MAX
                 ? 'bg-gradient-to-br from-red-500 to-orange-600 animate-pulse cursor-pointer'
                 : 'bg-gray-800/80 grayscale'}"
