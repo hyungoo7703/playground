@@ -266,7 +266,7 @@
 
       if (res && res.success) {
         toast(
-          `🚀 가족 전체 푸쉬 알림 발송 완료!\n\n📢 ${title}\n💬 "${body}"\n\n📌 발송 결과: ${res.message || res.count + "개 기기로 전송되었습니다."}`,
+          `🚀 가족 전체 푸쉬 알림 발송 완료!\n\n${title}\n"${body}"\n\n발송 결과: ${res.message || res.count + "개 기기로 전송되었습니다."}`,
           "success",
         );
       } else {

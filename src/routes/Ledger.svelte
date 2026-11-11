@@ -976,7 +976,7 @@
           disabled={isRuleSubmitting}
           class="w-full py-3 bg-gray-900 hover:bg-black dark:bg-white dark:text-gray-900 text-white rounded-xl text-xs font-black active:scale-95 transition-all shadow-sm disabled:opacity-40"
         >
-          {isRuleSubmitting ? "등록 중..." : "➕ 고정 이체 규칙 저장하기"}
+          {isRuleSubmitting ? "등록 중..." : "고정 이체 규칙 저장하기"}
         </button>
       </div>
     </Modal>

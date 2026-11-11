@@ -489,7 +489,7 @@
                         class="flex items-center gap-2 bg-white/20 backdrop-blur-md rounded-2xl px-4 py-2"
                     >
                         <span class="text-sm opacity-80 animate-pulse"
-                            >⏳ 보상 파악중...</span
+                            >보상 파악중...</span
                         >
                     </div>
                 {:else}
@@ -626,7 +626,7 @@
                     <div class="text-left">
                         <p class="font-black text-lg">출석여부 파악중...</p>
                         <p class="text-[11px] opacity-80 font-bold">
-                            잠시만 기다려주세요 ⏳
+                            잠시만 기다려주세요
                         </p>
                     </div>
                 </div>
@@ -659,7 +659,7 @@
                     <div class="text-left">
                         <p class="font-black text-lg">출석 중...</p>
                         <p class="text-[11px] opacity-80 font-bold">
-                            잠시만 기다려주세요 ⏳
+                            잠시만 기다려주세요
                         </p>
                     </div>
                 </div>
@@ -854,7 +854,7 @@
                     <p
                         class="text-lg font-bold text-gray-500 dark:text-gray-400 animate-pulse mt-1"
                     >
-                        ⏳ 계산 중...
+                        계산 중...
                     </p>
                 {:else}
                     <p

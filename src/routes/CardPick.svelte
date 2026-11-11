@@ -166,10 +166,13 @@
 
     <!-- 헤더 -->
     <div class="text-center mb-6">
-        <h1
-            class="text-3xl md:text-4xl font-black bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 bg-clip-text text-transparent"
-        >
-            🎴 용돈 카드뽑기
+        <!-- The emoji stays outside the gradient span: inside clipped transparent text it renders as a silhouette -->
+        <h1 class="text-3xl md:text-4xl font-black">
+            <span
+                class="bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 bg-clip-text text-transparent"
+                >용돈 카드뽑기</span
+            >
+            🎴
         </h1>
         <p class="text-gray-500 dark:text-gray-400 mt-2 text-sm">
             카드를 골라 용돈을 받으세요!
