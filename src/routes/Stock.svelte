@@ -389,7 +389,7 @@
 
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label for="p-stock-price" class="block text-[11px] font-bold text-gray-400 mb-1 ml-1">
+            <label for="p-stock-price" class="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1 ml-1">
               1주당 가격 (단가)
             </label>
             <div class="relative">
@@ -401,12 +401,12 @@
                 placeholder={isUSD ? "예: 231.45" : "예: 70000"}
                 class="w-full p-3.5 pr-8 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-2xl font-black text-base outline-none focus:ring-2 focus:ring-emerald-500 border border-gray-200 dark:border-gray-700"
               />
-              <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">{isUSD ? "$" : "원"}</span>
+              <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-500 dark:text-gray-400">{isUSD ? "$" : "원"}</span>
             </div>
           </div>
 
           <div>
-            <label for="p-stock-qty" class="block text-[11px] font-bold text-gray-400 mb-1 ml-1">
+            <label for="p-stock-qty" class="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1 ml-1">
               매입 수량
             </label>
             <div class="relative">
@@ -417,7 +417,7 @@
                 placeholder="1"
                 class="w-full p-3.5 pr-8 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-2xl font-black text-base outline-none focus:ring-2 focus:ring-emerald-500 border border-gray-200 dark:border-gray-700 text-center"
               />
-              <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">주</span>
+              <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-500 dark:text-gray-400">주</span>
             </div>
           </div>
         </div>
@@ -489,7 +489,7 @@
               : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold'}"
           >
             <span class="text-base block mb-0.5">👩 엄마 100%</span>
-            <span class="text-[10px] text-gray-400 font-normal">엄마 혼자 전액 부담</span>
+            <span class="text-[10px] text-gray-500 dark:text-gray-400 font-normal">엄마 혼자 전액 부담</span>
           </button>
 
           <button
@@ -501,7 +501,7 @@
               : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold'}"
           >
             <span class="text-base block mb-0.5">👦 범수 100%</span>
-            <span class="text-[10px] text-gray-400 font-normal">범수 혼자 전액 부담</span>
+            <span class="text-[10px] text-gray-500 dark:text-gray-400 font-normal">범수 혼자 전액 부담</span>
           </button>
 
           <button
@@ -513,7 +513,7 @@
               : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold'}"
           >
             <span class="text-base block mb-0.5">⚖️ 엄마 & 범수 반반</span>
-            <span class="text-[10px] text-gray-400 font-normal">5:5 정확히 반반</span>
+            <span class="text-[10px] text-gray-500 dark:text-gray-400 font-normal">5:5 정확히 반반</span>
           </button>
 
           <button
@@ -525,7 +525,7 @@
               : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold'}"
           >
             <span class="text-base block mb-0.5">👨‍👩‍👧‍👦 4명 모두 똑같이</span>
-            <span class="text-[10px] text-gray-400 font-normal">1/N 균등 분할</span>
+            <span class="text-[10px] text-gray-500 dark:text-gray-400 font-normal">1/N 균등 분할</span>
           </button>
         </div>
 
@@ -533,7 +533,7 @@
         <button
           type="button"
           on:click={() => (payerMode = "custom")}
-          class="w-full py-2 text-center text-xs font-bold text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+          class="w-full py-2 text-center text-xs font-bold text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
         >
           {payerMode === "custom" ? "▼ 직접 금액 입력 중" : "직접 금액을 따로 지정할래요"}
         </button>
@@ -551,7 +551,7 @@
                     placeholder="0"
                     class="w-full p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl text-xs font-bold text-right pr-8 outline-none border border-gray-200 dark:border-gray-700"
                   />
-                  <span class="absolute right-2.5 top-2 text-[10px] text-gray-400">{isUSD ? "$" : "원"}</span>
+                  <span class="absolute right-2.5 top-2 text-[10px] text-gray-500 dark:text-gray-400">{isUSD ? "$" : "원"}</span>
                 </div>
               </div>
             {/each}
@@ -577,10 +577,10 @@
           <Spinner label="주식 데이터를 불러오는 중..." />
         </div>
       {:else if stocks.length === 0}
-        <div class="text-center py-16 bg-white dark:bg-gray-800 rounded-3xl p-6 text-gray-400 shadow-sm border border-gray-100 dark:border-gray-700">
+        <div class="text-center py-16 bg-white dark:bg-gray-800 rounded-3xl p-6 text-gray-500 dark:text-gray-400 shadow-sm border border-gray-100 dark:border-gray-700">
           <span class="text-4xl block mb-2">📈</span>
           <p class="text-sm font-bold text-gray-600 dark:text-gray-300">아직 등록된 주식이 없습니다.</p>
-          <p class="text-xs text-gray-400 mt-1">상단의 '+ 새 주식 샀어요!' 버튼을 눌러 첫 투자를 기록해보세요!</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">상단의 '+ 새 주식 샀어요!' 버튼을 눌러 첫 투자를 기록해보세요!</p>
         </div>
       {:else}
         {#each summaryByStock as item}
@@ -594,7 +594,7 @@
                     <span class="text-[10px] font-black px-1.5 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-800">USD</span>
                   {/if}
                 </h3>
-                <p class="text-xs font-bold text-gray-400 mt-0.5">
+                <p class="text-xs font-bold text-gray-500 dark:text-gray-400 mt-0.5">
                   평단가 약 {fmtMoney(item.total_price / item.quantity, item.currency)}
                 </p>
               </div>
@@ -602,11 +602,11 @@
                 <span class="block text-xl font-black text-emerald-600 dark:text-emerald-400">
                   {fmtQty(item.quantity)}주
                 </span>
-                <span class="text-xs font-bold text-gray-400 block">
+                <span class="text-xs font-bold text-gray-500 dark:text-gray-400 block">
                   총 {fmtMoney(item.total_price, item.currency)}
                 </span>
                 {#if item.currency === "USD" && usdKrwRate}
-                  <span class="text-[10px] font-bold text-gray-300 dark:text-gray-500">
+                  <span class="text-[10px] font-bold text-gray-500 dark:text-gray-400">
                     ≈ {Math.round(item.total_price * usdKrwRate).toLocaleString()}원
                   </span>
                 {/if}
@@ -634,7 +634,7 @@
                   <div class="flex items-center gap-1.5 text-xs font-bold bg-gray-50 dark:bg-gray-700/50 px-2.5 py-1 rounded-xl">
                     <span class="w-2 h-2 rounded-full {MEMBER_COLORS[owner] || 'bg-gray-400'}"></span>
                     <span class="text-gray-700 dark:text-gray-300">{owner}</span>
-                    <span class="text-gray-400 font-normal">{fmtQty(qty)}주 ({pct}%)</span>
+                    <span class="text-gray-500 dark:text-gray-400 font-normal">{fmtQty(qty)}주 ({pct}%)</span>
                   </div>
                 {/if}
               {/each}
@@ -642,7 +642,7 @@
 
             <!-- Collapsible History -->
             <details class="group pt-2 border-t border-gray-100 dark:border-gray-700">
-              <summary class="flex justify-between items-center text-xs font-bold text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer select-none py-1">
+              <summary class="flex justify-between items-center text-xs font-bold text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer select-none py-1">
                 <span>🕒 매입 상세 내역 ({item.count}건)</span>
                 <span class="group-open:rotate-180 transition-transform">▼</span>
               </summary>
@@ -653,7 +653,7 @@
                       <span class="w-2 h-2 rounded-full {MEMBER_COLORS[stock.owner] || 'bg-gray-400'}"></span>
                       <div>
                         <p class="font-bold text-gray-800 dark:text-gray-200">{stock.owner}</p>
-                        <p class="text-[10px] text-gray-400">{stock.date}</p>
+                        <p class="text-[10px] text-gray-500 dark:text-gray-400">{stock.date}</p>
                       </div>
                     </div>
                     <div class="flex items-center gap-3">
@@ -661,7 +661,7 @@
                         <p class="font-bold text-gray-900 dark:text-white">
                           {fmtQty(stock.quantity)}주
                         </p>
-                        <p class="text-[10px] text-gray-400">
+                        <p class="text-[10px] text-gray-500 dark:text-gray-400">
                           @{fmtMoney(stock.price, stock.currency || "KRW")}
                         </p>
                       </div>
@@ -669,7 +669,7 @@
                         <button
                           type="button"
                           on:click={() => deleteStock(stock.id)}
-                          class="w-10 h-10 -mr-2 flex items-center justify-center text-gray-400 hover:text-rose-500 transition-colors"
+                          class="w-10 h-10 -mr-2 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-rose-500 dark:hover:text-rose-500 transition-colors"
                           aria-label="매입 내역 삭제"
                         >
                           🗑️

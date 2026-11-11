@@ -337,7 +337,7 @@
   {:else}
     <button
       on:click={() => navigateTo("events")}
-      class="w-full p-4 rounded-[2rem] border-2 border-dashed border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 text-sm font-bold active:scale-[0.98] transition-all"
+      class="w-full p-4 rounded-[2rem] border-2 border-dashed border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 text-sm font-bold active:scale-[0.98] transition-all"
     >
       🎉 기다려지는 날이 있나요? 일정에서 D-Day를 설정해보세요
     </button>
@@ -359,7 +359,7 @@
           <h3 class="font-black text-lg text-gray-500 dark:text-gray-300">
             출석체크 📅
           </h3>
-          <p class="text-xs text-gray-400">확인 중...</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400">확인 중...</p>
         {:else if todayCheckedIn}
           <h3 class="font-black text-lg">오늘 출석 완료! ✅</h3>
           <p class="text-xs opacity-80">
@@ -422,7 +422,7 @@
               : "아직 주식 내역이 없습니다. 시작해보세요! 🚀"}
           </p>
         {:else}
-          <p class="text-xs text-gray-400 mt-1 animate-pulse">주식 현황 확인 중...</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 animate-pulse">주식 현황 확인 중...</p>
         {/if}
       </div>
       <span class="text-2xl p-2 bg-white dark:bg-gray-800 rounded-2xl shadow-sm">📈</span>
@@ -462,7 +462,7 @@
               <div
                 class="flex flex-col items-center justify-center min-w-[3rem] h-12 bg-white dark:bg-gray-800 rounded-xl shadow-sm"
               >
-                <span class="text-[10px] font-bold text-gray-400 uppercase"
+                <span class="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase"
                   >{new Date().toLocaleString("en-US", {
                     month: "short",
                   })}</span
@@ -495,7 +495,7 @@
         </ul>
       {:else}
         <div class="text-center py-8">
-          <p class="text-sm text-gray-400">예정된 일정이 없습니다. ☕</p>
+          <p class="text-sm text-gray-500 dark:text-gray-400">예정된 일정이 없습니다. ☕</p>
         </div>
       {/if}
     </div>
@@ -516,19 +516,19 @@
           이번 달 장부
         </h3>
         {#if ledgerLoaded}
-          <p class="text-xs text-gray-400 mt-1">
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
             총 {monthCount}건{monthUnsettledCount > 0
               ? ` · 미정산 ${monthUnsettledCount}건 (${monthUnsettledAmount.toLocaleString()}원)`
               : " · 모두 정산 완료 ✨"}
           </p>
         {:else}
-          <p class="text-xs text-gray-400 mt-1 animate-pulse">확인 중...</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 animate-pulse">확인 중...</p>
         {/if}
       </div>
       <span class="text-2xl">💰</span>
     </button>
     <p
-      class="text-center text-[11px] text-gray-400 dark:text-gray-500 font-bold mt-3"
+      class="text-center text-[11px] text-gray-500 dark:text-gray-400 font-bold mt-3"
     >
       장부 · 일정 · 게시판은 아래 탭에서 언제든지 👇
     </p>
@@ -555,7 +555,7 @@
       <!-- Knowledge Tag Chips List -->
       <div class="flex flex-wrap gap-1.5 mb-3">
         {#if aiKnowledgeList.length === 0}
-          <p class="text-xs text-gray-400 dark:text-gray-500 py-1">등록된 맞춤 메모가 없습니다. 아래에서 추가해보세요!</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 py-1">등록된 맞춤 메모가 없습니다. 아래에서 추가해보세요!</p>
         {:else}
           {#each aiKnowledgeList as item}
             <div class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-xs font-bold rounded-xl border border-indigo-100 dark:border-indigo-800/60 shadow-sm">
@@ -563,7 +563,7 @@
               <button
                 type="button"
                 on:click={() => handleDeleteKnowledge(item)}
-                class="w-6 h-6 -my-1 -mr-1.5 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors rounded"
+                class="w-6 h-6 -my-1 -mr-1.5 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-500 transition-colors rounded"
                 aria-label="메모 삭제"
               >
                 ✕

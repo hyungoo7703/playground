@@ -37,14 +37,14 @@
   <!-- Header -->
   <div class="text-left space-y-1">
     <h1 class="text-2xl font-black text-gray-900 dark:text-white">15% 계산기 🧮</h1>
-    <p class="text-xs font-bold text-gray-400 dark:text-gray-500">
+    <p class="text-xs font-bold text-gray-500 dark:text-gray-400">
       입력한 금액의 15%를 즉시 계산합니다.
     </p>
   </div>
 
   <!-- Input Section -->
   <div class="p-6 bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 space-y-3">
-    <label for="calc-amount" class="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+    <label for="calc-amount" class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
       계산할 금액
     </label>
     <div class="relative">
@@ -57,7 +57,7 @@
         placeholder="0"
         class="w-full p-4 pr-12 bg-gray-50 dark:bg-gray-900 rounded-2xl text-2xl font-black text-right outline-none ring-2 ring-transparent focus:ring-indigo-500 text-gray-900 dark:text-white transition-all"
       />
-      <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-gray-400">원</span>
+      <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-gray-500 dark:text-gray-400">원</span>
     </div>
 
     <!-- Quick Add Buttons -->

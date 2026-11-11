@@ -179,7 +179,7 @@
     {#if isLoading}
         <div class="text-center py-20">
             <div class="text-4xl animate-bounce">🎴</div>
-            <p class="text-gray-400 mt-4 animate-pulse">카드 준비 중...</p>
+            <p class="text-gray-500 dark:text-gray-400 mt-4 animate-pulse">카드 준비 중...</p>
         </div>
     {:else}
         <!-- 카드 영역 -->

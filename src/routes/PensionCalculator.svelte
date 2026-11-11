@@ -75,7 +75,7 @@
   <!-- Header -->
   <div class="text-left space-y-1">
     <h1 class="text-2xl font-black text-gray-900 dark:text-white">연금저축 계산기 📈</h1>
-    <p class="text-xs font-bold text-gray-400 dark:text-gray-500">
+    <p class="text-xs font-bold text-gray-500 dark:text-gray-400">
       절세 혜택과 복리 수익 시뮬레이션을 한눈에 확인하세요.
     </p>
   </div>
@@ -116,7 +116,7 @@
       <div class="space-y-4">
         <!-- 연봉 기준 라디오 -->
         <div>
-          <span class="block text-xs font-bold text-gray-400 dark:text-gray-500 mb-2">연봉 기준</span>
+          <span class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2">연봉 기준</span>
           <div class="grid grid-cols-2 gap-2">
             <label
               class="flex items-center justify-center p-3 border rounded-2xl cursor-pointer text-xs font-bold transition-all {salaryCondition === 'low'
@@ -149,7 +149,7 @@
 
         <!-- 연간 납입 금액 -->
         <div>
-          <label for="annual-contrib" class="block text-xs font-bold text-gray-400 dark:text-gray-500 mb-1">
+          <label for="annual-contrib" class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">
             연간 납입 금액 (한도: 연 600만원)
           </label>
           <div class="relative">
@@ -162,7 +162,7 @@
               step="100000"
               class="w-full p-3.5 pr-12 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-base font-bold text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
             />
-            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">원</span>
+            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-500 dark:text-gray-400">원</span>
           </div>
         </div>
 
@@ -187,7 +187,7 @@
 
       <div class="space-y-4">
         <div>
-          <label for="monthly-invest" class="block text-xs font-bold text-gray-400 dark:text-gray-500 mb-1">
+          <label for="monthly-invest" class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">
             월 투자금
           </label>
           <div class="relative">
@@ -200,13 +200,13 @@
               step="50000"
               class="w-full p-3.5 pr-12 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-base font-bold text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
             />
-            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">원</span>
+            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-500 dark:text-gray-400">원</span>
           </div>
         </div>
 
         <div>
           <div class="flex justify-between items-center mb-1">
-            <label for="invest-years" class="text-xs font-bold text-gray-400 dark:text-gray-500">투자 기간</label>
+            <label for="invest-years" class="text-xs font-bold text-gray-500 dark:text-gray-400">투자 기간</label>
             <span class="text-xs font-black text-indigo-600 dark:text-indigo-400">{investYears}년</span>
           </div>
           <input
@@ -220,7 +220,7 @@
         </div>
 
         <div>
-          <label for="expected-rate" class="block text-xs font-bold text-gray-400 dark:text-gray-500 mb-1">
+          <label for="expected-rate" class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">
             예상 연평균 수익률 (%)
           </label>
           <div class="flex items-center gap-2">
@@ -231,7 +231,7 @@
               step="0.5"
               class="w-24 p-3 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-base font-bold text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
             />
-            <span class="text-[11px] text-gray-400 leading-tight">
+            <span class="text-[11px] text-gray-500 dark:text-gray-400 leading-tight">
               (미국 S&P500의 과거 연평균 수익률 약 8~10%)
             </span>
           </div>
@@ -265,20 +265,20 @@
             <span class="px-2.5 py-1 text-[11px] font-bold rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-300">
               {item.category}
             </span>
-            <span class="text-[11px] text-gray-400 font-medium">수수료 {item.fee}</span>
+            <span class="text-[11px] text-gray-500 dark:text-gray-400 font-medium">수수료 {item.fee}</span>
           </div>
           
           <h4 class="text-base font-black text-gray-900 dark:text-white">{item.name}</h4>
           <p class="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">{item.desc}</p>
           
-          <div class="pt-2 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center text-[11px] text-gray-400 font-mono">
+          <div class="pt-2 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center text-[11px] text-gray-500 dark:text-gray-400 font-mono">
             <span>코드: {item.code}</span>
             <span class="font-bold text-indigo-500 dark:text-indigo-400">{item.risk}</span>
           </div>
         </div>
       {/each}
 
-      <p class="text-[11px] text-center text-gray-400 pt-2">
+      <p class="text-[11px] text-center text-gray-500 dark:text-gray-400 pt-2">
         * 본 자료는 가족 투자 참고용이며 실제 투자에 대한 책임은 본인에게 있습니다.
       </p>
     </section>

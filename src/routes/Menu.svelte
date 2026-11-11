@@ -50,7 +50,7 @@
     {#if visibleItems.length > 0}
       <section>
         <h3
-          class="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3"
+          class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3"
         >
           {group.title}
         </h3>

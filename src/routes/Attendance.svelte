@@ -739,7 +739,7 @@
                         ? 'text-rose-400'
                         : i === 6
                           ? 'text-blue-400'
-                          : 'text-gray-400'}"
+                          : 'text-gray-500 dark:text-gray-400'}"
                 >
                     {day}
                 </div>
@@ -827,7 +827,7 @@
                             class="text-[11px] font-bold text-gray-700 dark:text-gray-300"
                             >{item.user_name}</span
                         >
-                        <span class="text-[9px] text-gray-400 font-bold"
+                        <span class="text-[10px] text-gray-500 dark:text-gray-400 font-bold"
                             >{item.timestamp?.split(" ")[1]?.substring(0, 5) ||
                                 "오늘"}</span
                         >
@@ -849,10 +849,10 @@
         </h2>
         <div class="flex items-center justify-between mb-4">
             <div>
-                <p class="text-xs text-gray-400 font-bold">사용 가능 잔액</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 font-bold">사용 가능 잔액</p>
                 {#if isLoading}
                     <p
-                        class="text-lg font-bold text-gray-400 animate-pulse mt-1"
+                        class="text-lg font-bold text-gray-500 dark:text-gray-400 animate-pulse mt-1"
                     >
                         ⏳ 계산 중...
                     </p>
@@ -861,10 +861,10 @@
                         class="text-3xl font-black text-gray-900 dark:text-white"
                     >
                         {rewardBalance.toLocaleString()}<span
-                            class="text-sm font-bold text-gray-400">원</span
+                            class="text-sm font-bold text-gray-500 dark:text-gray-400">원</span
                         >
                     </p>
-                    <p class="text-[10px] text-gray-400 mt-1">
+                    <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-1">
                         총 적립 {totalEarned.toLocaleString()}원 · 사용 {totalUsed.toLocaleString()}원
                     </p>
                 {/if}
@@ -886,7 +886,7 @@
             <div
                 class="border-t border-gray-100 dark:border-gray-700 pt-3 mt-3"
             >
-                <p class="text-xs font-bold text-gray-400 mb-2">사용 내역</p>
+                <p class="text-xs font-bold text-gray-500 dark:text-gray-400 mb-2">사용 내역</p>
                 <ul class="space-y-2">
                     {#each usageHistory as u}
                         <li
@@ -897,7 +897,7 @@
                                     class="text-sm font-bold text-gray-800 dark:text-gray-200"
                                     >{u.desc}</span
                                 >
-                                <span class="text-[10px] text-gray-400 ml-2"
+                                <span class="text-[10px] text-gray-500 dark:text-gray-400 ml-2"
                                     >{u.date}</span
                                 >
                             </div>
@@ -1006,7 +1006,7 @@
             </button>
             <button
                 on:click={() => (show100Modal = false)}
-                class="w-full py-3 rounded-2xl font-bold text-gray-400 bg-gray-100 dark:bg-gray-700 active:scale-95 transition-all"
+                class="w-full py-3 rounded-2xl font-bold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 active:scale-95 transition-all"
             >
                 나중에
             </button>

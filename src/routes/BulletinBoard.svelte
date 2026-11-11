@@ -287,10 +287,10 @@
         <Spinner label="게시글을 불러오는 중..." />
       </div>
     {:else if filteredPosts.length === 0}
-      <div class="bg-white dark:bg-gray-800 rounded-3xl p-10 text-center shadow-sm border border-gray-100 dark:border-gray-700 text-gray-400">
+      <div class="bg-white dark:bg-gray-800 rounded-3xl p-10 text-center shadow-sm border border-gray-100 dark:border-gray-700 text-gray-500 dark:text-gray-400">
         <span class="text-4xl block mb-2">📮</span>
         <p class="text-sm font-bold text-gray-600 dark:text-gray-300">등록된 글이 없습니다.</p>
-        <p class="text-xs text-gray-400 mt-1">상단의 '새 이야기 남기기'로 첫 글을 작성해보세요!</p>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">상단의 '새 이야기 남기기'로 첫 글을 작성해보세요!</p>
       </div>
     {:else}
       {#each filteredPosts as post (post.id)}
@@ -309,7 +309,7 @@
                 <p class="text-xs font-black text-gray-900 dark:text-white leading-tight">
                   {post.author}
                 </p>
-                <p class="text-[10px] text-gray-400 font-medium">
+                <p class="text-[10px] text-gray-500 dark:text-gray-400 font-medium">
                   {post.date}
                 </p>
               </div>
@@ -343,7 +343,7 @@
           {/if}
 
           <!-- Footer Counts -->
-          <div class="pt-2 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center text-[11px] text-gray-400 font-bold">
+          <div class="pt-2 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center text-[11px] text-gray-500 dark:text-gray-400 font-bold">
             <span class="flex items-center gap-1">
               👁️ 조회 {post.view_count || 0}
             </span>
@@ -380,7 +380,7 @@
       <div class="space-y-3 overflow-y-auto flex-1 pr-1">
         <!-- Category Select -->
         <div>
-          <span id="post-cat-label" class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1.5">
+          <span id="post-cat-label" class="text-xs font-bold text-gray-500 dark:text-gray-400 block mb-1.5">
             분류 선택
           </span>
           <div role="group" aria-labelledby="post-cat-label" class="flex gap-1.5 overflow-x-auto pb-1">
@@ -401,7 +401,7 @@
 
         <!-- Title -->
         <div>
-          <label for="post-title" class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1">
+          <label for="post-title" class="text-xs font-bold text-gray-500 dark:text-gray-400 block mb-1">
             제목
           </label>
           <input
@@ -415,7 +415,7 @@
 
         <!-- Content -->
         <div>
-          <label for="post-content" class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1">
+          <label for="post-content" class="text-xs font-bold text-gray-500 dark:text-gray-400 block mb-1">
             내용
           </label>
           <textarea
@@ -429,7 +429,7 @@
 
         <!-- Image / Link URL -->
         <div>
-          <label for="post-img" class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1">
+          <label for="post-img" class="text-xs font-bold text-gray-500 dark:text-gray-400 block mb-1">
             사진 또는 링크 URL (선택)
           </label>
           <input
@@ -513,7 +513,7 @@
             <p class="text-sm font-black text-gray-900 dark:text-white">
               {currentPost.author}
             </p>
-            <p class="text-xs text-gray-400 font-medium">
+            <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">
               {currentPost.date} · 조회 {(Number(currentPost.view_count) || 0) + 1}
             </p>
           </div>
@@ -533,7 +533,7 @@
             {#if looksLikeImageUrl(currentPost.image_url) && !imageLoadFailed}
               <div class="rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-700">
                 {#if imageLoading}
-                  <div class="w-full h-48 animate-pulse flex items-center justify-center text-xs text-gray-400">
+                  <div class="w-full h-48 animate-pulse flex items-center justify-center text-xs text-gray-500 dark:text-gray-400">
                     이미지 로딩 중...
                   </div>
                 {/if}
@@ -577,7 +577,7 @@
               <Spinner label="댓글 불러오는 중..." />
             </div>
           {:else if comments.length === 0}
-            <p class="text-xs text-gray-400 text-center py-4 bg-gray-50 dark:bg-gray-900 rounded-2xl">
+            <p class="text-xs text-gray-500 dark:text-gray-400 text-center py-4 bg-gray-50 dark:bg-gray-900 rounded-2xl">
               첫 번째 따뜻한 댓글을 남겨보세요! ✨
             </p>
           {:else}
@@ -592,7 +592,7 @@
                       <span class="text-xs font-black text-gray-800 dark:text-gray-200">
                         {comment.author}
                       </span>
-                      <span class="text-[10px] text-gray-400">
+                      <span class="text-[10px] text-gray-500 dark:text-gray-400">
                         {comment.date}
                       </span>
                     </div>
@@ -604,7 +604,7 @@
                       <button
                         type="button"
                         on:click={() => deleteComment(comment.id)}
-                        class="absolute right-1 top-1 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-rose-500 transition-colors text-xs"
+                        class="absolute right-1 top-1 w-8 h-8 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-rose-500 dark:hover:text-rose-500 transition-colors text-xs"
                         aria-label="댓글 삭제"
                       >
                         ✕

@@ -433,7 +433,7 @@
         <span class="text-sm font-bold text-gray-700 dark:text-gray-300"
           >📍 내 위치 날씨</span
         >
-        <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
+        <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
           AI에게 날씨를 물으면 현재 위치 기준으로 답해요 (위치는 저장되지 않음)
         </p>
       </div>
@@ -605,7 +605,7 @@
 
   <!-- 5. 계정 및 데이터 관리 -->
   <section class="p-6 bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 rounded-3xl space-y-3">
-    <h3 class="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">계정 및 데이터 관리</h3>
+    <h3 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">계정 및 데이터 관리</h3>
     
     <button
       on:click={logout}
@@ -620,7 +620,7 @@
     >
       <span>🗑️</span> 로컬스토리지 초기화
     </button>
-    <p class="text-[11px] text-gray-400 text-center">
+    <p class="text-[11px] text-gray-500 dark:text-gray-400 text-center">
       로그인 접속 코드 및 AI 연결 토큰을 포함한 모든 브라우저 데이터가 초기화됩니다.
     </p>
   </section>

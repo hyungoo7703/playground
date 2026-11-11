@@ -427,10 +427,10 @@
         <Spinner label="가족 일정을 불러오는 중..." />
       </div>
     {:else if filteredEvents.length === 0}
-      <div class="bg-white dark:bg-gray-800 rounded-3xl p-10 text-center shadow-sm border border-gray-100 dark:border-gray-700 text-gray-400">
+      <div class="bg-white dark:bg-gray-800 rounded-3xl p-10 text-center shadow-sm border border-gray-100 dark:border-gray-700 text-gray-500 dark:text-gray-400">
         <span class="text-4xl block mb-2">☕</span>
         <p class="text-sm font-bold text-gray-600 dark:text-gray-300">등록된 일정이 없습니다.</p>
-        <p class="text-xs text-gray-400 mt-1">다가오는 생일이나 외식 일정을 등록해보세요!</p>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">다가오는 생일이나 외식 일정을 등록해보세요!</p>
       </div>
     {:else}
       {#each filteredEvents as event (event.id)}
@@ -485,7 +485,7 @@
             </h3>
 
             {#if subTitles.length > 0}
-              <p class="text-[11px] text-gray-400 truncate mt-0.5">
+              <p class="text-[11px] text-gray-500 dark:text-gray-400 truncate mt-0.5">
                 {subTitles.map((s) => s.replace(")", "").trim()).join(" ")}
               </p>
             {/if}
@@ -511,7 +511,7 @@
               <button
                 type="button"
                 on:click={() => openEditModal(event)}
-                class="w-9 h-9 flex items-center justify-center bg-gray-100 hover:bg-indigo-50 dark:bg-gray-700 dark:hover:bg-indigo-950 text-gray-400 hover:text-indigo-600 rounded-xl text-xs font-bold transition-all"
+                class="w-9 h-9 flex items-center justify-center bg-gray-100 hover:bg-indigo-50 dark:bg-gray-700 dark:hover:bg-indigo-950 text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-600 rounded-xl text-xs font-bold transition-all"
                 title="수정"
                 aria-label="일정 수정"
               >
@@ -521,7 +521,7 @@
                 type="button"
                 disabled={deletingId === event.id}
                 on:click={() => handleDelete(event.id)}
-                class="w-9 h-9 bg-gray-100 hover:bg-rose-50 dark:bg-gray-700 dark:hover:bg-rose-950 text-gray-400 hover:text-rose-500 disabled:opacity-40 rounded-xl text-xs font-bold transition-all flex items-center justify-center"
+                class="w-9 h-9 bg-gray-100 hover:bg-rose-50 dark:bg-gray-700 dark:hover:bg-rose-950 text-gray-500 dark:text-gray-400 hover:text-rose-500 dark:hover:text-rose-500 disabled:opacity-40 rounded-xl text-xs font-bold transition-all flex items-center justify-center"
                 title="삭제"
                 aria-label="일정 삭제"
               >
@@ -564,7 +564,7 @@
       <div class="space-y-4">
         <!-- Date Picker + Quick Buttons -->
         <div class="space-y-1.5">
-          <label for="event-date" class="text-xs font-bold text-gray-400 dark:text-gray-500 block">
+          <label for="event-date" class="text-xs font-bold text-gray-500 dark:text-gray-400 block">
             날짜 선택
           </label>
           <input
@@ -600,7 +600,7 @@
 
         <!-- Category Selection Chips -->
         <div>
-          <span class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1.5">
+          <span class="text-xs font-bold text-gray-500 dark:text-gray-400 block mb-1.5">
             분류
           </span>
           <div class="grid grid-cols-3 gap-1.5">
@@ -621,7 +621,7 @@
 
         <!-- Title Input + Suggestions -->
         <div class="space-y-1.5">
-          <label for="event-title" class="text-xs font-bold text-gray-400 dark:text-gray-500 block">
+          <label for="event-title" class="text-xs font-bold text-gray-500 dark:text-gray-400 block">
             일정 내용
           </label>
           <input
@@ -677,7 +677,7 @@
           <h2 class="text-lg font-black text-gray-900 dark:text-white flex items-center gap-1.5">
             🔔 가족 전체 일정 푸쉬 알림
           </h2>
-          <p class="text-[11px] text-gray-400">
+          <p class="text-[11px] text-gray-500 dark:text-gray-400">
             시점에 맞춘 일정 알림 메시지가 가족 모두에게 전송됩니다.
           </p>
         </div>
@@ -694,7 +694,7 @@
       <div class="space-y-4 overflow-y-auto flex-1 pr-1">
         <!-- Select Event -->
         <div class="space-y-1.5">
-          <span class="text-xs font-bold text-gray-400 dark:text-gray-500 block">
+          <span class="text-xs font-bold text-gray-500 dark:text-gray-400 block">
             알림 보낼 일정 선택
           </span>
           <div class="space-y-2">
@@ -737,7 +737,7 @@
                 {currentPushPreview.body}
               </p>
             </div>
-            <p class="text-[10px] text-gray-400 text-center font-bold">
+            <p class="text-[10px] text-gray-500 dark:text-gray-400 text-center font-bold">
               👨‍👩‍👧‍👦 발송 대상: 아빠, 엄마, 현구, 범수 (전체 기기)
             </p>
           </div>

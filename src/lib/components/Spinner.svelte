@@ -12,7 +12,7 @@
     <span class="dot bg-pink-500" style="animation-delay: 130ms"></span>
     <span class="dot bg-amber-400" style="animation-delay: 260ms"></span>
   </div>
-  <p class="text-xs font-bold text-gray-400 dark:text-gray-500 tracking-wide">
+  <p class="text-xs font-bold text-gray-500 dark:text-gray-400 tracking-wide">
     {label}
   </p>
 </div>

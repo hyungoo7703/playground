@@ -567,11 +567,11 @@
         <Spinner label="장부를 불러오는 중..." />
       </div>
     {:else if filteredItems.length === 0}
-      <div class="bg-white dark:bg-gray-800 rounded-3xl p-10 text-center shadow-sm border border-gray-100 dark:border-gray-700 text-gray-400">
+      <div class="bg-white dark:bg-gray-800 rounded-3xl p-10 text-center shadow-sm border border-gray-100 dark:border-gray-700 text-gray-500 dark:text-gray-400">
         <span class="text-4xl block mb-2">💸</span>
         <p class="text-sm font-bold text-gray-600 dark:text-gray-300">내역이 없습니다.</p>
         {#if $isAdmin}
-          <p class="text-xs text-gray-400 mt-1">우측 하단의 '+' 버튼으로 새 내역을 추가해보세요!</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">우측 하단의 '+' 버튼으로 새 내역을 추가해보세요!</p>
         {/if}
       </div>
     {:else}
@@ -611,9 +611,9 @@
               {item.title}
             </h3>
 
-            <div class="flex items-center gap-1.5 text-xs font-bold text-gray-400 mt-0.5">
+            <div class="flex items-center gap-1.5 text-xs font-bold text-gray-500 dark:text-gray-400 mt-0.5">
               <span>{item.giver}</span>
-              <span class="text-gray-300">→</span>
+              <span class="text-gray-400 dark:text-gray-500">→</span>
               <span>{item.receiver}</span>
               {#if $isAdmin}
                 <span class="text-[10px] text-indigo-400 ml-1">✏️ 수정</span>
@@ -625,7 +625,7 @@
           <div class="flex flex-col items-end gap-1.5 text-right">
             <span
               class="font-black text-base {item.is_settled
-                ? 'text-gray-400 dark:text-gray-500'
+                ? 'text-gray-500 dark:text-gray-400'
                 : 'text-gray-900 dark:text-white'}"
             >
               {formatAmount(item.amount)}<span class="text-xs font-normal">원</span>
@@ -688,7 +688,7 @@
       <div class="space-y-3">
         <div class="grid grid-cols-2 gap-2">
           <div>
-            <label for="ledger-date" class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1">날짜</label>
+            <label for="ledger-date" class="text-xs font-bold text-gray-500 dark:text-gray-400 block mb-1">날짜</label>
             <input
               id="ledger-date"
               type="date"
@@ -697,7 +697,7 @@
             />
           </div>
           <div>
-            <label for="ledger-type" class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1">분류</label>
+            <label for="ledger-type" class="text-xs font-bold text-gray-500 dark:text-gray-400 block mb-1">분류</label>
             <select
               id="ledger-type"
               bind:value={formData.type}
@@ -709,7 +709,7 @@
         </div>
 
         <div>
-          <label for="ledger-title" class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1">내용</label>
+          <label for="ledger-title" class="text-xs font-bold text-gray-500 dark:text-gray-400 block mb-1">내용</label>
           <input
             id="ledger-title"
             type="text"
@@ -720,7 +720,7 @@
         </div>
 
         <div>
-          <label for="ledger-amount" class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1">금액 (원)</label>
+          <label for="ledger-amount" class="text-xs font-bold text-gray-500 dark:text-gray-400 block mb-1">금액 (원)</label>
           <input
             id="ledger-amount"
             type="text"
@@ -732,7 +732,7 @@
 
         <div class="grid grid-cols-[1fr_auto_1fr] gap-2 items-center">
           <div>
-            <label for="ledger-giver" class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1">누가</label>
+            <label for="ledger-giver" class="text-xs font-bold text-gray-500 dark:text-gray-400 block mb-1">누가</label>
             <select
               id="ledger-giver"
               bind:value={formData.giver}
@@ -741,9 +741,9 @@
               {#each USERS as u}<option value={u}>{u}</option>{/each}
             </select>
           </div>
-          <span class="text-gray-400 font-bold mt-5">→</span>
+          <span class="text-gray-500 dark:text-gray-400 font-bold mt-5">→</span>
           <div>
-            <label for="ledger-receiver" class="text-xs font-bold text-gray-400 dark:text-gray-500 block mb-1">누구에게</label>
+            <label for="ledger-receiver" class="text-xs font-bold text-gray-500 dark:text-gray-400 block mb-1">누구에게</label>
             <select
               id="ledger-receiver"
               bind:value={formData.receiver}
@@ -798,7 +798,7 @@
           <h2 class="text-lg font-black text-gray-900 dark:text-white flex items-center gap-1.5">
             📌 매월 고정 이체 관리
           </h2>
-          <p class="text-[11px] text-gray-400">용돈/관리비 등 매달 반복되는 이체 내역</p>
+          <p class="text-[11px] text-gray-500 dark:text-gray-400">용돈/관리비 등 매달 반복되는 이체 내역</p>
         </div>
         <button
           type="button"
@@ -831,7 +831,7 @@
         {#if isRulesLoading && rules.length === 0}
           <Spinner label="고정 이체 불러오는 중..." />
         {:else if rules.length === 0}
-          <div class="text-center py-6 text-gray-400 text-xs bg-gray-50 dark:bg-gray-900 rounded-2xl">
+          <div class="text-center py-6 text-gray-500 dark:text-gray-400 text-xs bg-gray-50 dark:bg-gray-900 rounded-2xl">
             아직 등록된 고정 이체 규칙이 없습니다.<br />아래 폼에서 규칙을 등록해보세요!
           </div>
         {:else}
@@ -847,14 +847,14 @@
                   </span>
                 </div>
                 <p class="text-xs font-black text-indigo-600 dark:text-indigo-400 mt-1">
-                  {formatAmount(rule.amount)}원 <span class="text-[11px] text-gray-400 font-normal">({rule.giver} → {rule.receiver})</span>
+                  {formatAmount(rule.amount)}원 <span class="text-[11px] text-gray-500 dark:text-gray-400 font-normal">({rule.giver} → {rule.receiver})</span>
                 </p>
               </div>
               <button
                 type="button"
                 disabled={deletingRuleId === rule.id}
                 on:click={() => handleDeleteRule(rule.id)}
-                class="w-10 h-10 shrink-0 text-gray-400 hover:text-rose-500 disabled:opacity-40 transition-colors text-sm flex items-center justify-center"
+                class="w-10 h-10 shrink-0 text-gray-500 dark:text-gray-400 hover:text-rose-500 dark:hover:text-rose-500 disabled:opacity-40 transition-colors text-sm flex items-center justify-center"
                 aria-label="고정 이체 삭제"
               >
                 {#if deletingRuleId === rule.id}
@@ -880,7 +880,7 @@
         <!-- Day & Title -->
         <div class="flex gap-2">
           <div class="flex items-center gap-1 bg-white dark:bg-gray-800 px-2.5 py-2 rounded-xl border border-gray-200 dark:border-gray-700 shrink-0">
-            <span class="text-[10px] text-gray-400 font-bold">매월</span>
+            <span class="text-[10px] text-gray-500 dark:text-gray-400 font-bold">매월</span>
             <input
               type="number"
               min="1"
@@ -889,7 +889,7 @@
               aria-label="매월 이체일"
               class="w-7 text-center text-xs font-black bg-transparent text-gray-900 dark:text-white outline-none"
             />
-            <span class="text-[10px] text-gray-400 font-bold">일</span>
+            <span class="text-[10px] text-gray-500 dark:text-gray-400 font-bold">일</span>
           </div>
           <input
             type="text"
@@ -910,7 +910,7 @@
               placeholder="이체 금액 입력"
               class="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2.5 rounded-xl text-xs font-black outline-none border border-gray-200 dark:border-gray-700 pr-8"
             />
-            <span class="absolute right-3 top-2.5 text-xs text-gray-400 font-bold">원</span>
+            <span class="absolute right-3 top-2.5 text-xs text-gray-500 dark:text-gray-400 font-bold">원</span>
           </div>
           <div class="flex gap-1">
             <button
@@ -947,7 +947,7 @@
         <!-- Giver -> Receiver -->
         <div class="grid grid-cols-[1fr_auto_1fr] gap-1.5 items-center">
           <div class="space-y-0.5">
-            <span class="text-[9px] font-bold text-gray-400 pl-1">보내는 사람</span>
+            <span class="text-[10px] font-bold text-gray-500 dark:text-gray-400 pl-1">보내는 사람</span>
             <select
               bind:value={newRuleGiver}
               aria-label="보내는 사람"
@@ -956,9 +956,9 @@
               {#each USERS as u}<option value={u}>{u}</option>{/each}
             </select>
           </div>
-          <span class="text-gray-400 text-xs font-bold pt-3">➔</span>
+          <span class="text-gray-500 dark:text-gray-400 text-xs font-bold pt-3">➔</span>
           <div class="space-y-0.5">
-            <span class="text-[9px] font-bold text-gray-400 pl-1">받는 사람</span>
+            <span class="text-[10px] font-bold text-gray-500 dark:text-gray-400 pl-1">받는 사람</span>
             <select
               bind:value={newRuleReceiver}
               aria-label="받는 사람"
@@ -996,7 +996,7 @@
           <h2 class="text-lg font-black text-gray-900 dark:text-white flex items-center gap-1.5">
             📢 이체 독촉 푸쉬 발송
           </h2>
-          <p class="text-[11px] text-gray-400">
+          <p class="text-[11px] text-gray-500 dark:text-gray-400">
             미정산 이체 내역이 있는 '주는 사람'에게 푸쉬를 보냅니다.
           </p>
         </div>
@@ -1037,7 +1037,7 @@
                   <p class="text-xs font-black text-gray-900 dark:text-white leading-tight">
                     {debtor.giver} (주는 사람)
                   </p>
-                  <p class="text-[10px] text-gray-400">
+                  <p class="text-[10px] text-gray-500 dark:text-gray-400">
                     미정산 이체 {debtor.items.length}건
                   </p>
                 </div>

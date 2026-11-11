@@ -8,7 +8,7 @@
   <h1 class="text-xl font-black text-gray-800 dark:text-gray-200">
     페이지를 찾을 수 없어요
   </h1>
-  <p class="text-sm text-gray-400 dark:text-gray-500">
+  <p class="text-sm text-gray-500 dark:text-gray-400">
     주소가 잘못되었거나 없어진 페이지예요.
   </p>
   <button
