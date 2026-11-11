@@ -563,7 +563,7 @@
               <button
                 type="button"
                 on:click={() => handleDeleteKnowledge(item)}
-                class="w-6 h-6 -my-1 -mr-1.5 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-500 transition-colors rounded"
+                class="w-8 h-8 -my-2 -mr-2.5 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-500 transition-colors rounded-full"
                 aria-label="메모 삭제"
               >
                 ✕
