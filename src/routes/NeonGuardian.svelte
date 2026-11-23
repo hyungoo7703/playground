@@ -5,36 +5,37 @@
   import { api } from "../lib/api.js";
   import { toast } from "../lib/feedback.js";
   import { REWARD_LABELS } from "../lib/rewards.js";
-  import { audioManager } from "../lib/audioManager.js";
+  import { createSound } from "../lib/guardian/sound.js";
   import GameExitButton from "../lib/components/GameExitButton.svelte";
   import { createGame, update, pickUpgrade, useBomb, reroll } from "../lib/guardian/engine.js";
-  import { FIELD, PLAYER, ENEMIES, WAVES, UPGRADES, RARITY } from "../lib/guardian/config.js";
+  import { FIELD, PLAYER, ENEMIES, WAVES, BOSSES, ELITE, UPGRADES, RARITY } from "../lib/guardian/config.js";
 
   const IMG = `${base}/images/guardian`;
   const SND = `${base}/sounds`;
 
-  // name: [file, pool size, volume, minimum ms between plays, ms to play (0 = whole file)].
+  const MUSIC = "retro-color-moon.mp3";
+  // name: [file, volume, minimum ms between plays, seconds to play (0 = whole file)].
   // Several files run for seconds, so the rapid ones are cut short to keep them from piling up.
   const SOUNDS = {
-    shoot: ["laser-zap.mp3", 6, 0.18, 70, 180],
-    critShot: ["laser-zap.mp3", 3, 0.5, 0, 450],
-    hit: ["punch.mp3", 6, 0.25, 60, 160],
-    kill: ["pop.mp3", 8, 0.5, 40, 300],
-    blast: ["pop.mp3", 4, 0.3, 90, 220],
-    chain: ["zap-synth.mp3", 3, 0.16, 140, 220],
-    coin: ["drop-coin.mp3", 4, 0.3, 90, 400],
-    upgrade: ["level-up.mp3", 2, 0.6, 0, 0],
-    reroll: ["drop-coin.mp3", 2, 0.5, 0, 0],
-    waveClear: ["power-up.mp3", 1, 0.45, 0, 1400],
-    bomb: ["bomb-explosion.mp3", 2, 0.7, 0, 1800],
-    shield: ["glass-clink.mp3", 3, 0.7, 0, 0],
-    leak: ["zap-synth.mp3", 3, 0.5, 0, 500],
-    bossWarn: ["beep-warning.mp3", 1, 0.6, 0, 0],
-    bossArrive: ["warp.mp3", 2, 0.6, 0, 0],
-    bossPhase: ["warp.mp3", 2, 0.6, 0, 0],
-    bossDead: ["epic-cinematic-explosion.mp3", 1, 0.8, 0, 0],
-    clear: ["universfield-clear-bell-chime-487898.mp3", 1, 0.8, 0, 0],
-    gameOver: ["universfield-game-over-deep-male-voice-clip-352695.mp3", 1, 0.8, 0, 0],
+    shoot: ["laser-zap.mp3", 0.18, 70, 0.18],
+    critShot: ["laser-zap.mp3", 0.5, 0, 0.45],
+    hit: ["punch.mp3", 0.25, 60, 0.16],
+    kill: ["pop.mp3", 0.5, 40, 0.3],
+    blast: ["pop.mp3", 0.3, 90, 0.22],
+    chain: ["zap-synth.mp3", 0.16, 140, 0.22],
+    coin: ["drop-coin.mp3", 0.3, 90, 0.4],
+    upgrade: ["level-up.mp3", 0.6, 0, 0],
+    reroll: ["drop-coin.mp3", 0.5, 0, 0],
+    waveClear: ["power-up.mp3", 0.45, 0, 1.4],
+    bomb: ["bomb-explosion.mp3", 0.7, 0, 1.8],
+    shield: ["glass-clink.mp3", 0.7, 0, 0],
+    leak: ["zap-synth.mp3", 0.5, 0, 0.5],
+    bossWarn: ["beep-warning.mp3", 0.6, 0, 0],
+    bossArrive: ["warp.mp3", 0.6, 0, 0],
+    bossPhase: ["warp.mp3", 0.6, 0, 0],
+    bossDead: ["epic-cinematic-explosion.mp3", 0.8, 0, 0],
+    clear: ["universfield-clear-bell-chime-487898.mp3", 0.8, 0, 0],
+    gameOver: ["universfield-game-over-deep-male-voice-clip-352695.mp3", 0.8, 0, 0],
   };
 
   const RARITY_STYLE = {
@@ -52,6 +53,7 @@
     tank: { file: "enemy-tank", size: 72, glow: "#ff8a1f" },
     carrier: { file: "enemy-carrier", size: 54, glow: "#3dff6e" },
     boss: { file: "boss", size: 168, glow: "#27e4ff" },
+    midboss: { file: "boss", size: 124, glow: "#ff5ad1" },
     turret: { file: "turret", size: 60, glow: "#27e4ff" },
   };
 
@@ -78,7 +80,7 @@
   let originY = 0;
   let images = {};
   let stamps = {};
-  let bgm;
+  let sound;
 
   const input = { aim: 0, firing: false };
   let particles = [];
@@ -90,11 +92,11 @@
   const lastPlayed = {};
 
   function play(name) {
-    const [, , volume, gap, duration] = SOUNDS[name];
+    const [file, volume, gap, seconds] = SOUNDS[name];
     const now = performance.now();
     if (gap && now - (lastPlayed[name] ?? 0) < gap) return;
     lastPlayed[name] = now;
-    audioManager.play(name, volume, duration);
+    sound.play(file, volume, seconds);
   }
 
   function loadImage(file) {
@@ -120,13 +122,14 @@
     }
   }
 
-  function stamp(key, x, y, rotation = 0) {
+  function stamp(key, x, y, rotation = 0, scale = 1) {
     const s = stamps[key];
-    if (!rotation) return ctx.drawImage(s.canvas, x - s.half, y - s.half, s.half * 2, s.half * 2);
+    const half = s.half * scale;
+    if (!rotation) return ctx.drawImage(s.canvas, x - half, y - half, half * 2, half * 2);
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(rotation);
-    ctx.drawImage(s.canvas, -s.half, -s.half, s.half * 2, s.half * 2);
+    ctx.drawImage(s.canvas, -half, -half, half * 2, half * 2);
     ctx.restore();
   }
 
@@ -163,7 +166,7 @@
       else if (e.type === "blast") effects.push({ ...e, life: 0.22, span: 0.22 });
       else if (e.type === "chain") effects.push({ ...e, life: 0.14, span: 0.14 });
       else if (e.type === "hit") burst(e.x, e.y, "#bff6ff", 3, 80);
-      else if (e.type === "kill") burst(e.x, e.y, SPRITES[e.kind]?.glow ?? "#ff5a5a", e.kind === "boss" ? 0 : 12);
+      else if (e.type === "kill") burst(e.x, e.y, SPRITES[e.kind]?.glow ?? "#ff5a5a", BOSSES[e.kind] ? 0 : 12);
       else if (e.type === "leak") {
         leakFlash = 0.4;
         shake = 10;
@@ -192,11 +195,11 @@
       hud = { ...hud, wave: game.wave + 1, hp: game.hp, shield: game.shield, coins, bombCost: game.bombCost };
     }
     if (game.phase === "upgrade" && hud.choices !== game.choices) {
-      hud = { ...hud, choices: game.choices, levels: { ...game.levels }, rerollCost: game.rerollCost };
+      hud = { ...hud, choices: game.choices, levels: { ...game.levels }, rerollCost: game.rerollCost, rich: game.richDraft };
     }
     if (game.phase === screen) return;
     if (game.phase === "over" || game.phase === "clear") {
-      bgm?.pause();
+      sound.stopMusic();
       input.firing = false;
     }
     if (game.phase === "clear") {
@@ -283,7 +286,16 @@
         }
         const tilt =
           e.type === "dart" ? Math.cos(e.swayPhase + game.time * ENEMIES.dart.swayRate) * -0.3 : 0;
-        stamp(e.type, e.x, e.y, tilt);
+        stamp(e.type, e.x, e.y, tilt, e.elite ? ELITE.size : 1);
+        if (e.elite) {
+          ctx.strokeStyle = "#ff4d6d";
+          ctx.lineWidth = 2.5;
+          ctx.setLineDash([6, 4]);
+          ctx.beginPath();
+          ctx.arc(e.x, e.y, e.radius + 7, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
         if (e.slowUntil > game.time) {
           ctx.strokeStyle = "rgba(150,220,255,0.85)";
           ctx.lineWidth = 2;
@@ -291,7 +303,7 @@
           ctx.arc(e.x, e.y, e.radius + 4, 0, Math.PI * 2);
           ctx.stroke();
         }
-        if (e.type !== "boss" && e.hp < e.maxHp && e.maxHp > 4) {
+        if (!BOSSES[e.type] && e.hp < e.maxHp && e.maxHp > 4) {
           const w = e.radius * 1.6;
           ctx.fillStyle = "rgba(0,0,0,0.6)";
           ctx.fillRect(e.x - w / 2, e.y - e.radius - 9, w, 3);
@@ -370,7 +382,7 @@
     }
     ctx.globalAlpha = 1;
 
-    const boss = game?.enemies.find((e) => e.type === "boss");
+    const boss = game?.enemies.find((e) => BOSSES[e.type]);
     if (boss) {
       ctx.fillStyle = "rgba(0,0,0,0.6)";
       ctx.fillRect(30, 62, FIELD.w - 60, 7);
@@ -420,10 +432,8 @@
     hud = { ...hud, choices: [], levels: {} };
     screen = "playing";
     syncHud();
-    if (bgm) {
-      bgm.currentTime = 0;
-      bgm.play().catch(() => {});
-    }
+    sound.resume();
+    sound.restartMusic();
   }
 
   function choose(key) {
@@ -445,8 +455,7 @@
 
   function toggleMute() {
     isMuted = !isMuted;
-    audioManager.setMute(isMuted);
-    if (bgm) bgm.muted = isMuted;
+    sound.setMuted(isMuted);
   }
 
   // The card pick writes the draw into the ledger under this label; one such entry means the reward is spent
@@ -472,21 +481,18 @@
     if (document.hidden) {
       cancelAnimationFrame(raf);
       raf = 0;
-      bgm?.pause();
+      sound.suspend();
       input.firing = false;
     } else if (!raf) {
       lastTime = performance.now();
       raf = requestAnimationFrame(frame);
-      if (screen === "playing" || screen === "upgrade") bgm?.play().catch(() => {});
+      sound.resume();
     }
   }
 
   onMount(async () => {
     ctx = canvas.getContext("2d");
-    for (const [name, [file, pool]] of Object.entries(SOUNDS)) audioManager.load(name, `${SND}/${file}`, pool);
-    bgm = new Audio(`${SND}/retro-color-moon.mp3`);
-    bgm.loop = true;
-    bgm.volume = 0.3;
+    sound = createSound(SND, Object.values(SOUNDS).map(([file]) => file), MUSIC);
     checkReward();
 
     try {
@@ -505,8 +511,7 @@
 
   onDestroy(() => {
     cancelAnimationFrame(raf);
-    bgm?.pause();
-    audioManager.setMute(false);
+    sound?.close();
   });
 </script>
 
@@ -640,7 +645,7 @@
               <li>🧱 적이 아래 선을 넘으면 기지 체력 감소 (회복 없음)</li>
               <li>🃏 웨이브를 막을 때마다 강화 카드 3장 중 1장 선택</li>
               <li>💣 코인은 폭탄이나 카드 바꾸기에 사용</li>
-              <li>👾 {LAST_WAVE}웨이브 보스를 잡으면 클리어</li>
+              <li>👾 중간 보스를 넘고 {LAST_WAVE}웨이브 보스를 잡으면 클리어</li>
             </ul>
             <button
               type="button"
@@ -663,8 +668,14 @@
         {#if screen === "loading"}
           <p class="font-bold text-cyan-200 animate-pulse">불러오는 중...</p>
         {:else if screen === "upgrade"}
-          <p class="text-xs font-black tracking-widest text-cyan-300">{hud.wave}웨이브 돌파!</p>
-          <h2 class="mt-1 text-2xl font-black">카드 한 장을 고르세요</h2>
+          {#if hud.rich}
+            <p class="text-xs font-black tracking-widest text-amber-300">중간 보스 격파!</p>
+            <h2 class="mt-1 text-2xl font-black">보상 카드를 고르세요</h2>
+            <p class="mt-1 text-xs text-gray-300">이번에는 희귀 이상 카드만 나옵니다</p>
+          {:else}
+            <p class="text-xs font-black tracking-widest text-cyan-300">{hud.wave}웨이브 돌파!</p>
+            <h2 class="mt-1 text-2xl font-black">카드 한 장을 고르세요</h2>
+          {/if}
           <div class="mt-5 space-y-3">
             {#each hud.choices as key (key)}
               {@const card = UPGRADES[key]}

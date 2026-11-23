@@ -5,7 +5,8 @@ import {
   PLAYER,
   ENEMIES,
   WAVES,
-  BOSS,
+  BOSSES,
+  ELITE,
   UPGRADES,
   HP_GROWTH,
   SPEED_GROWTH,
@@ -59,7 +60,9 @@ export function createGame(seed = Date.now()) {
     queue: [],
     choices: [],
     bossWarn: 0,
+    bossPending: false, // a boss wave whose boss has not appeared yet
     bossPhase: 0,
+    richDraft: false, // the next card pick offers no common cards
     nextId: 1,
   };
   startWave(state, []);
@@ -69,30 +72,36 @@ export function createGame(seed = Date.now()) {
 function startWave(state, events) {
   state.waveTime = 0;
   const wave = WAVES[state.wave];
-  if (wave === "boss") {
-    state.bossWarn = BOSS.warn;
+  if (typeof wave === "string") {
+    state.bossWarn = BOSSES[wave].warn;
+    state.bossPending = true;
     events.push({ type: "bossWarn" });
     return;
   }
   state.queue = wave
-    .flatMap(([type, count, gap, delay]) =>
-      Array.from({ length: count }, (_, i) => ({ t: delay + i * gap, type })),
+    .flatMap(([type, count, gap, delay, elite]) =>
+      Array.from({ length: count }, (_, i) => ({ t: delay + i * gap, type, elite })),
     )
     .sort((a, b) => a.t - b.t);
 }
 
-function spawn(state, type, x, y) {
+function spawn(state, type, x, y, elite = false) {
   const def = ENEMIES[type];
-  const margin = def.radius + 8;
+  const radius = def.radius * (elite ? ELITE.size : 1);
+  const margin = radius + 8;
+  const growth = 1 + HP_GROWTH.linear * state.wave + HP_GROWTH.square * state.wave ** 2;
   const enemy = {
     id: state.nextId++,
     type,
+    elite,
     x: x ?? margin + state.rand() * (FIELD.w - margin * 2),
-    y: y ?? -def.radius,
+    y: y ?? -radius,
     vx: 0,
-    vy: def.speed * (1 + SPEED_GROWTH * state.wave),
-    hp: Math.max(1, Math.round(def.hp * (1 + HP_GROWTH.linear * state.wave + HP_GROWTH.square * state.wave ** 2))),
-    radius: def.radius,
+    vy: def.speed * (1 + SPEED_GROWTH * state.wave) * (elite ? ELITE.speed : 1),
+    hp: Math.max(1, Math.round(def.hp * growth * (elite ? ELITE.hp : 1))),
+    radius,
+    leak: def.leak + (elite ? ELITE.leak : 0),
+    coins: def.coins * (elite ? ELITE.coins : 1),
     swayPhase: state.rand() * Math.PI * 2,
   };
   enemy.maxHp = enemy.hp;
@@ -102,20 +111,23 @@ function spawn(state, type, x, y) {
 }
 
 function spawnBoss(state, events) {
+  const type = WAVES[state.wave];
+  const def = BOSSES[type];
   state.enemies.push({
     id: state.nextId++,
-    type: "boss",
+    type,
     x: FIELD.w / 2,
-    y: -BOSS.radius,
+    y: -def.radius,
     vx: 0,
     vy: 0,
-    hp: BOSS.hp,
-    maxHp: BOSS.hp,
-    radius: BOSS.radius,
+    hp: def.hp,
+    maxHp: def.hp,
+    radius: def.radius,
     dir: 1,
     shellT: 2,
     addT: 3,
   });
+  state.bossPending = false;
   state.bossPhase = 0;
   events.push({ type: "bossArrive" });
 }
@@ -140,16 +152,22 @@ function hurt(state, enemy, amount, events) {
   enemy.dead = true;
   events.push({ type: "kill", kind: enemy.type, x: enemy.x, y: enemy.y });
 
-  if (enemy.type === "boss") {
+  if (BOSSES[enemy.type]) {
+    // Its escorts and shells go down with it
     state.enemies.forEach((e) => (e.dead = true));
-    state.phase = "clear";
-    events.push({ type: "bossDead", x: enemy.x, y: enemy.y }, { type: "clear" });
+    events.push({ type: "bossDead", x: enemy.x, y: enemy.y });
+    if (state.wave === WAVES.length - 1) {
+      state.phase = "clear";
+      events.push({ type: "clear" });
+    } else {
+      state.richDraft = true;
+    }
     return;
   }
 
   const def = ENEMIES[enemy.type];
-  if (def.coins) {
-    state.coins += def.coins * (1 + BOUNTY_STEP * state.levels.bounty);
+  if (enemy.coins) {
+    state.coins += enemy.coins * (1 + BOUNTY_STEP * state.levels.bounty);
     events.push({ type: "coin", x: enemy.x, y: enemy.y });
   }
   for (let i = 0; i < (def.split ?? 0); i++) {
@@ -160,7 +178,7 @@ function hurt(state, enemy, amount, events) {
 // A bullet landing on `enemy`: its own damage plus whatever the bullet upgrades add
 function strike(state, enemy, bullet, events) {
   const { cryo, blast, chain } = state.levels;
-  if (cryo && enemy.type !== "boss") {
+  if (cryo && !BOSSES[enemy.type]) {
     enemy.slowUntil = state.time + CRYO_SECONDS;
     enemy.slow = 1 - CRYO_SLOW_PCT[cryo - 1] / 100;
   }
@@ -202,7 +220,11 @@ function strike(state, enemy, bullet, events) {
 
 // Three different cards, rarer ones offered less often
 function rollChoices(state) {
-  const pool = Object.keys(UPGRADES).filter((k) => state.levels[k] < UPGRADES[k].max);
+  let pool = Object.keys(UPGRADES).filter((k) => state.levels[k] < UPGRADES[k].max);
+  if (state.richDraft) {
+    const better = pool.filter((k) => UPGRADES[k].rarity !== "common");
+    if (better.length >= 3) pool = better;
+  }
   const weight = (k) => RARITY[UPGRADES[k].rarity].weight;
   state.choices = [];
   while (state.choices.length < 3 && pool.length) {
@@ -220,7 +242,7 @@ function leak(state, enemy, events) {
     events.push({ type: "shield", x: enemy.x });
     return;
   }
-  state.hp -= ENEMIES[enemy.type].leak;
+  state.hp -= enemy.leak;
   events.push({ type: "leak", x: enemy.x });
   if (state.hp <= 0) {
     state.hp = 0;
@@ -230,20 +252,21 @@ function leak(state, enemy, events) {
 }
 
 function stepBoss(state, boss, dt, events) {
-  if (boss.y < BOSS.y) {
-    boss.y = Math.min(BOSS.y, boss.y + 70 * dt);
+  const def = BOSSES[boss.type];
+  if (boss.y < def.y) {
+    boss.y = Math.min(def.y, boss.y + 70 * dt);
     return;
   }
   const fraction = boss.hp / boss.maxHp;
   let phaseIndex = 0;
-  BOSS.phases.forEach((p, i) => {
+  def.phases.forEach((p, i) => {
     if (fraction <= p.below) phaseIndex = i;
   });
   if (phaseIndex !== state.bossPhase) {
     state.bossPhase = phaseIndex;
     events.push({ type: "bossPhase", x: boss.x, y: boss.y });
   }
-  const phase = BOSS.phases[phaseIndex];
+  const phase = def.phases[phaseIndex];
 
   boss.x += boss.dir * phase.speed * dt;
   const margin = boss.radius + 6;
@@ -302,7 +325,8 @@ export function update(state, dt, input) {
     if (state.bossWarn <= 0) spawnBoss(state, events);
   }
   while (state.queue.length && state.queue[0].t <= state.waveTime) {
-    spawn(state, state.queue.shift().type);
+    const next = state.queue.shift();
+    spawn(state, next.type, undefined, undefined, next.elite);
   }
 
   for (const b of state.bullets) {
@@ -315,7 +339,7 @@ export function update(state, dt, input) {
   for (let i = 0; i < state.enemies.length; i++) {
     const e = state.enemies[i];
     if (e.dead) continue;
-    if (e.type === "boss") {
+    if (BOSSES[e.type]) {
       stepBoss(state, e, dt, events);
       continue;
     }
@@ -354,7 +378,7 @@ export function update(state, dt, input) {
 
   const waveDone =
     state.phase === "playing" &&
-    WAVES[state.wave] !== "boss" &&
+    !state.bossPending &&
     state.queue.length === 0 &&
     state.enemies.length === 0;
   if (waveDone) {
@@ -372,6 +396,7 @@ export function pickUpgrade(state, key) {
   if (state.phase !== "upgrade" || !state.choices.includes(key)) return events;
   state.levels[key]++;
   if (key === "shield") state.shield += SHIELD_CHARGES;
+  state.richDraft = false;
   state.wave++;
   state.phase = "playing";
   startWave(state, events);
@@ -396,7 +421,7 @@ export function useBomb(state) {
   events.push({ type: "bomb" });
   for (let i = 0, n = state.enemies.length; i < n; i++) {
     const e = state.enemies[i];
-    hurt(state, e, e.type === "boss" ? PLAYER.bombBossDamage : PLAYER.bombDamage, events);
+    hurt(state, e, BOSSES[e.type] ? PLAYER.bombBossDamage : PLAYER.bombDamage, events);
   }
   state.enemies = state.enemies.filter((e) => !e.dead);
   return events;

@@ -27,10 +27,14 @@ export const ENEMIES = {
 
 // Enemy HP multiplier at wave index w (0-based): 1 + linear*w + square*w*w.
 // Gentle at first so the early upgrades get used, steep at the end.
-export const HP_GROWTH = { linear: 0.08, square: 0.027 };
+export const HP_GROWTH = { linear: 0.08, square: 0.0235 };
 export const SPEED_GROWTH = 0.045;
 
-// Each group: [type, count, seconds between spawns, delay before the group starts]
+// What an elite enemy gets on top of its type's numbers
+export const ELITE = { hp: 3, speed: 1.1, size: 1.25, coins: 3, leak: 1 };
+
+// Each group: [type, count, seconds between spawns, delay before the group starts, elite?].
+// A string is a boss wave, naming an entry of BOSSES.
 export const WAVES = [
   [["drone", 8, 1.3, 0]],
   [["drone", 9, 1.1, 0], ["dart", 4, 1.6, 4]],
@@ -39,22 +43,39 @@ export const WAVES = [
   [["tank", 2, 6, 0], ["drone", 14, 0.8, 1], ["dart", 8, 1.2, 4]],
   [["carrier", 8, 1.8, 0], ["dart", 14, 0.8, 2]],
   [["tank", 4, 4, 0], ["carrier", 6, 2.2, 2], ["drone", 20, 0.6, 1]],
+  "midboss",
   [["dart", 24, 0.5, 0], ["tank", 3, 5, 3], ["drone", 16, 0.75, 2]],
-  [["tank", 5, 3.2, 0], ["carrier", 8, 1.6, 1], ["dart", 22, 0.55, 3], ["drone", 22, 0.55, 0]],
+  [["tank", 5, 3.2, 0], ["carrier", 8, 1.6, 1], ["drone", 22, 0.55, 0]],
+  [["drone", 3, 4, 0, true], ["dart", 26, 0.45, 1], ["carrier", 8, 1.6, 2]],
+  [["tank", 6, 2.8, 0], ["dart", 4, 3, 2, true], ["drone", 26, 0.5, 1]],
+  [["carrier", 4, 3, 0, true], ["tank", 4, 4, 2], ["dart", 28, 0.42, 1], ["drone", 20, 0.6, 3]],
+  [["tank", 3, 5, 0, true], ["carrier", 10, 1.4, 1], ["dart", 30, 0.4, 2], ["drone", 28, 0.45, 0]],
   "boss",
 ];
 
 // A phase applies while the boss HP fraction is at or below `below`
-export const BOSS = {
-  hp: 1300,
-  radius: 62,
-  y: 150,
-  warn: 3,
-  phases: [
-    { below: 1, speed: 38, shellEvery: 1.5, shells: 1, addEvery: 4, add: "drone" },
-    { below: 0.66, speed: 50, shellEvery: 1.1, shells: 2, addEvery: 2.8, add: "dart" },
-    { below: 0.33, speed: 70, shellEvery: 0.8, shells: 3, addEvery: 2.2, add: "dart" },
-  ],
+export const BOSSES = {
+  midboss: {
+    hp: 360,
+    radius: 46,
+    y: 136,
+    warn: 2.5,
+    phases: [
+      { below: 1, speed: 44, shellEvery: 1.9, shells: 1, addEvery: 5, add: "drone" },
+      { below: 0.5, speed: 60, shellEvery: 1.5, shells: 2, addEvery: 4, add: "drone" },
+    ],
+  },
+  boss: {
+    hp: 2300,
+    radius: 62,
+    y: 150,
+    warn: 3,
+    phases: [
+      { below: 1, speed: 38, shellEvery: 1.5, shells: 1, addEvery: 4, add: "drone" },
+      { below: 0.66, speed: 50, shellEvery: 1.1, shells: 2, addEvery: 2.8, add: "dart" },
+      { below: 0.33, speed: 70, shellEvery: 0.8, shells: 3, addEvery: 2.2, add: "dart" },
+    ],
+  },
 };
 
 export const RATE_STEP = 0.82; // fire interval multiplier per level
