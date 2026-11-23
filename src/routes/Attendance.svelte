@@ -628,7 +628,7 @@
                 on:click={() => {
                     localStorage.setItem(cardPickKey, "used");
                     cardPickAvailable = false;
-                    navigate(`${base}/card-pick`);
+                    navigate(`${base}/card-pick`, { state: { reward: true } });
                 }}
                 class="w-full flex items-center justify-between p-5 rounded-[2rem] bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-lg active:scale-[0.98] transition-all"
             >
@@ -1039,7 +1039,7 @@
                     show100Modal = false;
                     localStorage.setItem(cardPickKey, "used");
                     cardPickAvailable = false;
-                    navigate(`${base}/card-pick`);
+                    navigate(`${base}/card-pick`, { state: { reward: true } });
                 }}
                 class="w-full py-4 rounded-2xl font-black text-white text-lg bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 active:scale-95 transition-all shadow-lg"
             >

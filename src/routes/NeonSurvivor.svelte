@@ -945,7 +945,7 @@
                     class="px-8 py-4 bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-black text-xl rounded-full hover:scale-105 transition shadow-lg shadow-yellow-500/30 mb-4 animate-pulse"
                     on:click={() => {
                         localStorage.setItem("neon_reward_claimed", "true");
-                        navigate(`${base}/card-pick`);
+                        navigate(`${base}/card-pick`, { state: { reward: true } });
                     }}
                 >
                     🎁 보상 받기

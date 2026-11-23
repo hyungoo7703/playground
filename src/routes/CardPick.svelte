@@ -159,7 +159,13 @@
         shuffleCards();
     }
 
-    onMount(fetchAmounts);
+    // Members may only arrive through a reward (attendance 100 days, Neon Survivor clear).
+    // Those links pass navigation state; typing the address directly leaves none.
+    onMount(() => {
+        if ($isAdmin || history.state?.reward) return fetchAmounts();
+        toast("용돈 카드뽑기는 보상을 받았을 때만 열 수 있어요.", "info");
+        navigate(base || "/", { replace: true });
+    });
 </script>
 
 <div class="max-w-lg mx-auto space-y-6">
