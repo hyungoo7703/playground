@@ -3,10 +3,12 @@
     import { fade, scale } from "svelte/transition";
     import { flip } from "svelte/animate";
     import { navigate } from "svelte-routing";
-    import { isAdmin, base } from "../lib/store.js";
+    import { isAdmin, base, currentUser } from "../lib/store.js";
     import { api } from "../lib/api.js";
     import { toast } from "../lib/feedback.js";
     import { readCache, writeCache } from "../lib/cache.js";
+    import { formatDate } from "../lib/utils.js";
+    import { REWARD_LABELS } from "../lib/rewards.js";
 
     // --- 상태 관리 ---
     let amounts = []; // 구글 시트에서 가져온 금액 리스트
@@ -93,6 +95,8 @@
     /** 셔플 애니메이션 */
     async function shuffleCards() {
         if (shuffling || cards.length === 0) return;
+        // A reward visit gets exactly one draw
+        if (rewardSource && pickLocked) return;
 
         shuffling = true;
         selectedCard = null;
@@ -123,8 +127,34 @@
     /** 카드 선택 */
     let pickLocked = false; // 150ms 애니메이션 사이 연타로 당첨 카드가 바뀌는 것 방지
 
-    function selectCard(card) {
-        if (shuffling) return;
+    let isSaving = false;
+
+    // A reward draw goes into the ledger as money owed to the winner.
+    // The title must not start with "보상지급": that prefix is counted as attendance reward spending.
+    async function saveRewardDraw(amountText) {
+        isSaving = true;
+        const res = await api.addLedger({
+            date: formatDate(new Date()),
+            day: new Date().getDate(),
+            type: "이체",
+            title: `카드뽑기 당첨: ${amountText} (${REWARD_LABELS[rewardSource] ?? "보상"})`,
+            amount: parseInt(String(amountText).replace(/[^\d]/g, ""), 10) || 0,
+            giver: "현구",
+            receiver: $currentUser,
+            is_settled: false,
+        });
+        isSaving = false;
+        if (!res.success) {
+            toast("결과를 기록하지 못했습니다. 카드를 다시 눌러주세요.", "error");
+            return false;
+        }
+        // Spend the reward so a reload cannot draw again
+        history.replaceState({ ...history.state, reward: null }, "");
+        return true;
+    }
+
+    async function selectCard(card) {
+        if (shuffling || isSaving) return;
 
         // 이미 뒤집힌 카드면 무시
         if (card.flipped) return;
@@ -135,6 +165,12 @@
             pickLocked = true;
             selectedCard = card.id;
             revealedAmount = card.amount;
+            // A reward card is only turned over once its result is on record
+            if (rewardSource && !(await saveRewardDraw(card.amount))) {
+                pickLocked = false;
+                selectedCard = null;
+                return;
+            }
         }
 
         // 선택한 카드 뒤집기 (기존 뒤집힌 카드는 유지)
@@ -159,12 +195,24 @@
         shuffleCards();
     }
 
-    // Members may only arrive through a reward (attendance 100 days).
-    // That link passes navigation state; typing the address directly leaves none.
+    // Members may only arrive through a reward (attendance 100 days, Neon Guardian clear).
+    // Those links pass navigation state naming the reward; typing the address leaves none.
+    const rewardSource = history.state?.reward;
+
     onMount(() => {
-        if ($isAdmin || history.state?.reward) return fetchAmounts();
-        toast("용돈 카드뽑기는 보상을 받았을 때만 열 수 있어요.", "info");
-        navigate(base || "/", { replace: true });
+        if (!$isAdmin && !rewardSource) {
+            toast("용돈 카드뽑기는 보상을 받았을 때만 열 수 있어요.", "info");
+            return navigate(base || "/", { replace: true });
+        }
+        fetchAmounts();
+        // Tell the admin a reward draw has started; the flag keeps a reload from sending it again
+        if (rewardSource && !$isAdmin && !history.state.notified) {
+            history.replaceState({ ...history.state, notified: true }, "");
+            api.notifyReward({
+                source: rewardSource,
+                url: `${window.location.origin}${base}/`,
+            });
+        }
     });
 </script>
 
@@ -199,7 +247,7 @@
                 {#each cards as card (card.id)}
                     <button
                         on:click={() => selectCard(card)}
-                        disabled={shuffling || card.flipped}
+                        disabled={shuffling || card.flipped || isSaving}
                         aria-label={card.flipped ? `열린 카드: ${card.amount}` : "카드 뒤집기"}
                         animate:flip={{ duration: 300 }}
                         class="relative w-20 h-28 md:w-24 md:h-32 rounded-xl shadow-xl transition-all duration-300 transform
@@ -267,19 +315,29 @@
 
         <!-- 버튼 -->
         <div class="space-y-3">
-            <button
-                on:click={resetGame}
-                disabled={shuffling}
-                class="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-2xl font-bold text-xl shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-                {#if shuffling}
-                    <span class="animate-spin">🔄</span>
-                    <span>섞는 중...</span>
-                {:else}
-                    <span>🔀</span>
-                    <span>{revealed ? "다시 뽑기" : "카드 섞기"}</span>
-                {/if}
-            </button>
+            {#if isSaving}
+                <p class="text-center text-sm font-bold text-amber-600 dark:text-amber-400 animate-pulse">
+                    결과를 기록하는 중...
+                </p>
+            {:else if rewardSource && revealed}
+                <p class="text-center text-sm font-bold text-gray-500 dark:text-gray-400">
+                    당첨 금액이 장부에 기록됐어요. 보상 뽑기는 한 번만 할 수 있어요.
+                </p>
+            {:else}
+                <button
+                    on:click={resetGame}
+                    disabled={shuffling}
+                    class="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-2xl font-bold text-xl shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                    {#if shuffling}
+                        <span class="animate-spin">🔄</span>
+                        <span>섞는 중...</span>
+                    {:else}
+                        <span>🔀</span>
+                        <span>{revealed ? "다시 뽑기" : "카드 섞기"}</span>
+                    {/if}
+                </button>
+            {/if}
 
             <!-- 메인으로 버튼 (보상 받은 후) -->
             {#if revealed}

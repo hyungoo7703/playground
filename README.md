@@ -13,4 +13,5 @@
 *   **Icons**: [Heroicons](https://heroicons.com/) (MIT License) - SVG 코드를 직접 사용
 *   **Emojis**: Standard Unicode Emojis (System fonts)
 *   **Fonts**: 웹 안전 폰트(Sans-serif) 및 시스템 기본 폰트 사용 (별도 폰트 파일 배포 없음)
+*   **Images**: `public/images/guardian`의 게임 이미지는 Google Gemini로 생성한 뒤 배경을 제거해 사용
 *   **Sounds**: [Pixabay](https://pixabay.com/)의 효과음과 음악 ([Pixabay Content License](https://pixabay.com/service/license-summary/)) - 이 앱 안에서 쓰기 위한 것이며, `public/sounds`의 음원 파일을 따로 떼어 재배포하거나 판매할 수 없음

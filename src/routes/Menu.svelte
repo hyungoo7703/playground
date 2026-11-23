@@ -15,6 +15,10 @@
       ],
     },
     {
+      title: "게임",
+      items: [{ path: "/neon-guardian", label: "네온 가디언", emoji: "🛡️" }],
+    },
+    {
       title: "도구",
       items: [{ path: "/stock", label: "주식 모으기", emoji: "📊" }],
     },

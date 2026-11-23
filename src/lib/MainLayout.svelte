@@ -23,7 +23,7 @@
 
   const location = useLocation();
 
-  // Occasional tools load on first visit (svelte-routing awaits
+  // The game and occasional tools load on first visit (svelte-routing awaits
   // a function component). A tab left open across a deploy can request
   // chunk hashes that no longer exist, so reload once to pick up the new build.
   const lazy = (load) => () =>
@@ -40,6 +40,7 @@
 
   const Stock = lazy(() => import("../routes/Stock.svelte"));
   const CardPick = lazy(() => import("../routes/CardPick.svelte"));
+  const NeonGuardian = lazy(() => import("../routes/NeonGuardian.svelte"));
 
   // 로그인 상태 및 경로 체크 함수 (백틱 사용하여 경로 수정)
   function checkAuth() {
@@ -87,10 +88,17 @@
     prevPath = $location.pathname;
     if (typeof window !== "undefined") window.scrollTo(0, 0);
   }
+
+  // The game takes the whole screen: no padding, no tab bar, no page scroll
+  $: isGameplayPage = $location.pathname.includes("/neon-guardian");
 </script>
 
-<div class="relative flex flex-col bg-gray-100 dark:bg-gray-900 min-h-screen">
-  <main class="p-4 sm:p-6 pb-24">
+<div
+  class="relative flex flex-col bg-gray-100 dark:bg-gray-900 {isGameplayPage
+    ? 'h-[100dvh] overflow-hidden'
+    : 'min-h-screen'}"
+>
+  <main class={isGameplayPage ? "flex-1 overflow-hidden relative" : "p-4 sm:p-6 pb-24"}>
     {#if !$isLoggedIn}
       <Login />
     {:else}
@@ -99,6 +107,7 @@
       <Route path="bulletin-board" component={BulletinBoard} />
       <Route path="ledger" component={Ledger} />
       <Route path="stock" component={Stock} />
+      <Route path="neon-guardian" component={NeonGuardian} />
       <Route path="food-spinner" component={FoodSpinner} />
       <Route path="card-pick" component={CardPick} />
       <Route path="attendance" component={Attendance} />
@@ -109,7 +118,7 @@
     {/if}
   </main>
 
-  {#if $isLoggedIn && $location.pathname !== `${base}/login`}
+  {#if $isLoggedIn && $location.pathname !== `${base}/login` && !isGameplayPage}
     <TabBar />
   {/if}
 

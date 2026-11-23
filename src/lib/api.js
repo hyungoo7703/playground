@@ -98,6 +98,8 @@ export const api = {
     // Push Notifications
     savePushDevice: (data) => fetchFromGAS('savePushDevice', data),
     sendPushNotification: (data) => fetchFromGAS('sendPushNotification', data),
+    // Members may call this one: the server sends a fixed message to admins only
+    notifyReward: (data) => fetchFromGAS('notifyReward', data),
 };
 
 

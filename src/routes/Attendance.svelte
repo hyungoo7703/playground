@@ -628,7 +628,7 @@
                 on:click={() => {
                     localStorage.setItem(cardPickKey, "used");
                     cardPickAvailable = false;
-                    navigate(`${base}/card-pick`, { state: { reward: true } });
+                    navigate(`${base}/card-pick`, { state: { reward: "attendance" } });
                 }}
                 class="w-full flex items-center justify-between p-5 rounded-[2rem] bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-lg active:scale-[0.98] transition-all"
             >
@@ -1029,8 +1029,8 @@
         </p>
         <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
             대단한 끈기에요! 🔥<br />특별 보상으로 용돈카드 뽑기 기회를
-            드려요! <br />따로 저장되지 않기 때문에
-            <b>현구를 호출하세요!</b>
+            드려요! <br />뽑은 금액은 장부에 기록되고
+            <b>현구에게 알림이 가요.</b>
         </p>
 
         <div class="flex flex-col gap-3">
@@ -1039,7 +1039,7 @@
                     show100Modal = false;
                     localStorage.setItem(cardPickKey, "used");
                     cardPickAvailable = false;
-                    navigate(`${base}/card-pick`, { state: { reward: true } });
+                    navigate(`${base}/card-pick`, { state: { reward: "attendance" } });
                 }}
                 class="w-full py-4 rounded-2xl font-black text-white text-lg bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 active:scale-95 transition-all shadow-lg"
             >
