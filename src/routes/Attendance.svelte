@@ -14,6 +14,10 @@
     let isLoading = true;
     let todayChecked = false;
     let isSubmitting = false;
+    // The cache can say "not checked" after a check-in here or on another device,
+    // so the button stays locked until the server has answered
+    let isRevalidating = true;
+    $: checkInLocked = isLoading || (isRevalidating && !todayChecked);
     let showRules = false;
 
     // Reward usage modal
@@ -241,7 +245,7 @@
     }
 
     async function doCheckIn() {
-        if (todayChecked || isSubmitting) return;
+        if (todayChecked || isSubmitting || checkInLocked) return;
         isSubmitting = true;
 
         try {
@@ -253,7 +257,10 @@
             if (result.success) {
                 todayChecked = true;
                 const refreshed = await api.getAttendance();
-                if (refreshed.success) attendance = refreshed.attendance || [];
+                if (refreshed.success) {
+                    attendance = refreshed.attendance || [];
+                    writeCache("attendance", attendance);
+                }
 
                 // 올출석 보너스 체크: 지난달 올출석이면 알림
                 const now = new Date();
@@ -461,6 +468,7 @@
             console.error("출석 데이터 로드 실패:", e);
         } finally {
             isLoading = false;
+            isRevalidating = false;
         }
 
         // Check for unused card pick opportunity
@@ -611,16 +619,16 @@
     <section>
         <button
             on:click={doCheckIn}
-            disabled={todayChecked || isSubmitting || isLoading}
+            disabled={todayChecked || isSubmitting || checkInLocked}
             class="w-full relative overflow-hidden rounded-[2.5rem] p-6 shadow-xl transition-all active:scale-[0.98]
-            {isLoading
+            {checkInLocked
                 ? 'bg-gray-200 dark:bg-gray-700 text-gray-400'
                 : todayChecked
                   ? 'bg-emerald-50 dark:bg-emerald-900/20 border-2 border-emerald-200 dark:border-emerald-800/50'
                   : 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white ' +
                     (!isSubmitting ? 'animate-pulse hover:animate-none' : '')}"
         >
-            {#if isLoading}
+            {#if checkInLocked}
                 <div class="flex items-center justify-center gap-4">
                     <span class="text-3xl animate-pulse">📅</span>
                     <div class="text-left">
