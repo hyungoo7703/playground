@@ -1,5 +1,5 @@
 <script>
-    import { onMount } from "svelte";
+    import { onMount, tick } from "svelte";
     import { fade, scale } from "svelte/transition";
     import { navigate } from "svelte-routing";
     import { base, currentUser } from "../lib/store.js";
@@ -11,6 +11,8 @@
 
     let attendance = [];
     let ledgerItems = [];
+    // False until the ledger came from the cache or the server; without it the balance is unknown
+    let ledgerKnown = false;
     let isLoading = true;
     let todayChecked = false;
     let isSubmitting = false;
@@ -380,9 +382,25 @@
 
         isUseSubmitting = true;
         try {
-            const today = formatDate(new Date());
+            // The server does not check the balance, so confirm it against a fresh ledger first
+            const fresh = await api.getLedger();
+            if (!fresh.success)
+                return toast(
+                    "장부를 확인하지 못해 보상을 사용할 수 없습니다. 잠시 후 다시 시도해주세요.",
+                    "error",
+                );
+            ledgerItems = fresh.ledger || [];
+            ledgerKnown = true;
+            writeCache("ledger", ledgerItems);
+            await tick(); // let rewardBalance recompute from the fresh ledger
+            if (amt > rewardBalance)
+                return toast(
+                    `잔액이 부족합니다. (잔액: ${rewardBalance.toLocaleString()}원)`,
+                    "error",
+                );
+
             const result = await api.addLedger({
-                date: today,
+                date: formatDate(new Date()),
                 day: new Date().getDate(),
                 type: "이체",
                 title: `보상지급 (${useDescription.trim()})`,
@@ -440,7 +458,13 @@
 
             if (ledgerResult.success) {
                 ledgerItems = ledgerResult.ledger || [];
+                ledgerKnown = true;
                 writeCache("ledger", ledgerItems);
+            } else if (!ledgerKnown) {
+                toast(
+                    "장부를 불러오지 못해 보상 잔액을 확인할 수 없습니다.",
+                    "error",
+                );
             }
         } catch (e) {
             console.error("출석 데이터 로드 실패:", e);
@@ -465,7 +489,10 @@
         const cachedAtt = readCache("attendance");
         const cachedLedger = readCache("ledger");
         if (cachedAtt) setAttendance(cachedAtt);
-        if (cachedLedger) ledgerItems = cachedLedger;
+        if (cachedLedger) {
+            ledgerItems = cachedLedger;
+            ledgerKnown = true;
+        }
         if (cachedAtt && cachedLedger) isLoading = false;
 
         await revalidate();
@@ -511,7 +538,7 @@
                             <span class="text-sm opacity-90">연속!</span>
                         </div>
                     {/if}
-                    {#if rewardBalance > 0}
+                    {#if ledgerKnown && rewardBalance > 0}
                         <div
                             class="flex items-center gap-2 bg-white/20 backdrop-blur-md rounded-2xl px-4 py-2"
                         >
@@ -864,6 +891,12 @@
                     >
                         계산 중...
                     </p>
+                {:else if !ledgerKnown}
+                    <p
+                        class="text-lg font-bold text-gray-500 dark:text-gray-400 mt-1"
+                    >
+                        확인 불가
+                    </p>
                 {:else}
                     <p
                         class="text-3xl font-black text-gray-900 dark:text-white"
@@ -883,7 +916,7 @@
                     useDescription = "";
                     showUseRewardModal = true;
                 }}
-                disabled={rewardBalance <= 0 || isLoading}
+                disabled={rewardBalance <= 0 || isLoading || !ledgerKnown}
                 class="px-5 py-3 bg-gradient-to-r from-rose-500 to-pink-500 text-white font-bold rounded-2xl shadow-lg active:scale-95 transition-all disabled:opacity-40"
             >
                 보상 사용 🎁
