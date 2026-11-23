@@ -38,8 +38,6 @@
         window.location.reload();
       });
 
-  const Calculator15 = lazy(() => import("../routes/Calculator15.svelte"));
-  const PensionCalculator = lazy(() => import("../routes/PensionCalculator.svelte"));
   const Stock = lazy(() => import("../routes/Stock.svelte"));
   const CardPick = lazy(() => import("../routes/CardPick.svelte"));
   const FruitPang = lazy(() => import("../routes/FruitPang.svelte"));
@@ -120,8 +118,6 @@
       <Route path="events" component={EventList} />
       <Route path="bulletin-board" component={BulletinBoard} />
       <Route path="ledger" component={Ledger} />
-      <Route path="calculator-15" component={Calculator15} />
-      <Route path="pension-calculator" component={PensionCalculator} />
       <Route path="stock" component={Stock} />
 
       <!-- Games -->

@@ -26,11 +26,7 @@
     },
     {
       title: "도구",
-      items: [
-        { path: "/calculator-15", label: "15% 계산기", emoji: "🧮" },
-        { path: "/pension-calculator", label: "연금저축 계산기", emoji: "📈" },
-        { path: "/stock", label: "주식 모으기", emoji: "📊" },
-      ],
+      items: [{ path: "/stock", label: "주식 모으기", emoji: "📊" }],
     },
     {
       title: "기타",
