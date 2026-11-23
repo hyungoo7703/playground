@@ -4,7 +4,7 @@
   import { navigate } from "svelte-routing";
   import { base, isAdmin, currentUser } from "../lib/store.js";
   import { api } from "../lib/api.js";
-  import { formatDate } from "../lib/utils.js";
+  import { formatDate, kstNow } from "../lib/utils.js";
   import { readCache, writeCache } from "../lib/cache.js";
   import { toast } from "../lib/feedback.js";
   let isButlerOpen = false;
@@ -29,11 +29,11 @@
       weekday: "long",
     });
   let todayLabel = makeTodayLabel();
-  let loadedDay = formatDate(new Date());
+  let loadedDay = formatDate(kstNow());
 
   // The app can sit in the background past midnight; yesterday's check-in and D-Day must not carry over
   function handleVisibility() {
-    const day = formatDate(new Date());
+    const day = formatDate(kstNow());
     if (document.hidden || day === loadedDay) return;
     loadedDay = day;
     todayLabel = makeTodayLabel();
@@ -230,7 +230,7 @@
   }
 
   function applyAttendance(attendance) {
-    const today = new Date();
+    const today = kstNow();
     const todayStr = formatDate(today);
     const user = $currentUser || "가족";
     todayCheckedIn = attendance.some(

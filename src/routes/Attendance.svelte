@@ -4,7 +4,7 @@
     import { navigate } from "svelte-routing";
     import { base, currentUser } from "../lib/store.js";
     import { api } from "../lib/api.js";
-    import { formatDate } from "../lib/utils.js";
+    import { formatDate, parseDate, kstNow } from "../lib/utils.js";
     import { readCache, writeCache } from "../lib/cache.js";
     import Modal from "../lib/components/Modal.svelte";
     import { toast } from "../lib/feedback.js";
@@ -33,14 +33,14 @@
     $: cardPickKey = `attendance_100day_cardpick_${$currentUser}`;
 
     // Calendar state
-    let today = formatDate(new Date());
-    let currentDate = new Date();
+    let today = formatDate(kstNow());
+    let currentDate = kstNow();
     $: currentYear = currentDate.getFullYear();
     $: currentMonth = currentDate.getMonth();
     $: monthName = currentDate.toLocaleString("ko-KR", { month: "long" });
     $: isThisMonth =
-        currentYear === new Date().getFullYear() &&
-        currentMonth === new Date().getMonth();
+        currentYear === kstNow().getFullYear() &&
+        currentMonth === kstNow().getMonth();
     $: daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
     $: firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
     $: calendarDays = buildCalendarDays(daysInMonth, firstDayOfMonth);
@@ -64,14 +64,14 @@
     $: myAttendanceDays = new Set(
         attendance
             .filter((a) => {
-                const d = new Date(a.date);
+                const d = parseDate(a.date);
                 return (
                     d.getFullYear() === currentYear &&
                     d.getMonth() === currentMonth &&
                     a.user_name === $currentUser
                 );
             })
-            .map((a) => new Date(a.date).getDate()),
+            .map((a) => parseDate(a.date).getDate()),
     );
 
     // All family members' attendance for today
@@ -130,7 +130,7 @@
         // Group by year-month, keeping actual dates
         const monthMap = {};
         records.forEach((a) => {
-            const d = new Date(a.date);
+            const d = parseDate(a.date);
             const key = `${d.getFullYear()}-${d.getMonth()}`;
             if (!monthMap[key])
                 monthMap[key] = {
@@ -146,7 +146,7 @@
         let total = 0;
         Object.values(monthMap).forEach(({ year, month, dates }) => {
             const daysInMonth = new Date(year, month + 1, 0).getDate();
-            const now = new Date();
+            const now = kstNow();
             const isCurrentMonth =
                 year === now.getFullYear() && month === now.getMonth();
 
@@ -205,7 +205,7 @@
         if (userDates.length === 0) return 0;
 
         let streak = 0;
-        const today = new Date();
+        const today = kstNow();
         today.setHours(0, 0, 0, 0);
 
         for (let i = 0; i < userDates.length; i++) {
@@ -232,7 +232,7 @@
     }
 
     function nextMonth() {
-        const now = new Date();
+        const now = kstNow();
         // Don't go past current month
         if (
             currentYear < now.getFullYear() ||
@@ -261,7 +261,7 @@
                 }
 
                 // 올출석 보너스 체크: 지난달 올출석이면 알림
-                const now = new Date();
+                const now = kstNow();
                 const lastMonth =
                     now.getMonth() === 0 ? 11 : now.getMonth() - 1;
                 const lastMonthYear =
@@ -278,7 +278,7 @@
                 )
                     .filter((a) => a.user_name === $currentUser)
                     .filter((a) => {
-                        const d = new Date(a.date);
+                        const d = parseDate(a.date);
                         return (
                             d.getFullYear() === lastMonthYear &&
                             d.getMonth() === lastMonth
@@ -290,7 +290,7 @@
                     ? refreshed.attendance || []
                     : attendance;
                 const thisMonthCount = refreshedRecords.filter((a) => {
-                    const d = new Date(a.date);
+                    const d = parseDate(a.date);
                     return (
                         a.user_name === $currentUser &&
                         d.getFullYear() === now.getFullYear() &&
@@ -299,7 +299,7 @@
                 }).length;
 
                 const todayReward = getGachaReward(
-                    formatDate(new Date()),
+                    formatDate(now),
                     $currentUser,
                 );
                 const perfectBonus = getPerfectBonus(
@@ -462,10 +462,10 @@
 
     // The app can sit in the background past midnight; yesterday's "checked" must not carry over
     function handleVisibility() {
-        const now = formatDate(new Date());
+        const now = formatDate(kstNow());
         if (document.hidden || now === today) return;
         today = now;
-        currentDate = new Date();
+        currentDate = kstNow();
         setAttendance(attendance);
         revalidate();
     }
