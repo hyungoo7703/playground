@@ -64,6 +64,7 @@
   let reward = "checking"; // checking | available | claimed | error
   let hasPending = localStorage.getItem(pendingKey) === "1";
   let isMuted = false;
+  let showRules = false;
 
   let wrap;
   let canvas;
@@ -525,7 +526,8 @@
   <canvas bind:this={canvas} class="absolute inset-0 w-full h-full"></canvas>
 
   <!-- HUD -->
-  <div class="absolute top-0 inset-x-0 flex items-center gap-2 p-3 pointer-events-none">
+  <!-- Above the overlays so leaving and muting work on every screen -->
+  <div class="absolute top-0 inset-x-0 z-20 flex items-center gap-2 p-3 pointer-events-none">
     <div class="pointer-events-auto" on:pointerdown|stopPropagation>
       <GameExitButton />
     </div>
@@ -575,51 +577,91 @@
     </button>
   {/if}
 
-  <!-- Overlays -->
-  {#if screen !== "playing"}
+  <!-- Title screen: key art with the title in its dark upper third and the buttons at the bottom -->
+  {#if screen === "start"}
+    <!-- Full screen on phones; on a wide window the art keeps a phone-shaped column in the middle -->
+    <div class="absolute inset-0 z-10 flex justify-center bg-[#05060f]" on:pointerdown|stopPropagation>
+     <div class="relative h-full aspect-[9/16] max-w-full overflow-hidden">
+      <img
+        src="{IMG}/title.webp"
+        alt=""
+        class="absolute inset-0 w-full h-full object-cover object-bottom"
+      />
+      <div class="absolute inset-x-0 top-[11%] px-5 text-center">
+        <p class="text-[11px] font-black tracking-[0.4em] text-fuchsia-300">WAVE DEFENSE</p>
+        <h1 class="mt-2 text-5xl font-black text-cyan-200 drop-shadow-[0_0_22px_rgba(39,228,255,0.9)]">
+          네온 가디언
+        </h1>
+        <p class="mt-3 text-sm text-gray-300">{LAST_WAVE}번의 공세를 막고 기지를 지켜라</p>
+        <p class="mt-4 inline-block px-3 py-1.5 rounded-full text-xs font-bold text-amber-200 bg-black/50 border border-amber-300/40">
+          {#if reward === "claimed"}
+            클리어 보상은 이미 받았어요
+          {:else}
+            🎁 클리어 보상: 용돈 카드뽑기 1회
+          {/if}
+        </p>
+      </div>
+      <div
+        class="absolute inset-x-0 bottom-0 px-5 pt-10 pb-[max(env(safe-area-inset-bottom),16px)] bg-gradient-to-t from-black/90 to-transparent"
+      >
+        <div class="max-w-xs mx-auto space-y-2">
+          {#if hasPending && reward === "available"}
+            <button
+              type="button"
+              on:click={goToReward}
+              class="w-full py-3 rounded-2xl font-black text-white bg-gradient-to-r from-amber-500 to-rose-500 active:scale-95 transition-all"
+            >
+              🎁 아직 안 뽑은 클리어 보상 받기
+            </button>
+          {/if}
+          <button
+            type="button"
+            on:click={startGame}
+            class="w-full py-4 rounded-2xl font-black text-lg text-gray-900 bg-cyan-300 active:scale-95 transition-all shadow-[0_0_24px_rgba(39,228,255,0.6)]"
+          >
+            게임 시작
+          </button>
+          <button
+            type="button"
+            on:click={() => (showRules = true)}
+            class="w-full py-2 text-sm font-bold text-gray-300 active:scale-95 transition-all"
+          >
+            게임 방법
+          </button>
+        </div>
+      </div>
+
+      {#if showRules}
+        <div class="absolute inset-0 flex items-center justify-center p-5 bg-black/80">
+          <div class="w-full max-w-xs">
+            <h2 class="text-xl font-black text-cyan-300 text-center">게임 방법</h2>
+            <ul class="mt-4 space-y-2 text-sm text-gray-200 bg-white/5 border border-white/10 rounded-2xl p-4">
+              <li>👆 화면을 누른 채 끌어서 조준하고 발사</li>
+              <li>🧱 적이 아래 선을 넘으면 기지 체력 감소 (회복 없음)</li>
+              <li>🃏 웨이브를 막을 때마다 강화 카드 3장 중 1장 선택</li>
+              <li>💣 코인은 폭탄이나 카드 바꾸기에 사용</li>
+              <li>👾 {LAST_WAVE}웨이브 보스를 잡으면 클리어</li>
+            </ul>
+            <button
+              type="button"
+              on:click={() => (showRules = false)}
+              class="mt-4 w-full py-3 rounded-2xl font-bold bg-white/10 border border-white/20 active:scale-95 transition-all"
+            >
+              닫기
+            </button>
+          </div>
+        </div>
+      {/if}
+     </div>
+    </div>
+  {:else if screen !== "playing"}
     <div
-      class="absolute inset-0 flex items-center justify-center p-5 bg-black/70"
+      class="absolute inset-0 z-10 flex items-center justify-center p-5 bg-black/70"
       on:pointerdown|stopPropagation
     >
       <div class="w-full max-w-xs text-center">
         {#if screen === "loading"}
           <p class="font-bold text-cyan-200 animate-pulse">불러오는 중...</p>
-        {:else if screen === "start"}
-          <h1 class="text-4xl font-black text-cyan-300 drop-shadow-[0_0_18px_rgba(39,228,255,0.7)]">
-            네온 가디언
-          </h1>
-          <p class="mt-2 text-sm text-gray-300">몰려오는 적에게서 기지를 지키세요.</p>
-          <ul class="mt-5 space-y-2 text-left text-sm text-gray-200 bg-white/5 border border-white/10 rounded-2xl p-4">
-            <li>👆 화면을 누른 채 끌어서 조준하고 발사</li>
-            <li>🧱 적이 아래 선을 넘으면 기지 체력 감소 (회복 없음)</li>
-            <li>🃏 웨이브를 막을 때마다 강화 카드 3장 중 1장 선택</li>
-            <li>💣 코인은 폭탄이나 카드 바꾸기에 사용</li>
-            <li>👾 {LAST_WAVE}웨이브 보스를 잡으면 클리어</li>
-          </ul>
-          {#if hasPending && reward === "available"}
-            <button
-              type="button"
-              on:click={goToReward}
-              class="mt-4 w-full py-3 rounded-2xl font-black text-white bg-gradient-to-r from-amber-500 to-rose-500 active:scale-95 transition-all"
-            >
-              🎁 아직 안 뽑은 클리어 보상 받기
-            </button>
-          {:else}
-            <p class="mt-4 text-xs font-bold text-amber-300">
-              {#if reward === "claimed"}
-                클리어 보상(용돈 카드뽑기)은 이미 받았어요.
-              {:else}
-                🎁 클리어 보상: 용돈 카드뽑기 1회
-              {/if}
-            </p>
-          {/if}
-          <button
-            type="button"
-            on:click={startGame}
-            class="mt-5 w-full py-4 rounded-2xl font-black text-lg text-gray-900 bg-cyan-300 active:scale-95 transition-all shadow-[0_0_24px_rgba(39,228,255,0.5)]"
-          >
-            게임 시작
-          </button>
         {:else if screen === "upgrade"}
           <p class="text-xs font-black tracking-widest text-cyan-300">{hud.wave}웨이브 돌파!</p>
           <h2 class="mt-1 text-2xl font-black">카드 한 장을 고르세요</h2>
