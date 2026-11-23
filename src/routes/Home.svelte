@@ -22,11 +22,23 @@
   let monthlyEvents = [];
   let isLoading = true;
   $: userName = $currentUser || "가족";
-  const todayLabel = new Date().toLocaleDateString("ko-KR", {
-    month: "long",
-    day: "numeric",
-    weekday: "long",
-  });
+  const makeTodayLabel = () =>
+    new Date().toLocaleDateString("ko-KR", {
+      month: "long",
+      day: "numeric",
+      weekday: "long",
+    });
+  let todayLabel = makeTodayLabel();
+  let loadedDay = formatDate(new Date());
+
+  // The app can sit in the background past midnight; yesterday's check-in and D-Day must not carry over
+  function handleVisibility() {
+    const day = formatDate(new Date());
+    if (document.hidden || day === loadedDay) return;
+    loadedDay = day;
+    todayLabel = makeTodayLabel();
+    load();
+  }
 
   // AI Knowledge custom notes (Admin only management)
   let aiKnowledgeList = [];
@@ -49,7 +61,9 @@
 
 
 
-  onMount(async () => {
+  onMount(load);
+
+  async function load() {
     // 1. D-Day Check
 
 
@@ -77,6 +91,8 @@
         dDayDiff = diffDays;
       } else {
         localStorage.removeItem("dDayEvent"); // Clean up expired
+        dDayEvent = null;
+        dDayDiff = null;
       }
     }
 
@@ -150,7 +166,7 @@
       isLoading = false;
       attendanceLoaded = true;
     }
-  });
+  }
 
   function applyStocks(stocks) {
     if (!stocks || !Array.isArray(stocks)) return;
@@ -276,6 +292,8 @@
     return new Date(dateString).getDate();
   }
 </script>
+
+<svelte:document on:visibilitychange={handleVisibility} />
 
 <div class="space-y-6 max-w-md mx-auto pb-16">
 

@@ -33,6 +33,7 @@
     $: cardPickKey = `attendance_100day_cardpick_${$currentUser}`;
 
     // Calendar state
+    let today = formatDate(new Date());
     let currentDate = new Date();
     $: currentYear = currentDate.getFullYear();
     $: currentMonth = currentDate.getMonth();
@@ -73,11 +74,8 @@
             .map((a) => new Date(a.date).getDate()),
     );
 
-    // All family members' attendance for current month
-    $: familyAttendanceToday = attendance.filter((a) => {
-        const today = formatDate(new Date());
-        return a.date === today;
-    });
+    // All family members' attendance for today
+    $: familyAttendanceToday = attendance.filter((a) => a.date === today);
 
     // Streak calculation
     $: streak = calcStreak(attendance, $currentUser);
@@ -428,20 +426,15 @@
         }
     }
 
-    onMount(async () => {
-        // 캐시 먼저 그리고, 뒤에서 갱신 (SWR)
-        const cachedAtt = readCache("attendance");
-        const cachedLedger = readCache("ledger");
-        if (cachedAtt) {
-            attendance = cachedAtt;
-            const today = formatDate(new Date());
-            todayChecked = attendance.some(
-                (a) => a.date === today && a.user_name === $currentUser,
-            );
-        }
-        if (cachedLedger) ledgerItems = cachedLedger;
-        if (cachedAtt && cachedLedger) isLoading = false;
+    function setAttendance(list) {
+        attendance = list;
+        todayChecked = list.some(
+            (a) => a.date === today && a.user_name === $currentUser,
+        );
+    }
 
+    async function revalidate() {
+        isRevalidating = true;
         try {
             const [attResult, ledgerResult] = await Promise.all([
                 api.getAttendance(),
@@ -449,20 +442,15 @@
             ]);
 
             if (attResult.success) {
-                attendance = attResult.attendance || [];
+                setAttendance(attResult.attendance || []);
                 writeCache("attendance", attendance);
-                const today = formatDate(new Date());
-                todayChecked = attendance.some(
-                    (a) => a.date === today && a.user_name === $currentUser,
-                );
+            } else if (attendance.length === 0) {
+                toast("출석 정보를 불러오지 못했습니다.", "error");
             }
 
             if (ledgerResult.success) {
                 ledgerItems = ledgerResult.ledger || [];
                 writeCache("ledger", ledgerItems);
-            }
-            if (!attResult.success && !cachedAtt) {
-                toast("출석 정보를 불러오지 못했습니다.", "error");
             }
         } catch (e) {
             console.error("출석 데이터 로드 실패:", e);
@@ -470,6 +458,27 @@
             isLoading = false;
             isRevalidating = false;
         }
+    }
+
+    // The app can sit in the background past midnight; yesterday's "checked" must not carry over
+    function handleVisibility() {
+        const now = formatDate(new Date());
+        if (document.hidden || now === today) return;
+        today = now;
+        currentDate = new Date();
+        setAttendance(attendance);
+        revalidate();
+    }
+
+    onMount(async () => {
+        // 캐시 먼저 그리고, 뒤에서 갱신 (SWR)
+        const cachedAtt = readCache("attendance");
+        const cachedLedger = readCache("ledger");
+        if (cachedAtt) setAttendance(cachedAtt);
+        if (cachedLedger) ledgerItems = cachedLedger;
+        if (cachedAtt && cachedLedger) isLoading = false;
+
+        await revalidate();
 
         // Check for unused card pick opportunity
         const cpKey = `attendance_100day_cardpick_${$currentUser}`;
@@ -478,6 +487,8 @@
         }
     });
 </script>
+
+<svelte:document on:visibilitychange={handleVisibility} />
 
 <div class="space-y-6 max-w-md mx-auto">
 
@@ -763,9 +774,8 @@
                     ></div>
                 {:else}
                     {@const isToday =
-                        day === new Date().getDate() &&
-                        currentMonth === new Date().getMonth() &&
-                        currentYear === new Date().getFullYear()}
+                        formatDate(new Date(currentYear, currentMonth, day)) ===
+                        today}
                     {@const hasStamp = myAttendanceDays.has(day)}
                     {@const isSunday = i % 7 === 0}
                     {@const isSaturday = i % 7 === 6}
