@@ -23,7 +23,7 @@
 
   const location = useLocation();
 
-  // Games and occasional tools load on first visit (svelte-routing awaits
+  // Occasional tools load on first visit (svelte-routing awaits
   // a function component). A tab left open across a deploy can request
   // chunk hashes that no longer exist, so reload once to pick up the new build.
   const lazy = (load) => () =>
@@ -40,11 +40,6 @@
 
   const Stock = lazy(() => import("../routes/Stock.svelte"));
   const CardPick = lazy(() => import("../routes/CardPick.svelte"));
-  const FruitPang = lazy(() => import("../routes/FruitPang.svelte"));
-  const NeonBlast = lazy(() => import("../routes/NeonBlast.svelte"));
-  const NeonBrick = lazy(() => import("../routes/NeonBrick.svelte"));
-  const NeonSurvivor = lazy(() => import("../routes/NeonSurvivor.svelte"));
-  const Neon2048 = lazy(() => import("../routes/Neon2048.svelte"));
 
   // 로그인 상태 및 경로 체크 함수 (백틱 사용하여 경로 수정)
   function checkAuth() {
@@ -92,25 +87,10 @@
     prevPath = $location.pathname;
     if (typeof window !== "undefined") window.scrollTo(0, 0);
   }
-
-  $: isGameplayPage =
-    $location.pathname.includes("/fruit-pang") ||
-    $location.pathname.includes("/neon-blast") ||
-    $location.pathname.includes("/neon-brick") ||
-    $location.pathname.includes("/neon-survivor") ||
-    $location.pathname.includes("/neon-2048");
 </script>
 
-<div
-  class="relative flex flex-col bg-gray-100 dark:bg-gray-900 {isGameplayPage
-    ? 'h-[100dvh] overflow-hidden'
-    : 'min-h-screen'}"
->
-  <main
-    class={isGameplayPage
-      ? "flex-1 overflow-hidden relative"
-      : "p-4 sm:p-6 pb-24"}
-  >
+<div class="relative flex flex-col bg-gray-100 dark:bg-gray-900 min-h-screen">
+  <main class="p-4 sm:p-6 pb-24">
     {#if !$isLoggedIn}
       <Login />
     {:else}
@@ -119,14 +99,6 @@
       <Route path="bulletin-board" component={BulletinBoard} />
       <Route path="ledger" component={Ledger} />
       <Route path="stock" component={Stock} />
-
-      <!-- Games -->
-      <Route path="fruit-pang" component={FruitPang} />
-      <Route path="neon-blast" component={NeonBlast} />
-      <Route path="neon-brick" component={NeonBrick} />
-      <Route path="neon-survivor" component={NeonSurvivor} />
-      <Route path="neon-2048" component={Neon2048} />
-
       <Route path="food-spinner" component={FoodSpinner} />
       <Route path="card-pick" component={CardPick} />
       <Route path="attendance" component={Attendance} />
@@ -137,7 +109,7 @@
     {/if}
   </main>
 
-  {#if $isLoggedIn && $location.pathname !== `${base}/login` && !isGameplayPage}
+  {#if $isLoggedIn && $location.pathname !== `${base}/login`}
     <TabBar />
   {/if}
 

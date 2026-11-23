@@ -15,16 +15,6 @@
       ],
     },
     {
-      title: "게임",
-      items: [
-        { path: "/fruit-pang", label: "과일 팡팡", emoji: "🍓" },
-        { path: "/neon-blast", label: "네온 블래스트", emoji: "🌠" },
-        { path: "/neon-brick", label: "네온 브릭", emoji: "🧱" },
-        { path: "/neon-2048", label: "네온 2048", emoji: "🔢" },
-        { path: "/neon-survivor", label: "네온 서바이버", emoji: "⚡" },
-      ],
-    },
-    {
       title: "도구",
       items: [{ path: "/stock", label: "주식 모으기", emoji: "📊" }],
     },

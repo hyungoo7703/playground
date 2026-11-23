@@ -29,43 +29,6 @@ export const GAS_URL = _d(
 
 export const APP_SECRET = _d("FgZASxsqTwBUA3t1HxEJKj5vIFU=", "pg-fam-2026-key");
 
-const getSaveData = () => {
-  // 브라우저 환경인지 확인
-  if (typeof window === "undefined" || !window.localStorage)
-    return { level: 1, highScore: 0 };
-  const save = localStorage.getItem("neon_blast_save");
-  if (!save) return { level: 1, highScore: 0 };
-  try {
-    return JSON.parse(save);
-  } catch {
-    localStorage.removeItem("neon_blast_save");
-    return { level: 1, highScore: 0 };
-  }
-};
-
-const initialSave = getSaveData();
-
-export const gameStore = writable({
-  balls: [],
-  pegs: [],
-  zones: [],
-  portals: [],
-  movingWalls: [],
-  rotatingBars: [],
-  score: 0,
-  ballsLeft: 10,
-  isWin: false,
-  isGameOver: false,
-  currentLevel: initialSave.level || 1,
-  highScore: initialSave.highScore || 0,
-  wasZoneActive: false,
-  suctionTarget: null,
-  particles: [],
-  floatingTexts: [],
-  currentCombo: 0,
-  shake: 0
-});
-
 // 다크 모드 관리
 const createDarkModeStore = () => {
   let initialValue = false;
