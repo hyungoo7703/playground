@@ -569,7 +569,7 @@
             <div
                 class="mt-1.5 flex justify-between text-[10px] font-bold text-amber-100/90 w-full"
             >
-                <span>이번 달 달성률</span>
+                <span>{isThisMonth ? "이번 달" : monthName} 달성률</span>
                 <span>{currentMonthAttendanceCount} / {daysInMonth}일</span>
             </div>
         </div>
