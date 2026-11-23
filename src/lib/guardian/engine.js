@@ -9,9 +9,20 @@ import {
   UPGRADES,
   HP_GROWTH,
   SPEED_GROWTH,
+  RARITY,
   RATE_STEP,
   SHIELD_CHARGES,
   BOUNTY_STEP,
+  CRYO_SLOW_PCT,
+  CRYO_SECONDS,
+  BLAST_RADIUS,
+  BLAST_RATIO,
+  CHAIN_RANGE,
+  CHAIN_RATIO,
+  CRIT_EVERY,
+  CRIT_MULT,
+  REROLL_COST,
+  REROLL_STEP,
 } from "./config.js";
 
 function mulberry32(seed) {
@@ -38,6 +49,8 @@ export function createGame(seed = Date.now()) {
     shield: 0,
     coins: 0,
     bombCost: PLAYER.bombCost,
+    rerollCost: REROLL_COST,
+    shots: 0,
     levels: Object.fromEntries(Object.keys(UPGRADES).map((k) => [k, 0])),
     aim: 0,
     cooldown: 0,
@@ -78,7 +91,7 @@ function spawn(state, type, x, y) {
     y: y ?? -def.radius,
     vx: 0,
     vy: def.speed * (1 + SPEED_GROWTH * state.wave),
-    hp: Math.ceil(def.hp * (1 + HP_GROWTH * state.wave)),
+    hp: Math.max(1, Math.round(def.hp * (1 + HP_GROWTH.linear * state.wave + HP_GROWTH.square * state.wave ** 2))),
     radius: def.radius,
     swayPhase: state.rand() * Math.PI * 2,
   };
@@ -141,6 +154,62 @@ function hurt(state, enemy, amount, events) {
   }
   for (let i = 0; i < (def.split ?? 0); i++) {
     spawn(state, "mini", clamp(enemy.x + (i ? 14 : -14), 12, FIELD.w - 12), enemy.y);
+  }
+}
+
+// A bullet landing on `enemy`: its own damage plus whatever the bullet upgrades add
+function strike(state, enemy, bullet, events) {
+  const { cryo, blast, chain } = state.levels;
+  if (cryo && enemy.type !== "boss") {
+    enemy.slowUntil = state.time + CRYO_SECONDS;
+    enemy.slow = 1 - CRYO_SLOW_PCT[cryo - 1] / 100;
+  }
+  hurt(state, enemy, bullet.damage, events);
+
+  if (blast) {
+    const radius = BLAST_RADIUS[blast - 1];
+    const splash = Math.ceil(bullet.damage * BLAST_RATIO);
+    events.push({ type: "blast", x: bullet.x, y: bullet.y, radius });
+    for (let i = 0, n = state.enemies.length; i < n; i++) {
+      const other = state.enemies[i];
+      if (other === enemy || other.dead) continue;
+      if (Math.hypot(other.x - bullet.x, other.y - bullet.y) <= radius + other.radius) {
+        hurt(state, other, splash, events);
+      }
+    }
+  }
+
+  let from = enemy;
+  const struck = [enemy.id];
+  for (let jump = 0; jump < chain; jump++) {
+    let next = null;
+    let nearest = CHAIN_RANGE;
+    for (const other of state.enemies) {
+      if (other.dead || struck.includes(other.id)) continue;
+      const distance = Math.hypot(other.x - from.x, other.y - from.y) - other.radius;
+      if (distance < nearest) {
+        nearest = distance;
+        next = other;
+      }
+    }
+    if (!next) break;
+    struck.push(next.id);
+    events.push({ type: "chain", x: from.x, y: from.y, x2: next.x, y2: next.y });
+    hurt(state, next, Math.ceil(bullet.damage * CHAIN_RATIO), events);
+    from = next;
+  }
+}
+
+// Three different cards, rarer ones offered less often
+function rollChoices(state) {
+  const pool = Object.keys(UPGRADES).filter((k) => state.levels[k] < UPGRADES[k].max);
+  const weight = (k) => RARITY[UPGRADES[k].rarity].weight;
+  state.choices = [];
+  while (state.choices.length < 3 && pool.length) {
+    let roll = state.rand() * pool.reduce((sum, k) => sum + weight(k), 0);
+    let index = pool.findIndex((k) => (roll -= weight(k)) < 0);
+    if (index === -1) index = pool.length - 1;
+    state.choices.push(pool.splice(index, 1)[0]);
   }
 }
 
@@ -208,6 +277,8 @@ export function update(state, dt, input) {
   if (input.firing && state.cooldown <= 0) {
     state.cooldown = PLAYER.fireInterval * RATE_STEP ** state.levels.rate;
     const count = 1 + state.levels.multi;
+    state.shots++;
+    const isCrit = state.levels.crit > 0 && state.shots % CRIT_EVERY[state.levels.crit - 1] === 0;
     for (let i = 0; i < count; i++) {
       const angle = state.aim + (i - (count - 1) / 2) * PLAYER.spread;
       const sin = Math.sin(angle);
@@ -217,12 +288,13 @@ export function update(state, dt, input) {
         y: FIELD.turretY - cos * 28,
         vx: sin * PLAYER.bulletSpeed,
         vy: -cos * PLAYER.bulletSpeed,
-        damage: PLAYER.damage + state.levels.damage,
+        damage: (PLAYER.damage + state.levels.damage) * (isCrit ? CRIT_MULT : 1),
         pierce: state.levels.pierce,
+        crit: isCrit,
         hit: [],
       });
     }
-    events.push({ type: "shoot" });
+    events.push({ type: isCrit ? "critShot" : "shoot" });
   }
 
   if (state.bossWarn > 0) {
@@ -247,12 +319,13 @@ export function update(state, dt, input) {
       stepBoss(state, e, dt, events);
       continue;
     }
-    e.y += e.vy * dt;
+    const pace = e.slowUntil > state.time ? e.slow : 1;
+    e.y += e.vy * dt * pace;
     const def = ENEMIES[e.type];
     if (def.sway) {
       e.x = clamp(e.baseX + Math.sin(e.swayPhase + state.time * def.swayRate) * def.sway, e.radius, FIELD.w - e.radius);
     } else {
-      e.x += e.vx * dt;
+      e.x += e.vx * dt * pace;
     }
     if (e.y >= FIELD.baseY) leak(state, e, events);
   }
@@ -268,7 +341,7 @@ export function update(state, dt, input) {
       if (dx * dx + dy * dy > reach * reach) continue;
       b.hit.push(e.id);
       events.push({ type: "hit", x: b.x, y: b.y });
-      hurt(state, e, b.damage, events);
+      strike(state, e, b, events);
       if (b.pierce-- <= 0) {
         b.dead = true;
         break;
@@ -285,11 +358,7 @@ export function update(state, dt, input) {
     state.queue.length === 0 &&
     state.enemies.length === 0;
   if (waveDone) {
-    const open = Object.keys(UPGRADES).filter((k) => state.levels[k] < UPGRADES[k].max);
-    state.choices = [];
-    while (state.choices.length < 3 && open.length) {
-      state.choices.push(open.splice(Math.floor(state.rand() * open.length), 1)[0]);
-    }
+    rollChoices(state);
     state.bullets = [];
     state.phase = "upgrade";
     events.push({ type: "waveClear" });
@@ -307,6 +376,15 @@ export function pickUpgrade(state, key) {
   state.phase = "playing";
   startWave(state, events);
   return events;
+}
+
+/** Spend coins to deal a fresh set of cards. Returns whether it happened. */
+export function reroll(state) {
+  if (state.phase !== "upgrade" || state.coins < state.rerollCost) return false;
+  state.coins -= state.rerollCost;
+  state.rerollCost += REROLL_STEP;
+  rollChoices(state);
+  return true;
 }
 
 /** Spend coins to damage everything on screen. */

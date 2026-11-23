@@ -25,21 +25,22 @@ export const ENEMIES = {
   shell: { hp: 2, speed: 95, radius: 8, leak: 2, coins: 0 },
 };
 
-// Per-wave growth applied to every enemy
-export const HP_GROWTH = 0.2;
+// Enemy HP multiplier at wave index w (0-based): 1 + linear*w + square*w*w.
+// Gentle at first so the early upgrades get used, steep at the end.
+export const HP_GROWTH = { linear: 0.08, square: 0.027 };
 export const SPEED_GROWTH = 0.045;
 
 // Each group: [type, count, seconds between spawns, delay before the group starts]
 export const WAVES = [
-  [["drone", 10, 1.1, 0]],
-  [["drone", 11, 0.9, 0], ["dart", 6, 1.3, 3]],
-  [["drone", 14, 0.8, 0], ["carrier", 4, 2.4, 2]],
-  [["dart", 14, 0.7, 0], ["drone", 11, 0.9, 2]],
-  [["tank", 3, 5, 0], ["drone", 16, 0.7, 1], ["dart", 8, 1.1, 4]],
+  [["drone", 8, 1.3, 0]],
+  [["drone", 9, 1.1, 0], ["dart", 4, 1.6, 4]],
+  [["drone", 12, 0.9, 0], ["carrier", 3, 2.8, 3]],
+  [["dart", 10, 0.85, 0], ["drone", 10, 1.0, 2]],
+  [["tank", 2, 6, 0], ["drone", 14, 0.8, 1], ["dart", 8, 1.2, 4]],
   [["carrier", 8, 1.8, 0], ["dart", 14, 0.8, 2]],
   [["tank", 4, 4, 0], ["carrier", 6, 2.2, 2], ["drone", 20, 0.6, 1]],
-  [["dart", 24, 0.5, 0], ["tank", 3, 5, 3], ["drone", 14, 0.8, 2]],
-  [["tank", 5, 3.2, 0], ["carrier", 8, 1.6, 1], ["dart", 20, 0.6, 3], ["drone", 20, 0.6, 0]],
+  [["dart", 24, 0.5, 0], ["tank", 3, 5, 3], ["drone", 16, 0.75, 2]],
+  [["tank", 5, 3.2, 0], ["carrier", 8, 1.6, 1], ["dart", 22, 0.55, 3], ["drone", 22, 0.55, 0]],
   "boss",
 ];
 
@@ -56,14 +57,37 @@ export const BOSS = {
   ],
 };
 
-export const UPGRADES = {
-  damage: { label: "화력 강화", desc: "공격력 +1", icon: "💥", max: 5 },
-  rate: { label: "연사 강화", desc: "발사 간격 18% 단축", icon: "⚡", max: 5 },
-  pierce: { label: "관통탄", desc: "탄이 적을 하나 더 관통", icon: "🎯", max: 3 },
-  multi: { label: "다연장", desc: "한 번에 쏘는 탄 +1", icon: "🔱", max: 2 },
-  shield: { label: "방어막", desc: "적 침투 2회 무효", icon: "🛡️", max: 3 },
-  bounty: { label: "현상금", desc: "코인 획득 +50%", icon: "🪙", max: 2 },
-};
-export const RATE_STEP = 0.82;
+export const RATE_STEP = 0.82; // fire interval multiplier per level
 export const SHIELD_CHARGES = 2;
 export const BOUNTY_STEP = 0.5;
+export const CRYO_SLOW_PCT = [35, 50]; // by level
+export const CRYO_SECONDS = 2;
+export const BLAST_RADIUS = [38, 54]; // by level
+export const BLAST_RATIO = 0.4; // share of the bullet damage dealt to enemies caught in the blast
+export const CHAIN_RANGE = 120;
+export const CHAIN_RATIO = 0.6;
+export const CRIT_EVERY = [4, 3]; // every Nth shot, by level
+export const CRIT_MULT = 3;
+export const REROLL_COST = 10;
+export const REROLL_STEP = 10;
+
+// How often a card of each rarity is offered
+export const RARITY = {
+  common: { label: "일반", weight: 6 },
+  rare: { label: "희귀", weight: 3 },
+  epic: { label: "전설", weight: 1 },
+};
+
+// desc(level) says what taking the card gives when it is currently at `level`
+export const UPGRADES = {
+  damage: { label: "고출력 탄", icon: "💥", rarity: "common", max: 5, desc: (lv) => `공격력 ${1 + lv} → ${2 + lv}` },
+  rate: { label: "속사", icon: "⚡", rarity: "common", max: 5, desc: () => "발사 속도 22% 증가" },
+  shield: { label: "보호막", icon: "🛡️", rarity: "common", max: 3, desc: () => `기지로 들어온 적을 ${SHIELD_CHARGES}번 막아 줌` },
+  bounty: { label: "코인 부스터", icon: "🪙", rarity: "common", max: 2, desc: () => "코인을 50% 더 얻음" },
+  multi: { label: "다중 포신", icon: "🔱", rarity: "rare", max: 2, desc: (lv) => `한 번에 ${lv + 2}발 발사` },
+  pierce: { label: "관통탄", icon: "🎯", rarity: "rare", max: 3, desc: (lv) => `탄이 적 ${lv + 1}기를 뚫고 지나감` },
+  cryo: { label: "냉각탄", icon: "❄️", rarity: "rare", max: 2, desc: (lv) => `맞은 적이 ${CRYO_SECONDS}초간 ${CRYO_SLOW_PCT[lv]}% 느려짐` },
+  blast: { label: "폭발탄", icon: "🧨", rarity: "rare", max: 2, desc: (lv) => (lv ? "폭발 범위가 넓어짐" : "맞은 자리가 폭발해 주변 적도 피해") },
+  chain: { label: "연쇄 번개", icon: "🌩️", rarity: "epic", max: 2, desc: (lv) => `맞은 적 근처 ${lv + 1}기에게 번개가 튐` },
+  crit: { label: "과충전", icon: "🔆", rarity: "epic", max: 2, desc: (lv) => `${CRIT_EVERY[lv]}발마다 ${CRIT_MULT}배 피해 강화탄` },
+};
