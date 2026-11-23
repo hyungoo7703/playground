@@ -578,7 +578,10 @@
       class="absolute left-3 bottom-[max(env(safe-area-inset-bottom),12px)] flex flex-col items-center active:scale-90 transition-all disabled:opacity-35"
     >
       <img src="{IMG}/skill-bomb.webp" alt="" class="w-14 h-14" />
-      <span class="text-[11px] font-black text-amber-300 -mt-1">🪙 {hud.bombCost}</span>
+      <span class="flex items-center gap-0.5 text-[11px] font-black text-amber-300 -mt-1">
+        <img src="{IMG}/coin.webp" alt="" class="w-3.5 h-3.5" />
+        {hud.bombCost}
+      </span>
     </button>
   {/if}
 
@@ -684,7 +687,11 @@
                 on:click={() => choose(key)}
                 class="w-full flex items-center gap-3 p-4 rounded-2xl border-2 text-left active:scale-95 transition-all {RARITY_STYLE[card.rarity]}"
               >
-                <span class="text-3xl">{card.icon}</span>
+                {#if card.image}
+                  <img src="{IMG}/{card.image}" alt="" class="w-9 h-9" />
+                {:else}
+                  <span class="text-3xl">{card.icon}</span>
+                {/if}
                 <span class="flex-1 min-w-0">
                   <span class="block text-[10px] font-black tracking-widest {RARITY_TEXT[card.rarity]}">
                     {RARITY[card.rarity].label}
@@ -704,9 +711,12 @@
             type="button"
             on:click={rerollCards}
             disabled={hud.coins < hud.rerollCost}
-            class="mt-4 w-full py-3 rounded-2xl font-bold text-sm bg-white/10 border border-white/20 active:scale-95 transition-all disabled:opacity-40"
+            class="mt-4 w-full py-3 flex items-center justify-center gap-1 rounded-2xl font-bold text-sm bg-white/10 border border-white/20 active:scale-95 transition-all disabled:opacity-40"
           >
-            🎲 카드 바꾸기 (코인 {hud.rerollCost}개, 보유 {hud.coins}개)
+            🎲 카드 바꾸기
+            <img src="{IMG}/coin.webp" alt="코인" class="w-4 h-4 ml-1" />
+            <span class="text-amber-300">{hud.rerollCost}</span>
+            <span class="text-gray-400 font-medium">(보유 {hud.coins})</span>
           </button>
         {:else if screen === "over"}
           <h2 class="text-4xl font-black text-rose-400">GAME OVER</h2>
