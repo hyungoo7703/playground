@@ -196,27 +196,17 @@
     // formatDate는 lib/utils.js에서 import
 
     function calcStreak(data, user) {
-        const userDates = data
-            .filter((a) => a.user_name === user)
-            .map((a) => a.date)
-            .sort()
-            .reverse();
-
-        if (userDates.length === 0) return 0;
+        const dates = new Set(
+            data.filter((a) => a.user_name === user).map((a) => a.date),
+        );
+        const day = kstNow();
+        // Today is still open: an unchecked today must not zero the streak
+        if (!dates.has(formatDate(day))) day.setDate(day.getDate() - 1);
 
         let streak = 0;
-        const today = kstNow();
-        today.setHours(0, 0, 0, 0);
-
-        for (let i = 0; i < userDates.length; i++) {
-            const checkDate = new Date(today);
-            checkDate.setDate(checkDate.getDate() - i);
-            const checkStr = formatDate(checkDate);
-            if (userDates.includes(checkStr)) {
-                streak++;
-            } else {
-                break;
-            }
+        while (dates.has(formatDate(day))) {
+            streak++;
+            day.setDate(day.getDate() - 1);
         }
         return streak;
     }

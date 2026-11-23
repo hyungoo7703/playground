@@ -230,26 +230,19 @@
   }
 
   function applyAttendance(attendance) {
-    const today = kstNow();
-    const todayStr = formatDate(today);
     const user = $currentUser || "가족";
-    todayCheckedIn = attendance.some(
-      (a) => a.date === todayStr && a.user_name === user,
+    const dates = new Set(
+      attendance.filter((a) => a.user_name === user).map((a) => a.date),
     );
+    const day = kstNow();
+    todayCheckedIn = dates.has(formatDate(day));
 
-    // Streak calc
-    const userDates = attendance
-      .filter((a) => a.user_name === user)
-      .map((a) => a.date)
-      .sort()
-      .reverse();
+    // Streak calc. Today is still open: an unchecked today must not zero the streak
+    if (!todayCheckedIn) day.setDate(day.getDate() - 1);
     let streak = 0;
-    for (let i = 0; i < userDates.length; i++) {
-      const check = new Date(today);
-      check.setDate(check.getDate() - i);
-      const checkStr = formatDate(check);
-      if (userDates.includes(checkStr)) streak++;
-      else break;
+    while (dates.has(formatDate(day))) {
+      streak++;
+      day.setDate(day.getDate() - 1);
     }
     attendanceStreak = streak;
   }
