@@ -311,7 +311,7 @@
                     );
                 }
 
-                // 100일 연속 출석 축하 모달 (연속 깨지면 리셋)
+                // 100일 연속 출석 축하 모달 (평생 1회)
                 const newStreak = calcStreak(
                     refreshed.success ? refreshed.attendance || [] : attendance,
                     $currentUser,
