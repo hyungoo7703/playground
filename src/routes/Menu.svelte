@@ -16,7 +16,7 @@
     },
     {
       title: "게임",
-      items: [{ path: "/neon-guardian", label: "네온 가디언", emoji: "🛡️" }],
+      items: [{ path: "/neon-guardian", label: "네온 가디언", image: "images/guardian/icon.webp" }],
     },
     {
       title: "도구",
@@ -50,7 +50,16 @@
               on:click={() => go(item.path)}
               class="flex flex-col items-center justify-center gap-2 py-5 px-2 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 active:scale-95 transition-all"
             >
-              <span class="text-3xl leading-none">{item.emoji}</span>
+              {#if item.image}
+                <!-- Negative margin keeps the card as tall as the ones with an emoji -->
+                <img
+                  src="{base}/{item.image}"
+                  alt=""
+                  class="w-12 h-12 -my-2 rounded-xl shadow-[0_0_12px_rgba(39,228,255,0.6)]"
+                />
+              {:else}
+                <span class="text-3xl leading-none">{item.emoji}</span>
+              {/if}
               <span
                 class="text-xs font-bold text-gray-700 dark:text-gray-200 text-center leading-tight break-keep"
                 >{item.label}</span
