@@ -23,19 +23,25 @@ export const ENEMIES = {
   carrier: { hp: 10, speed: 30, radius: 21, leak: 2, coins: 3, split: 2 },
   mini: { hp: 2, speed: 70, radius: 10, leak: 1, coins: 1 },
   shell: { hp: 2, speed: 95, radius: 8, leak: 2, coins: 0 },
+  // Halves the damage taken by every other enemy within `aura`
+  shielder: { hp: 14, speed: 26, radius: 20, leak: 2, coins: 4, aura: 78 },
+  // Jumps sideways by a distance in `blink` every `blinkEvery` seconds
+  blinker: { hp: 5, speed: 60, radius: 14, leak: 1, coins: 3, blinkEvery: 1.5, blink: [55, 110] },
+  // Stops somewhere in `holdY` and shells the base until it is shot down
+  artillery: { hp: 16, speed: 55, radius: 22, leak: 0, coins: 5, holdY: [80, 170], shellEvery: 3.2 },
+  // Dying, it deals boomRatio × its full HP to everything within `boom`
+  bomber: { hp: 7, speed: 48, radius: 16, leak: 3, coins: 3, boom: 72, boomRatio: 1.2 },
+  // Circles its boss, which takes no damage while one is up. Its HP comes from the boss.
+  generator: { hp: 1, speed: 0, radius: 15, leak: 0, coins: 0, orbitX: 104, orbitY: 58, turn: 1.1 },
 };
-
-// Enemy HP multiplier at wave index w (0-based): 1 + linear*w + square*w*w.
-// Gentle at first so the early upgrades get used, steep at the end.
-export const HP_GROWTH = { linear: 0.08, square: 0.0235 };
-export const SPEED_GROWTH = 0.045;
+export const GUARD_RATIO = 0.5;
 
 // What an elite enemy gets on top of its type's numbers
 export const ELITE = { hp: 3, speed: 1.1, size: 1.25, coins: 3, leak: 1 };
 
 // Each group: [type, count, seconds between spawns, delay before the group starts, elite?].
 // A string is a boss wave, naming an entry of BOSSES.
-export const WAVES = [
+const NORMAL_WAVES = [
   [["drone", 8, 1.3, 0]],
   [["drone", 9, 1.1, 0], ["dart", 4, 1.6, 4]],
   [["drone", 12, 0.9, 0], ["carrier", 3, 2.8, 3]],
@@ -53,7 +59,70 @@ export const WAVES = [
   "boss",
 ];
 
-// A phase applies while the boss HP fraction is at or below `below`
+const HARD_WAVES = [
+  [["drone", 10, 1.0, 0], ["dart", 4, 1.6, 4]],
+  [["drone", 12, 0.9, 0], ["carrier", 3, 2.6, 3]],
+  [["dart", 10, 0.85, 0], ["drone", 10, 1.0, 2]],
+  [["tank", 2, 6, 0], ["drone", 14, 0.8, 1], ["dart", 8, 1.2, 4], ["bomber", 2, 6, 5]],
+  [["carrier", 8, 1.8, 0], ["dart", 12, 0.8, 2], ["bomber", 3, 4, 3]],
+  [["blinker", 6, 2.2, 0], ["drone", 18, 0.65, 1], ["tank", 2, 6, 3]],
+  [["tank", 4, 4, 0], ["carrier", 6, 2.2, 2], ["drone", 20, 0.6, 1], ["blinker", 5, 2.5, 4]],
+  "midboss",
+  [["dart", 22, 0.5, 0], ["shielder", 2, 7, 2], ["drone", 16, 0.75, 2]],
+  [["tank", 5, 3.2, 0], ["carrier", 8, 1.6, 1], ["drone", 20, 0.55, 0], ["bomber", 5, 3, 2]],
+  [["artillery", 2, 8, 0], ["dart", 24, 0.45, 1], ["carrier", 8, 1.6, 2]],
+  [["shielder", 3, 5, 0], ["tank", 5, 3, 1], ["drone", 26, 0.5, 1], ["blinker", 8, 1.8, 3]],
+  [["carrier", 4, 3, 0, true], ["artillery", 2, 9, 2], ["dart", 26, 0.42, 1], ["bomber", 6, 2.6, 3]],
+  [["tank", 3, 5, 0, true], ["shielder", 3, 5, 2], ["carrier", 10, 1.4, 1], ["dart", 28, 0.4, 2], ["drone", 24, 0.45, 0]],
+  "boss",
+  [["blinker", 14, 1.1, 0], ["drone", 30, 0.42, 0], ["artillery", 2, 8, 3]],
+  [["tank", 6, 2.6, 0], ["shielder", 3, 5, 1], ["bomber", 8, 2, 2], ["dart", 24, 0.42, 1]],
+  [["carrier", 12, 1.2, 0], ["blinker", 10, 1.4, 2], ["artillery", 3, 6, 1], ["drone", 24, 0.45, 3]],
+  [["drone", 4, 3, 0, true], ["shielder", 4, 4, 1], ["tank", 6, 2.6, 2], ["dart", 30, 0.38, 0]],
+  [["bomber", 12, 1.4, 0], ["carrier", 10, 1.3, 1], ["artillery", 3, 6, 2], ["blinker", 12, 1.2, 3]],
+  [["tank", 2, 6, 0, true], ["shielder", 4, 4, 1], ["dart", 32, 0.36, 1], ["drone", 30, 0.4, 0]],
+  [["artillery", 4, 5, 0], ["blinker", 6, 2, 1, true], ["carrier", 12, 1.2, 1], ["bomber", 10, 1.6, 2], ["drone", 26, 0.42, 3]],
+  "warlord",
+  [["shielder", 5, 3.5, 0], ["tank", 8, 2.2, 1], ["dart", 34, 0.34, 0], ["blinker", 12, 1.2, 2]],
+  [["carrier", 6, 2.2, 0, true], ["artillery", 4, 5, 1], ["bomber", 12, 1.4, 2], ["drone", 34, 0.36, 0]],
+  [["tank", 3, 5, 0, true], ["shielder", 4, 4, 1], ["blinker", 16, 1.0, 1], ["dart", 34, 0.34, 2]],
+  [["artillery", 5, 4, 0], ["bomber", 6, 2.4, 1, true], ["carrier", 14, 1.1, 1], ["drone", 36, 0.34, 0], ["tank", 5, 3.2, 3]],
+  [["shielder", 3, 5, 0, true], ["tank", 8, 2.2, 1], ["dart", 36, 0.32, 0], ["blinker", 16, 1.0, 2], ["bomber", 10, 1.6, 3]],
+  [["artillery", 5, 4, 0], ["tank", 4, 4, 1, true], ["shielder", 5, 3.5, 2], ["carrier", 14, 1.0, 1], ["dart", 36, 0.32, 2], ["drone", 36, 0.34, 0], ["blinker", 12, 1.3, 4]],
+  "final",
+];
+
+// Enemy HP multiplier at wave index w (0-based): base + linear*w + square*w² + cubic*w³, gentle
+// at first so the early upgrades get used, steep at the end. Speed grows by speedGrowth
+// per wave. pace multiplies every spawn time of the wave table. bossHp scales every boss;
+// repair is the base HP given back for a boss kill. bombScales makes the bomb grow with
+// the enemies so it still clears a screen late on.
+export const MODES = {
+  normal: {
+    waves: NORMAL_WAVES,
+    hpGrowth: { base: 1, linear: 0.08, square: 0.0235, cubic: 0 },
+    speedGrowth: 0.045,
+    pace: 1,
+    bossHp: 1,
+    repair: 0,
+    bombScales: false,
+  },
+  hard: {
+    waves: HARD_WAVES,
+    hpGrowth: { base: 1, linear: 0.11, square: 0, cubic: 0.0018 },
+    speedGrowth: 0.028,
+    pace: 0.9,
+    bossHp: 1,
+    repair: 2,
+    bombScales: true,
+  },
+};
+
+// A phase applies while the boss HP fraction is at or below `below`; `add` lists the
+// escorts it calls in. `generators` are put up on entering the phase and make the boss
+// immune until they are shot down. In a phase with `chargeEvery` the boss stops to charge
+// its main gun: dealing `need` of its full HP in `seconds` breaks the charge and stuns it,
+// otherwise the base takes `damage`.
 export const BOSSES = {
   midboss: {
     hp: 360,
@@ -61,8 +130,8 @@ export const BOSSES = {
     y: 136,
     warn: 2.5,
     phases: [
-      { below: 1, speed: 44, shellEvery: 1.9, shells: 1, addEvery: 5, add: "drone" },
-      { below: 0.5, speed: 60, shellEvery: 1.5, shells: 2, addEvery: 4, add: "drone" },
+      { below: 1, speed: 44, shellEvery: 1.9, shells: 1, addEvery: 5, add: ["drone"] },
+      { below: 0.5, speed: 60, shellEvery: 1.5, shells: 2, addEvery: 4, add: ["drone"] },
     ],
   },
   boss: {
@@ -71,9 +140,35 @@ export const BOSSES = {
     y: 150,
     warn: 3,
     phases: [
-      { below: 1, speed: 38, shellEvery: 1.5, shells: 1, addEvery: 4, add: "drone" },
-      { below: 0.66, speed: 50, shellEvery: 1.1, shells: 2, addEvery: 2.8, add: "dart" },
-      { below: 0.33, speed: 70, shellEvery: 0.8, shells: 3, addEvery: 2.2, add: "dart" },
+      { below: 1, speed: 38, shellEvery: 1.5, shells: 1, addEvery: 4, add: ["drone"] },
+      { below: 0.66, speed: 50, shellEvery: 1.1, shells: 2, addEvery: 2.8, add: ["dart"] },
+      { below: 0.33, speed: 70, shellEvery: 0.8, shells: 3, addEvery: 2.2, add: ["dart"] },
+    ],
+  },
+  warlord: {
+    hp: 7500,
+    radius: 56,
+    y: 162,
+    warn: 3,
+    generatorHp: 1000,
+    phases: [
+      { below: 1, speed: 46, shellEvery: 1.3, shells: 2, addEvery: 3.2, add: ["blinker", "dart"], generators: 2 },
+      { below: 0.6, speed: 58, shellEvery: 1.0, shells: 2, addEvery: 2.6, add: ["bomber", "dart"] },
+      { below: 0.3, speed: 74, shellEvery: 0.8, shells: 3, addEvery: 2.2, add: ["blinker", "bomber"], generators: 2 },
+    ],
+  },
+  final: {
+    hp: 66000,
+    radius: 70,
+    y: 186,
+    warn: 4,
+    generatorHp: 2500,
+    charge: { seconds: 3.2, need: 0.025, damage: 2, stun: 2.5, stunDamage: 1.5 },
+    phases: [
+      { below: 1, speed: 34, shellEvery: 1.4, shells: 2, addEvery: 3.4, add: ["drone", "dart"], generators: 2 },
+      { below: 0.75, speed: 46, shellEvery: 0.9, shells: 3, addEvery: 2.4, add: ["dart", "blinker"] },
+      { below: 0.5, speed: 40, shellEvery: 1.2, shells: 2, addEvery: 2.8, add: ["bomber", "dart"], generators: 3, chargeEvery: 8 },
+      { below: 0.25, speed: 66, shellEvery: 0.75, shells: 4, addEvery: 2, add: ["blinker", "bomber", "dart"], chargeEvery: 6 },
     ],
   },
 };
@@ -92,14 +187,45 @@ export const CRIT_MULT = 3;
 export const REROLL_COST = 10;
 export const REROLL_STEP = 10;
 
+// Mythic weapons. Damage numbers multiply what one bullet deals.
+export const DRONE_COUNT = [2, 3]; // by level
+export const DRONE_EVERY = 0.3; // seconds between the shots of one drone
+export const DRONE_RATIO = 0.6;
+export const LASER_EVERY = [5, 3.5];
+export const LASER_MULT = [20, 32];
+export const LASER_WIDTH = 10;
+export const MISSILE_EVERY = [2.4, 1.6];
+export const MISSILE_MULT = 12;
+export const MISSILE_RADIUS = 50;
+export const MISSILE_SPEED = 300;
+export const VORTEX_EVERY = [9, 6.5];
+export const VORTEX_SECONDS = 2.6;
+export const VORTEX_RADIUS = 92;
+export const VORTEX_PULL = 110; // px per second towards the centre
+export const VORTEX_REACH = 300; // how far the orb flies before it opens by itself
+export const VORTEX_TICK = [0.4, 2]; // seconds between ticks, damage multiplier per tick
+
+// Evolutions
+export const FAN_EXTRA = 2; // more bullets per shot
+export const RAIL_SPEED = 1.4;
+export const CLUSTER = { count: 3, offset: 0.9, radius: 0.7 }; // extra blasts around the first, relative to its radius
+export const TEMPEST_JUMPS = 4;
+export const TEMPEST_RANGE = 1.3;
+
+// Late cards are only offered once this many waves are cleared
+export const UNLOCK_WAVE = 15;
+
 // How often a card of each rarity is offered
 export const RARITY = {
   common: { label: "일반", weight: 6 },
   rare: { label: "희귀", weight: 3 },
   epic: { label: "전설", weight: 1 },
+  mythic: { label: "신화", weight: 3, late: true },
+  evo: { label: "진화", weight: 4, late: true },
 };
 
-// desc(level) says what taking the card gives when it is currently at `level`
+// desc(level) says what taking the card gives when it is currently at `level`.
+// An evolution is offered once the card named by `needs` is at its maximum.
 export const UPGRADES = {
   damage: { label: "고출력 탄", icon: "💥", rarity: "common", max: 5, desc: (lv) => `공격력 ${1 + lv} → ${2 + lv}` },
   rate: { label: "속사", icon: "⚡", rarity: "common", max: 5, desc: () => "발사 속도 22% 증가" },
@@ -111,4 +237,12 @@ export const UPGRADES = {
   blast: { label: "폭발탄", icon: "🧨", rarity: "rare", max: 2, desc: (lv) => (lv ? "폭발 범위가 넓어짐" : "맞은 자리가 폭발해 주변 적도 피해") },
   chain: { label: "연쇄 번개", icon: "🌩️", rarity: "epic", max: 2, desc: (lv) => `맞은 적 근처 ${lv + 1}기에게 번개가 튐` },
   crit: { label: "과충전", icon: "🔆", rarity: "epic", max: 2, desc: (lv) => `${CRIT_EVERY[lv]}발마다 ${CRIT_MULT}배 피해 강화탄` },
+  drones: { label: "궤도 드론", icon: "🛰️", rarity: "mythic", max: 2, desc: (lv) => `드론 ${DRONE_COUNT[lv]}기가 포탑을 돌며 자동 사격` },
+  laser: { label: "프리즘 레이저", icon: "🌈", rarity: "mythic", max: 2, desc: (lv) => `${LASER_EVERY[lv]}초마다 조준선 위의 적을 모두 꿰뚫는 광선` },
+  missile: { label: "유도 미사일", icon: "🚀", rarity: "mythic", max: 2, desc: (lv) => (lv ? "미사일을 더 자주 발사" : "기지에 가장 가까운 적을 쫓아가 폭발") },
+  vortex: { label: "블랙홀탄", icon: "🌀", rarity: "mythic", max: 2, desc: (lv) => (lv ? "블랙홀을 더 자주 발사" : "적을 한곳으로 끌어모아 묶어 둠") },
+  fan: { label: "스톰 캐넌", icon: "🌪️", rarity: "evo", max: 1, needs: "multi", desc: () => `다중 포신 진화: 한 번에 ${3 + FAN_EXTRA}발 발사` },
+  rail: { label: "레일건", icon: "☄️", rarity: "evo", max: 1, needs: "pierce", desc: () => "관통탄 진화: 모든 적을 뚫고 탄이 빨라짐" },
+  cluster: { label: "집속탄", icon: "🎆", rarity: "evo", max: 1, needs: "blast", desc: () => `폭발탄 진화: 주변에서 ${CLUSTER.count}번 더 폭발` },
+  tempest: { label: "번개 폭풍", icon: "⛈️", rarity: "evo", max: 1, needs: "chain", desc: () => `연쇄 번개 진화: 번개가 ${2 + TEMPEST_JUMPS}기까지 튐` },
 };

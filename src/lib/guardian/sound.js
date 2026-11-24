@@ -4,26 +4,26 @@
 const MUSIC_VOLUME = 0.3;
 const SILENCE = 0.002;
 
-/** `files` are names under `base`; `musicFile` loops for as long as music is wanted. */
-export function createSound(base, files, musicFile) {
+/** `files` are effect names under `base`, loaded up front; music is loaded when first asked for. */
+export function createSound(base, files) {
   const ctx = new (window.AudioContext || window.webkitAudioContext)();
   const master = ctx.createGain();
   master.connect(ctx.destination);
   const buffers = {};
+  const loading = {};
   let music = null;
-  let wantMusic = false;
+  let wantedMusic = null;
 
   // A file that fails to load just stays silent
-  for (const file of new Set([...files, musicFile])) {
-    fetch(`${base}/${file}`)
+  function load(file) {
+    loading[file] ??= fetch(`${base}/${file}`)
       .then((res) => res.arrayBuffer())
       .then((data) => ctx.decodeAudioData(data))
-      .then((buffer) => {
-        buffers[file] = buffer;
-        if (file === musicFile && wantMusic) startMusic();
-      })
+      .then((buffer) => (buffers[file] = buffer))
       .catch(() => {});
+    return loading[file];
   }
+  files.forEach(load);
 
   // mp3 encoders pad both ends with silence; looping over it would be heard as a gap
   function loopBounds(buffer) {
@@ -35,23 +35,8 @@ export function createSound(base, files, musicFile) {
     return [first / buffer.sampleRate, (last + 1) / buffer.sampleRate];
   }
 
-  function startMusic() {
-    wantMusic = true;
-    const buffer = buffers[musicFile];
-    if (!buffer || music) return;
-    const gain = ctx.createGain();
-    gain.gain.value = MUSIC_VOLUME;
-    gain.connect(master);
-    music = ctx.createBufferSource();
-    music.buffer = buffer;
-    music.loop = true;
-    [music.loopStart, music.loopEnd] = loopBounds(buffer);
-    music.connect(gain);
-    music.start(0, music.loopStart);
-  }
-
   function stopMusic() {
-    wantMusic = false;
+    wantedMusic = null;
     music?.stop();
     music = null;
   }
@@ -76,10 +61,22 @@ export function createSound(base, files, musicFile) {
         source.stop(end);
       }
     },
-    /** Start the music from the top. */
-    restartMusic() {
+    /** Loop `file` from the top, replacing whatever music was playing. */
+    async playMusic(file) {
       stopMusic();
-      startMusic();
+      wantedMusic = file;
+      await load(file);
+      // Stopped or switched while the file was still loading
+      if (wantedMusic !== file || music || !buffers[file]) return;
+      const gain = ctx.createGain();
+      gain.gain.value = MUSIC_VOLUME;
+      gain.connect(master);
+      music = ctx.createBufferSource();
+      music.buffer = buffers[file];
+      music.loop = true;
+      [music.loopStart, music.loopEnd] = loopBounds(buffers[file]);
+      music.connect(gain);
+      music.start(0, music.loopStart);
     },
     stopMusic,
     setMuted: (muted) => (master.gain.value = muted ? 0 : 1),

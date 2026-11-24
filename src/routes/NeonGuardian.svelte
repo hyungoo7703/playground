@@ -7,25 +7,45 @@
   import { REWARD_LABELS } from "../lib/rewards.js";
   import { createSound } from "../lib/guardian/sound.js";
   import GameExitButton from "../lib/components/GameExitButton.svelte";
-  import { createGame, update, pickUpgrade, useBomb, reroll } from "../lib/guardian/engine.js";
-  import { FIELD, PLAYER, ENEMIES, WAVES, BOSSES, ELITE, UPGRADES, RARITY } from "../lib/guardian/config.js";
+  import { createGame, update, pickUpgrade, useBomb, reroll, dronePosition } from "../lib/guardian/engine.js";
+  import {
+    FIELD,
+    PLAYER,
+    ENEMIES,
+    MODES,
+    BOSSES,
+    ELITE,
+    UPGRADES,
+    RARITY,
+    UNLOCK_WAVE,
+    DRONE_COUNT,
+    VORTEX_RADIUS,
+  } from "../lib/guardian/config.js";
 
   const IMG = `${base}/images/guardian`;
   const SND = `${base}/sounds`;
 
-  const MUSIC = "retro-color-moon.mp3";
+  const MUSIC = { normal: "retro-color-moon.mp3", hard: "lesiakower-cyber-day-alarm-clock-418781.mp3" };
   // name: [file, volume, minimum ms between plays, seconds to play (0 = whole file)].
   // Several files run for seconds, so the rapid ones are cut short to keep them from piling up.
   const SOUNDS = {
     shoot: ["laser-zap.mp3", 0.18, 70, 0.18],
     critShot: ["laser-zap.mp3", 0.5, 0, 0.45],
+    droneShot: ["laser-zap.mp3", 0.06, 110, 0.1],
     hit: ["punch.mp3", 0.25, 60, 0.16],
     kill: ["pop.mp3", 0.5, 40, 0.3],
     blast: ["pop.mp3", 0.3, 90, 0.22],
     chain: ["zap-synth.mp3", 0.16, 140, 0.22],
+    boom: ["bomb-explosion.mp3", 0.4, 120, 0.8],
+    missileHit: ["bomb-explosion.mp3", 0.25, 150, 0.5],
+    laser: ["zap-synth.mp3", 0.45, 0, 0.6],
+    vortex: ["warp.mp3", 0.45, 0, 1.2],
+    blink: ["warp.mp3", 0.12, 150, 0.25],
+    deflect: ["glass-clink.mp3", 0.2, 160, 0.2],
     coin: ["drop-coin.mp3", 0.3, 90, 0.4],
     upgrade: ["level-up.mp3", 0.6, 0, 0],
     reroll: ["drop-coin.mp3", 0.5, 0, 0],
+    repair: ["level-up.mp3", 0.5, 0, 0],
     waveClear: ["power-up.mp3", 0.45, 0, 1.4],
     bomb: ["bomb-explosion.mp3", 0.7, 0, 1.8],
     shield: ["glass-clink.mp3", 0.7, 0, 0],
@@ -33,8 +53,11 @@
     bossWarn: ["beep-warning.mp3", 0.6, 0, 0],
     bossArrive: ["warp.mp3", 0.6, 0, 0],
     bossPhase: ["warp.mp3", 0.6, 0, 0],
+    chargeStart: ["beep-warning.mp3", 0.7, 0, 0],
+    chargeBreak: ["glass-clink.mp3", 0.9, 0, 0],
+    chargeFire: ["epic-cinematic-explosion.mp3", 0.8, 0, 1.6],
     bossDead: ["epic-cinematic-explosion.mp3", 0.8, 0, 0],
-    clear: ["universfield-clear-bell-chime-487898.mp3", 0.8, 0, 0],
+    victory: ["universfield-clear-bell-chime-487898.mp3", 0.8, 0, 0],
     gameOver: ["universfield-game-over-deep-male-voice-clip-352695.mp3", 0.8, 0, 0],
   };
 
@@ -42,8 +65,16 @@
     common: "border-white/25 bg-white/10",
     rare: "border-sky-300/70 bg-sky-400/15 shadow-[0_0_18px_rgba(56,189,248,0.35)]",
     epic: "border-amber-300/80 bg-amber-400/15 shadow-[0_0_22px_rgba(251,191,36,0.45)]",
+    mythic: "border-fuchsia-300/80 bg-fuchsia-500/15 shadow-[0_0_24px_rgba(232,121,249,0.5)]",
+    evo: "border-emerald-300/80 bg-emerald-400/15 shadow-[0_0_24px_rgba(52,211,153,0.5)]",
   };
-  const RARITY_TEXT = { common: "text-gray-300", rare: "text-sky-300", epic: "text-amber-300" };
+  const RARITY_TEXT = {
+    common: "text-gray-300",
+    rare: "text-sky-300",
+    epic: "text-amber-300",
+    mythic: "text-fuchsia-300",
+    evo: "text-emerald-300",
+  };
 
   // Draw size in field units and the glow colour added around each sprite
   const SPRITES = {
@@ -52,21 +83,55 @@
     dart: { file: "enemy-dart", size: 44, glow: "#ffe14a" },
     tank: { file: "enemy-tank", size: 72, glow: "#ff8a1f" },
     carrier: { file: "enemy-carrier", size: 54, glow: "#3dff6e" },
+    shielder: { file: "enemy-shielder", size: 60, glow: "#7fd8ff" },
+    blinker: { file: "enemy-blinker", size: 46, glow: "#b56bff" },
+    artillery: { file: "enemy-artillery", size: 66, glow: "#ff4d4d" },
+    bomber: { file: "enemy-bomber", size: 46, glow: "#fff07a" },
+    generator: { file: "boss-generator", size: 42, glow: "#7fd8ff" },
     boss: { file: "boss", size: 168, glow: "#27e4ff" },
     midboss: { file: "boss", size: 124, glow: "#ff5ad1" },
+    warlord: { file: "boss", size: 152, glow: "#ff9d2e" },
+    final: { file: "boss-final", size: 200, glow: "#c58bff" },
     turret: { file: "turret", size: 60, glow: "#27e4ff" },
   };
+  const BOSS_NAMES = { midboss: "중간 보스", boss: "보스 전함", warlord: "강화 전함", final: "최종 보스" };
 
-  const LAST_WAVE = WAVES.length;
+  // What the hard mode briefing shows
+  const NEW_ENEMIES = [
+    { file: "enemy-shielder", name: "방패기", text: "주변 적이 받는 피해를 절반으로 줄여요. 먼저 잡으세요." },
+    { file: "enemy-blinker", name: "점멸기", text: "주기적으로 옆으로 순간이동해서 조준을 흔들어요." },
+    { file: "enemy-artillery", name: "포격기", text: "화면 위쪽에 멈춰서, 격추될 때까지 기지로 포탄을 쏴요." },
+    { file: "enemy-bomber", name: "자폭기", text: "죽을 때 폭발해 주변 적도 휩쓸어요. 통과하면 체력이 3 깎여요." },
+  ];
+  const lateCards = (rarity) => Object.values(UPGRADES).filter((card) => card.rarity === rarity);
+  const HARD_BOSS_WAVES = MODES.hard.waves.flatMap((wave, i) => (typeof wave === "string" ? [i + 1] : [])).join(" · ");
+  const INTRO_KEY = "guardian_hard_intro_seen";
+
+  // The key the card pick knows each mode's reward by
+  const REWARD_KEY = { normal: "guardian", hard: "guardianHard" };
   // A clear whose card has not been drawn yet survives closing the app
-  const pendingKey = `guardian_reward_pending_${$currentUser}`;
+  const pendingKey = {
+    normal: `guardian_reward_pending_${$currentUser}`,
+    hard: `guardian_hard_reward_pending_${$currentUser}`,
+  };
 
   let screen = "loading"; // loading | start | playing | upgrade | over | clear
+  let mode = "normal";
   let hud = { wave: 1, hp: PLAYER.hp, shield: 0, coins: 0, bombCost: PLAYER.bombCost, rerollCost: 0, choices: [], levels: {} };
-  let reward = "checking"; // checking | available | claimed | error
-  let hasPending = localStorage.getItem(pendingKey) === "1";
+  // Per mode: checking | available | claimed | error
+  let rewards = { normal: "checking", hard: "checking" };
+  let pending = {
+    normal: localStorage.getItem(pendingKey.normal) === "1",
+    hard: localStorage.getItem(pendingKey.hard) === "1",
+  };
   let isMuted = false;
+  let isPaused = false;
   let showRules = false;
+  let intro = null; // null | "start" (leads into the first hard run) | "review"
+
+  $: lastWave = MODES[mode].waves.length;
+  // Hard mode opens with a normal clear, whether or not its card has been drawn
+  $: isHardOpen = rewards.normal === "claimed" || pending.normal;
 
   let wrap;
   let canvas;
@@ -84,7 +149,10 @@
 
   const input = { aim: 0, firing: false };
   let particles = [];
-  let effects = []; // short-lived blast rings and lightning arcs
+  let effects = []; // short-lived rings, arcs and beams
+  let texts = []; // words floating up from where something happened
+  let finale = null; // the explosions between the last boss dying and the clear screen
+  let lastBoss = { x: FIELD.w / 2, y: 150 };
   let shake = 0;
   let flash = 0;
   let leakFlash = 0;
@@ -158,15 +226,37 @@
     }
   }
 
+  // Rapid fire with every bullet upgrade can ask for hundreds of these a second
+  function addEffect(event, seconds) {
+    if (effects.length < 90) effects.push({ ...event, life: seconds, span: seconds });
+  }
+
+  function say(text, x, y, color = "#ffffff") {
+    texts.push({ text, x, y, color, life: 1.1 });
+  }
+
   function handle(events) {
     for (const e of events) {
       if (SOUNDS[e.type]) play(e.type);
       if (e.type === "shoot") muzzle = 0.06;
       else if (e.type === "critShot") muzzle = 0.14;
-      else if (e.type === "blast") effects.push({ ...e, life: 0.22, span: 0.22 });
-      else if (e.type === "chain") effects.push({ ...e, life: 0.14, span: 0.14 });
+      else if (e.type === "blast") addEffect(e, 0.22);
+      else if (e.type === "chain") addEffect(e, 0.14);
+      else if (e.type === "blink") addEffect(e, 0.25);
+      else if (e.type === "laser") addEffect(e, 0.28);
+      else if (e.type === "missileHit") {
+        addEffect(e, 0.3);
+        burst(e.x, e.y, "#ffb347", 10, 160);
+      } else if (e.type === "boom") {
+        addEffect(e, 0.35);
+        burst(e.x, e.y, "#fff07a", 18, 220);
+        shake = Math.max(shake, 6);
+      } else if (e.type === "vortex") burst(e.x, e.y, "#c58bff", 14, 140);
       else if (e.type === "hit") burst(e.x, e.y, "#bff6ff", 3, 80);
-      else if (e.type === "kill") burst(e.x, e.y, SPRITES[e.kind]?.glow ?? "#ff5a5a", BOSSES[e.kind] ? 0 : 12);
+      else if (e.type === "deflect") {
+        const angle = Math.random() * Math.PI * 2;
+        burst(e.x + Math.cos(angle) * 80, e.y + Math.sin(angle) * 80, "#7fd8ff", 2, 60);
+      } else if (e.type === "kill") burst(e.x, e.y, SPRITES[e.kind]?.glow ?? "#ff5a5a", BOSSES[e.kind] ? 0 : 12);
       else if (e.type === "leak") {
         leakFlash = 0.4;
         shake = 10;
@@ -174,12 +264,24 @@
       } else if (e.type === "bomb") {
         flash = 0.5;
         shake = 14;
-      } else if (e.type === "bossDead") {
+      } else if (e.type === "generators") say("보호막 가동", e.x, e.y + 100, "#7fd8ff");
+      else if (e.type === "chargeStart") say("주포 충전!", e.x, e.y + 100, "#ff8ae2");
+      else if (e.type === "chargeBreak") {
+        say("충전 차단!", e.x, e.y + 100, "#9dffb0");
+        burst(e.x, e.y, "#ffffff", 40, 240);
+        shake = 10;
+      } else if (e.type === "chargeFire") {
+        addEffect(e, 0.5);
+        flash = 0.5;
+        shake = 22;
+      } else if (e.type === "repair") say(`기지 수리 +${MODES[mode].repair}`, FIELD.w / 2, FIELD.baseY - 24, "#9dffb0");
+      else if (e.type === "bossDead") {
         burst(e.x, e.y, "#ff5a5a", 80, 260);
         burst(e.x, e.y, "#27e4ff", 60, 200);
         flash = 0.8;
         shake = 20;
-      }
+        lastBoss = e;
+      } else if (e.type === "clear") finale = { left: mode === "hard" ? 2.6 : 1.2, next: 0.15 };
     }
   }
 
@@ -197,27 +299,50 @@
     if (game.phase === "upgrade" && hud.choices !== game.choices) {
       hud = { ...hud, choices: game.choices, levels: { ...game.levels }, rerollCost: game.rerollCost, rich: game.richDraft };
     }
-    if (game.phase === screen) return;
+    if (game.phase === screen || finale) return;
     if (game.phase === "over" || game.phase === "clear") {
       sound.stopMusic();
       input.firing = false;
     }
     if (game.phase === "clear") {
-      localStorage.setItem(pendingKey, "1");
-      hasPending = true;
+      play("victory");
+      localStorage.setItem(pendingKey[mode], "1");
+      pending[mode] = true;
       checkReward();
     }
     screen = game.phase;
+  }
+
+  // The wreck keeps blowing up for a moment before the clear screen comes in
+  function stepFinale(dt) {
+    finale.left -= dt;
+    finale.next -= dt;
+    if (finale.next <= 0) {
+      finale.next = 0.13;
+      const x = lastBoss.x + (Math.random() - 0.5) * 150;
+      const y = lastBoss.y + (Math.random() - 0.5) * 110;
+      burst(x, y, Math.random() < 0.5 ? "#ffd27a" : "#c58bff", 26, 240);
+      addEffect({ type: "boom", x, y, radius: 30 + Math.random() * 40 }, 0.35);
+      shake = 12;
+      play("boom");
+    }
+    if (finale.left <= 0) {
+      finale = null;
+      flash = 0.9;
+      syncHud();
+    }
   }
 
   function frame(now) {
     raf = requestAnimationFrame(frame);
     const dt = Math.min((now - lastTime) / 1000, 0.05);
     lastTime = now;
+    if (isPaused) return;
     if (screen === "playing") {
       handle(update(game, dt, input));
       syncHud();
     }
+    if (finale) stepFinale(dt);
     for (const p of particles) {
       p.x += p.vx * dt;
       p.y += p.vy * dt;
@@ -226,11 +351,194 @@
     particles = particles.filter((p) => p.life > 0);
     for (const fx of effects) fx.life -= dt;
     effects = effects.filter((fx) => fx.life > 0);
+    for (const t of texts) t.life -= dt;
+    texts = texts.filter((t) => t.life > 0);
     shake = Math.max(0, shake - 40 * dt);
     flash = Math.max(0, flash - dt);
     leakFlash = Math.max(0, leakFlash - dt);
     muzzle = Math.max(0, muzzle - dt);
     draw();
+  }
+
+  function circle(x, y, radius) {
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+  }
+
+  function line(x, y, x2, y2) {
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+
+  function drawBoss(e) {
+    if (e.stun > 0) ctx.globalAlpha = 0.6 + 0.3 * Math.sin(game.time * 30);
+    stamp(e.type, e.x, e.y);
+    ctx.globalAlpha = 1;
+    if (e.shielded) {
+      circle(e.x, e.y, e.radius + 16);
+      ctx.fillStyle = "rgba(127,216,255,0.12)";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(127,216,255,0.9)";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+    if (e.charging > 0) {
+      const progress = 1 - e.charging / BOSSES[e.type].charge.seconds;
+      // Where the shot will land
+      ctx.strokeStyle = `rgba(255,120,220,${0.15 + progress * 0.45})`;
+      ctx.lineWidth = 2 + progress * 12;
+      line(e.x, e.y, e.x, FIELD.baseY);
+      ctx.fillStyle = `rgba(255,255,255,${0.5 + progress * 0.5})`;
+      circle(e.x, e.y, 10 + progress * 26);
+      ctx.fill();
+      ctx.strokeStyle = "#ff8ae2";
+      ctx.lineWidth = 3;
+      circle(e.x, e.y, 24 + (1 - progress) * 80);
+      ctx.stroke();
+    }
+  }
+
+  function drawEnemy(e, boss) {
+    if (e.type === "shell") {
+      ctx.fillStyle = "#ff3355";
+      circle(e.x, e.y, e.radius);
+      ctx.fill();
+      ctx.fillStyle = "#ffd6dd";
+      circle(e.x, e.y, e.radius * 0.45);
+      ctx.fill();
+      return;
+    }
+    if (BOSSES[e.type]) return drawBoss(e);
+    const def = ENEMIES[e.type];
+    if (def.aura) {
+      circle(e.x, e.y, def.aura);
+      ctx.fillStyle = "rgba(127,216,255,0.07)";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(127,216,255,0.55)";
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 5]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    let turn = 0;
+    if (e.type === "dart") turn = Math.cos(e.swayPhase + game.time * def.swayRate) * -0.3;
+    if (e.type === "generator") {
+      turn = game.time * 2;
+      if (boss) {
+        ctx.strokeStyle = "rgba(127,216,255,0.6)";
+        ctx.lineWidth = 2;
+        line(e.x, e.y, boss.x, boss.y);
+      }
+    }
+    stamp(e.type, e.x, e.y, turn, e.elite ? ELITE.size : 1);
+    if (e.elite) {
+      ctx.strokeStyle = "#ff4d6d";
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([6, 4]);
+      circle(e.x, e.y, e.radius + 7);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    if (e.guarded) {
+      ctx.strokeStyle = "rgba(127,216,255,0.9)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, e.radius + 5, Math.PI * 0.15, Math.PI * 0.85);
+      ctx.stroke();
+    }
+    if (e.slowUntil > game.time) {
+      ctx.strokeStyle = "rgba(150,220,255,0.85)";
+      ctx.lineWidth = 2;
+      circle(e.x, e.y, e.radius + 4);
+      ctx.stroke();
+    }
+    if (e.hp < e.maxHp && e.maxHp > 4) {
+      const w = e.radius * 1.6;
+      ctx.fillStyle = "rgba(0,0,0,0.6)";
+      ctx.fillRect(e.x - w / 2, e.y - e.radius - 9, w, 3);
+      ctx.fillStyle = SPRITES[e.type].glow;
+      ctx.fillRect(e.x - w / 2, e.y - e.radius - 9, (w * e.hp) / e.maxHp, 3);
+    }
+  }
+
+  function drawEffect(fx) {
+    const t = fx.life / fx.span; // 1 → 0
+    ctx.globalAlpha = t;
+    if (fx.type === "blast" || fx.type === "missileHit") {
+      ctx.strokeStyle = fx.type === "blast" ? "#ffb347" : "#ff7a3d";
+      ctx.lineWidth = fx.type === "blast" ? 3 : 5;
+      circle(fx.x, fx.y, fx.radius * (1 - t * 0.6));
+      ctx.stroke();
+    } else if (fx.type === "boom") {
+      ctx.fillStyle = "rgba(255,240,122,0.35)";
+      circle(fx.x, fx.y, fx.radius * (1 - t * 0.5));
+      ctx.fill();
+      ctx.strokeStyle = "#fff07a";
+      ctx.lineWidth = 4;
+      ctx.stroke();
+    } else if (fx.type === "chain") {
+      // Lightning: a line with one kink off to the side
+      const mx = (fx.x + fx.x2) / 2 + (fx.y2 - fx.y) * 0.18;
+      const my = (fx.y + fx.y2) / 2 - (fx.x2 - fx.x) * 0.18;
+      ctx.strokeStyle = "#e6f0ff";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(fx.x, fx.y);
+      ctx.lineTo(mx, my);
+      ctx.lineTo(fx.x2, fx.y2);
+      ctx.stroke();
+    } else if (fx.type === "blink") {
+      ctx.strokeStyle = "#b56bff";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 5]);
+      line(fx.x, fx.y, fx.x2, fx.y2);
+      ctx.setLineDash([]);
+    } else if (fx.type === "laser") {
+      ctx.save();
+      ctx.translate(FIELD.turretX, FIELD.turretY);
+      ctx.rotate(fx.angle);
+      ctx.fillStyle = "rgba(170,120,255,0.55)";
+      ctx.fillRect(-13 * t, -900, 26 * t, 872);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(-4 * t, -900, 8 * t, 872);
+      ctx.restore();
+    } else {
+      // The boss's main gun going off
+      ctx.fillStyle = "rgba(255,120,220,0.6)";
+      ctx.fillRect(fx.x - 24 * t, fx.y, 48 * t, FIELD.baseY - fx.y);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(fx.x - 8 * t, fx.y, 16 * t, FIELD.baseY - fx.y);
+    }
+  }
+
+  function drawBossBar(boss) {
+    ctx.textAlign = "left";
+    ctx.font = "800 10px system-ui, sans-serif";
+    ctx.fillStyle = "#ffd6dd";
+    ctx.fillText(BOSS_NAMES[boss.type], 30, 58);
+    ctx.fillStyle = "rgba(0,0,0,0.6)";
+    ctx.fillRect(30, 62, FIELD.w - 60, 7);
+    ctx.fillStyle = boss.shielded ? "#7fd8ff" : "#ff3355";
+    ctx.fillRect(30, 62, ((FIELD.w - 60) * Math.max(0, boss.hp)) / boss.maxHp, 7);
+
+    let hint = "";
+    if (boss.charging > 0) {
+      const need = boss.maxHp * BOSSES[boss.type].charge.need;
+      ctx.fillStyle = "rgba(0,0,0,0.6)";
+      ctx.fillRect(30, 72, FIELD.w - 60, 5);
+      ctx.fillStyle = "#ffd27a";
+      ctx.fillRect(30, 72, (FIELD.w - 60) * Math.min(1, boss.chargeTaken / need), 5);
+      hint = "코어를 집중 공격해 충전을 끊으세요!";
+    } else if (boss.stun > 0) hint = "충전 차단! 지금이 기회";
+    else if (boss.shielded) hint = "발전기를 먼저 부수세요";
+    if (hint) {
+      ctx.textAlign = "center";
+      ctx.font = "800 12px system-ui, sans-serif";
+      ctx.fillStyle = boss.stun > 0 ? "#9dffb0" : "#ffffff";
+      ctx.fillText(hint, FIELD.w / 2, 90);
+    }
   }
 
   function draw() {
@@ -244,6 +552,10 @@
       const s = Math.max(canvas.width / bg.width, canvas.height / bg.height);
       ctx.drawImage(bg, (canvas.width - bg.width * s) / 2, (canvas.height - bg.height * s) / 2, bg.width * s, bg.height * s);
     }
+    if (mode === "hard") {
+      ctx.fillStyle = "rgba(150,0,50,0.16)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
 
     const jx = shake ? (Math.random() - 0.5) * shake : 0;
     const jy = shake ? (Math.random() - 0.5) * shake : 0;
@@ -255,103 +567,77 @@
     ctx.fillRect(0, FIELD.baseY, FIELD.w, FIELD.h - FIELD.baseY);
     ctx.strokeStyle = danger ? "#ff4d4d" : "#27e4ff";
     ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(0, FIELD.baseY);
-    ctx.lineTo(FIELD.w, FIELD.baseY);
-    ctx.stroke();
+    line(0, FIELD.baseY, FIELD.w, FIELD.baseY);
 
+    const boss = game?.enemies.find((e) => BOSSES[e.type]);
     if (game) {
       if (game.shield > 0) {
         ctx.strokeStyle = "rgba(120,220,255,0.75)";
         ctx.lineWidth = 3;
         ctx.setLineDash([10, 6]);
-        ctx.beginPath();
-        ctx.moveTo(0, FIELD.baseY - 8);
-        ctx.lineTo(FIELD.w, FIELD.baseY - 8);
-        ctx.stroke();
+        line(0, FIELD.baseY - 8, FIELD.w, FIELD.baseY - 8);
         ctx.setLineDash([]);
       }
 
-      for (const e of game.enemies) {
-        if (e.type === "shell") {
-          ctx.fillStyle = "#ff3355";
+      for (const v of game.vortices) {
+        ctx.globalAlpha = Math.min(1, (v.until - game.time) * 2);
+        ctx.fillStyle = "rgba(24,0,48,0.55)";
+        circle(v.x, v.y, VORTEX_RADIUS);
+        ctx.fill();
+        ctx.strokeStyle = "#c58bff";
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 3; i++) {
+          const start = game.time * 5 + i * 2.1;
           ctx.beginPath();
-          ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillStyle = "#ffd6dd";
-          ctx.beginPath();
-          ctx.arc(e.x, e.y, e.radius * 0.45, 0, Math.PI * 2);
-          ctx.fill();
-          continue;
-        }
-        const tilt =
-          e.type === "dart" ? Math.cos(e.swayPhase + game.time * ENEMIES.dart.swayRate) * -0.3 : 0;
-        stamp(e.type, e.x, e.y, tilt, e.elite ? ELITE.size : 1);
-        if (e.elite) {
-          ctx.strokeStyle = "#ff4d6d";
-          ctx.lineWidth = 2.5;
-          ctx.setLineDash([6, 4]);
-          ctx.beginPath();
-          ctx.arc(e.x, e.y, e.radius + 7, 0, Math.PI * 2);
-          ctx.stroke();
-          ctx.setLineDash([]);
-        }
-        if (e.slowUntil > game.time) {
-          ctx.strokeStyle = "rgba(150,220,255,0.85)";
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.arc(e.x, e.y, e.radius + 4, 0, Math.PI * 2);
+          ctx.arc(v.x, v.y, VORTEX_RADIUS * (0.3 + i * 0.3), start, start + 2.2);
           ctx.stroke();
         }
-        if (!BOSSES[e.type] && e.hp < e.maxHp && e.maxHp > 4) {
-          const w = e.radius * 1.6;
-          ctx.fillStyle = "rgba(0,0,0,0.6)";
-          ctx.fillRect(e.x - w / 2, e.y - e.radius - 9, w, 3);
-          ctx.fillStyle = SPRITES[e.type].glow;
-          ctx.fillRect(e.x - w / 2, e.y - e.radius - 9, (w * e.hp) / e.maxHp, 3);
-        }
+        ctx.fillStyle = "#000000";
+        circle(v.x, v.y, 9);
+        ctx.fill();
       }
+      ctx.globalAlpha = 1;
+
+      for (const e of game.enemies) drawEnemy(e, boss);
 
       ctx.lineCap = "round";
       for (const b of game.bullets) {
+        if (b.vortex) {
+          ctx.fillStyle = "#1a0033";
+          ctx.strokeStyle = "#c58bff";
+          ctx.lineWidth = 2;
+          circle(b.x, b.y, 8);
+          ctx.fill();
+          ctx.stroke();
+          continue;
+        }
         const tx = b.x - b.vx * 0.022;
         const ty = b.y - b.vy * 0.022;
-        ctx.strokeStyle = b.crit ? "rgba(255,214,74,0.5)" : "rgba(39,228,255,0.35)";
-        ctx.lineWidth = b.crit ? 11 : 6;
-        ctx.beginPath();
-        ctx.moveTo(tx, ty);
-        ctx.lineTo(b.x, b.y);
-        ctx.stroke();
-        ctx.strokeStyle = b.crit ? "#fff6c9" : "#eaffff";
-        ctx.lineWidth = b.crit ? 4 : 2;
-        ctx.beginPath();
-        ctx.moveTo(tx, ty);
-        ctx.lineTo(b.x, b.y);
-        ctx.stroke();
+        ctx.strokeStyle = b.crit ? "rgba(255,214,74,0.5)" : b.drone ? "rgba(120,255,160,0.35)" : "rgba(39,228,255,0.35)";
+        ctx.lineWidth = b.crit ? 11 : b.drone ? 4 : 6;
+        line(tx, ty, b.x, b.y);
+        ctx.strokeStyle = b.crit ? "#fff6c9" : b.drone ? "#d9ffe2" : "#eaffff";
+        ctx.lineWidth = b.crit ? 4 : b.drone ? 1.5 : 2;
+        line(tx, ty, b.x, b.y);
       }
 
-      for (const fx of effects) {
-        const t = fx.life / fx.span; // 1 → 0
-        ctx.globalAlpha = t;
-        if (fx.type === "blast") {
-          ctx.strokeStyle = "#ffb347";
-          ctx.lineWidth = 3;
-          ctx.beginPath();
-          ctx.arc(fx.x, fx.y, fx.radius * (1 - t * 0.6), 0, Math.PI * 2);
-          ctx.stroke();
-        } else {
-          // Lightning: a line with one kink off to the side
-          const mx = (fx.x + fx.x2) / 2 + (fx.y2 - fx.y) * 0.18;
-          const my = (fx.y + fx.y2) / 2 - (fx.x2 - fx.x) * 0.18;
-          ctx.strokeStyle = "#e6f0ff";
-          ctx.lineWidth = 3;
-          ctx.beginPath();
-          ctx.moveTo(fx.x, fx.y);
-          ctx.lineTo(mx, my);
-          ctx.lineTo(fx.x2, fx.y2);
-          ctx.stroke();
-        }
+      for (const m of game.missiles) {
+        ctx.save();
+        ctx.translate(m.x, m.y);
+        ctx.rotate(m.angle);
+        ctx.fillStyle = "#ff7a3d";
+        circle(0, 9, 3.5);
+        ctx.fill();
+        ctx.fillStyle = "#ffe3a8";
+        ctx.beginPath();
+        ctx.moveTo(0, -9);
+        ctx.lineTo(4.5, 6);
+        ctx.lineTo(-4.5, 6);
+        ctx.fill();
+        ctx.restore();
       }
+
+      for (const fx of effects) drawEffect(fx);
       ctx.globalAlpha = 1;
     }
 
@@ -369,26 +655,41 @@
     ctx.stroke();
     if (muzzle > 0) {
       ctx.fillStyle = "#eaffff";
-      ctx.beginPath();
-      ctx.arc(0, -38, 7, 0, Math.PI * 2);
+      circle(0, -38, 7);
       ctx.fill();
     }
     ctx.restore();
+
+    if (game?.levels.drones) {
+      for (let i = 0; i < DRONE_COUNT[game.levels.drones - 1]; i++) {
+        const { x, y } = dronePosition(game, i);
+        ctx.fillStyle = "#0b1730";
+        ctx.strokeStyle = "#9dffb0";
+        ctx.lineWidth = 2;
+        circle(x, y, 6);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#d9ffe2";
+        circle(x, y, 2);
+        ctx.fill();
+      }
+    }
 
     for (const p of particles) {
       ctx.globalAlpha = Math.min(1, p.life * 3);
       ctx.fillStyle = p.color;
       ctx.fillRect(p.x - 1.5, p.y - 1.5, 3, 3);
     }
+    ctx.textAlign = "center";
+    ctx.font = "900 16px system-ui, sans-serif";
+    for (const t of texts) {
+      ctx.globalAlpha = Math.min(1, t.life * 2);
+      ctx.fillStyle = t.color;
+      ctx.fillText(t.text, t.x, t.y - (1.1 - t.life) * 28);
+    }
     ctx.globalAlpha = 1;
 
-    const boss = game?.enemies.find((e) => BOSSES[e.type]);
-    if (boss) {
-      ctx.fillStyle = "rgba(0,0,0,0.6)";
-      ctx.fillRect(30, 62, FIELD.w - 60, 7);
-      ctx.fillStyle = "#ff3355";
-      ctx.fillRect(30, 62, ((FIELD.w - 60) * Math.max(0, boss.hp)) / boss.maxHp, 7);
-    }
+    if (boss) drawBossBar(boss);
     if (game?.bossWarn > 0 && Math.floor(game.bossWarn * 4) % 2 === 0) {
       ctx.fillStyle = "#ff3355";
       ctx.font = "900 34px system-ui, sans-serif";
@@ -410,30 +711,62 @@
   }
 
   function onPointerDown(e) {
-    if (screen !== "playing") return;
+    if (screen !== "playing" || isPaused) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     aimAt(e);
     input.firing = true;
   }
 
   function onPointerMove(e) {
-    if (screen === "playing" && (input.firing || e.pointerType === "mouse")) aimAt(e);
+    if (screen === "playing" && !isPaused && (input.firing || e.pointerType === "mouse")) aimAt(e);
   }
 
   function onPointerUp() {
     input.firing = false;
   }
 
-  function startGame() {
-    game = createGame();
+  function startGame(nextMode = mode) {
+    mode = nextMode;
+    game = createGame(mode);
     particles = [];
     effects = [];
+    texts = [];
+    finale = null;
+    isPaused = false;
     input.firing = false;
     hud = { ...hud, choices: [], levels: {} };
     screen = "playing";
     syncHud();
     sound.resume();
-    sound.restartMusic();
+    sound.playMusic(MUSIC[mode]);
+  }
+
+  // The first hard run starts from the briefing
+  function startHard() {
+    if (localStorage.getItem(INTRO_KEY)) startGame("hard");
+    else intro = "start";
+  }
+
+  function closeIntro() {
+    localStorage.setItem(INTRO_KEY, "1");
+    const shouldStart = intro === "start";
+    intro = null;
+    if (shouldStart) startGame("hard");
+  }
+
+  function setPaused(value) {
+    isPaused = value;
+    input.firing = false;
+    if (value) return sound.suspend();
+    lastTime = performance.now();
+    sound.resume();
+  }
+
+  function backToTitle() {
+    sound.stopMusic();
+    if (isPaused) setPaused(false);
+    game = null;
+    screen = "start";
   }
 
   function choose(key) {
@@ -458,41 +791,45 @@
     sound.setMuted(isMuted);
   }
 
-  // The card pick writes the draw into the ledger under this label; one such entry means the reward is spent
-  const isDrawRecord = (item) =>
-    item.receiver === $currentUser && item.title?.includes(REWARD_LABELS.guardian);
-
+  // The card pick writes the draw into the ledger under the reward's label; one such entry means it is spent
   async function checkReward() {
-    reward = "checking";
+    rewards = { normal: "checking", hard: "checking" };
     const res = await api.getLedger();
-    if (!res.success) return (reward = "error");
-    reward = (res.ledger || []).some(isDrawRecord) ? "claimed" : "available";
-    if (reward === "claimed") {
-      localStorage.removeItem(pendingKey);
-      hasPending = false;
+    if (!res.success) return (rewards = { normal: "error", hard: "error" });
+    for (const key of Object.keys(REWARD_KEY)) {
+      const isClaimed = (res.ledger || []).some(
+        (item) => item.receiver === $currentUser && item.title?.includes(REWARD_LABELS[REWARD_KEY[key]]),
+      );
+      rewards[key] = isClaimed ? "claimed" : "available";
+      if (isClaimed) {
+        localStorage.removeItem(pendingKey[key]);
+        pending[key] = false;
+      }
     }
   }
 
-  function goToReward() {
-    navigate(`${base}/card-pick`, { state: { reward: "guardian" } });
+  function goToReward(key) {
+    navigate(`${base}/card-pick`, { state: { reward: REWARD_KEY[key] } });
   }
 
   function onVisibility() {
     if (document.hidden) {
       cancelAnimationFrame(raf);
       raf = 0;
+      // Coming back to a run in full swing would cost base HP
+      if (screen === "playing") isPaused = true;
       sound.suspend();
       input.firing = false;
     } else if (!raf) {
       lastTime = performance.now();
       raf = requestAnimationFrame(frame);
-      sound.resume();
+      if (!isPaused) sound.resume();
     }
   }
 
   onMount(async () => {
     ctx = canvas.getContext("2d");
-    sound = createSound(SND, Object.values(SOUNDS).map(([file]) => file), MUSIC);
+    sound = createSound(SND, [...new Set(Object.values(SOUNDS).map(([file]) => file))]);
     checkReward();
 
     try {
@@ -538,8 +875,8 @@
     </div>
     {#if screen === "playing" || screen === "upgrade"}
       <div class="flex-1 min-w-0">
-        <p class="text-[11px] font-black tracking-widest text-cyan-300">
-          WAVE {hud.wave} / {LAST_WAVE}
+        <p class="text-[11px] font-black tracking-widest {mode === 'hard' ? 'text-rose-300' : 'text-cyan-300'}">
+          {mode === "hard" ? "HARD " : ""}WAVE {hud.wave} / {lastWave}
         </p>
         <div class="flex items-center gap-1 mt-1" aria-label="기지 체력 {hud.hp}">
           {#each Array(PLAYER.hp) as _, i}
@@ -556,6 +893,17 @@
       </div>
     {:else}
       <div class="flex-1"></div>
+    {/if}
+    {#if screen === "playing"}
+      <button
+        type="button"
+        on:pointerdown|stopPropagation
+        on:click={() => setPaused(true)}
+        aria-label="일시정지"
+        class="pointer-events-auto w-10 h-10 shrink-0 flex items-center justify-center rounded-full bg-white/10 border border-white/15 active:scale-90 transition-all"
+      >
+        ⏸
+      </button>
     {/if}
     <button
       type="button"
@@ -585,6 +933,32 @@
     </button>
   {/if}
 
+  {#if screen === "playing" && isPaused}
+    <div
+      class="absolute inset-0 z-10 flex items-center justify-center p-5 bg-black/70"
+      on:pointerdown|stopPropagation
+    >
+      <div class="w-full max-w-xs text-center">
+        <h2 class="text-3xl font-black text-cyan-200">일시정지</h2>
+        <p class="mt-2 text-sm text-gray-300">{lastWave}웨이브 중 {hud.wave}웨이브 진행 중</p>
+        <button
+          type="button"
+          on:click={() => setPaused(false)}
+          class="mt-6 w-full py-4 rounded-2xl font-black text-lg text-gray-900 bg-cyan-300 active:scale-95 transition-all"
+        >
+          계속하기
+        </button>
+        <button
+          type="button"
+          on:click={backToTitle}
+          class="mt-3 w-full py-3 rounded-2xl font-bold text-gray-200 bg-white/10 active:scale-95 transition-all"
+        >
+          그만두고 처음 화면으로
+        </button>
+      </div>
+    </div>
+  {/if}
+
   <!-- Title screen: key art with the title in its dark upper third and the buttons at the bottom -->
   {#if screen === "start"}
     <!-- Full screen on phones; on a wide window the art keeps a phone-shaped column in the middle -->
@@ -600,35 +974,54 @@
         <h1 class="mt-2 text-5xl font-black text-cyan-200 drop-shadow-[0_0_22px_rgba(39,228,255,0.9)]">
           네온 가디언
         </h1>
-        <p class="mt-3 text-sm text-gray-300">{LAST_WAVE}번의 공세를 막고 기지를 지켜라</p>
-        <p class="mt-4 inline-block px-3 py-1.5 rounded-full text-xs font-bold text-amber-200 bg-black/50 border border-amber-300/40">
-          {#if reward === "claimed"}
-            클리어 보상은 이미 받았어요
-          {:else}
-            🎁 클리어 보상: 용돈 카드뽑기 1회
-          {/if}
-        </p>
+        <p class="mt-3 text-sm text-gray-300">몰려오는 공세를 막고 기지를 지켜라</p>
+        <div class="mt-4 flex flex-col items-center gap-1.5">
+          {#each isHardOpen ? ["normal", "hard"] : ["normal"] as key}
+            <p class="px-3 py-1.5 rounded-full text-xs font-bold text-amber-200 bg-black/50 border border-amber-300/40">
+              {#if rewards[key] === "claimed"}
+                {key === "hard" ? "하드" : "일반"} 클리어 보상은 이미 받았어요
+              {:else}
+                🎁 {key === "hard" ? "하드" : "일반"} 클리어 보상: 용돈 카드뽑기 1회
+              {/if}
+            </p>
+          {/each}
+        </div>
       </div>
       <div
         class="absolute inset-x-0 bottom-0 px-5 pt-10 pb-[max(env(safe-area-inset-bottom),16px)] bg-gradient-to-t from-black/90 to-transparent"
       >
         <div class="max-w-xs mx-auto space-y-2">
-          {#if hasPending && reward === "available"}
-            <button
-              type="button"
-              on:click={goToReward}
-              class="w-full py-3 rounded-2xl font-black text-white bg-gradient-to-r from-amber-500 to-rose-500 active:scale-95 transition-all"
-            >
-              🎁 아직 안 뽑은 클리어 보상 받기
-            </button>
-          {/if}
+          {#each ["normal", "hard"] as key}
+            {#if pending[key] && rewards[key] === "available"}
+              <button
+                type="button"
+                on:click={() => goToReward(key)}
+                class="w-full py-3 rounded-2xl font-black text-white bg-gradient-to-r from-amber-500 to-rose-500 active:scale-95 transition-all"
+              >
+                🎁 아직 안 뽑은 {key === "hard" ? "하드" : "일반"} 클리어 보상 받기
+              </button>
+            {/if}
+          {/each}
           <button
             type="button"
-            on:click={startGame}
+            on:click={() => startGame("normal")}
             class="w-full py-4 rounded-2xl font-black text-lg text-gray-900 bg-cyan-300 active:scale-95 transition-all shadow-[0_0_24px_rgba(39,228,255,0.6)]"
           >
-            게임 시작
+            게임 시작 <span class="text-sm font-bold opacity-70">· {MODES.normal.waves.length}웨이브</span>
           </button>
+          {#if isHardOpen}
+            <button
+              type="button"
+              on:click={startHard}
+              class="w-full py-4 rounded-2xl font-black text-lg text-white bg-gradient-to-r from-rose-600 to-fuchsia-600 active:scale-95 transition-all shadow-[0_0_24px_rgba(244,63,94,0.6)]"
+            >
+              🔥 하드 모드 <span class="text-sm font-bold opacity-80">· {MODES.hard.waves.length}웨이브</span>
+            </button>
+          {:else}
+            <p class="w-full py-3 rounded-2xl text-center text-sm font-bold text-gray-400 bg-black/50 border border-white/10">
+              🔒 하드 모드는 일반 모드를 클리어하면 열려요
+            </p>
+          {/if}
           <button
             type="button"
             on:click={() => (showRules = true)}
@@ -645,18 +1038,124 @@
             <h2 class="text-xl font-black text-cyan-300 text-center">게임 방법</h2>
             <ul class="mt-4 space-y-2 text-sm text-gray-200 bg-white/5 border border-white/10 rounded-2xl p-4">
               <li>👆 화면을 누른 채 끌어서 조준하고 발사</li>
-              <li>🧱 적이 아래 선을 넘으면 기지 체력 감소 (회복 없음)</li>
+              <li>🧱 적이 아래 선을 넘으면 기지 체력 감소</li>
               <li>🃏 웨이브를 막을 때마다 강화 카드 3장 중 1장 선택</li>
               <li>💣 코인은 폭탄이나 카드 바꾸기에 사용</li>
-              <li>👾 중간 보스를 넘고 {LAST_WAVE}웨이브 보스를 잡으면 클리어</li>
+              <li>👾 중간 보스를 넘고 마지막 보스를 잡으면 클리어</li>
             </ul>
+            {#if isHardOpen}
+              <button
+                type="button"
+                on:click={() => {
+                  showRules = false;
+                  intro = "review";
+                }}
+                class="mt-3 w-full py-3 rounded-2xl font-bold text-rose-200 bg-rose-500/15 border border-rose-300/40 active:scale-95 transition-all"
+              >
+                🔥 하드 모드 안내 보기
+              </button>
+            {/if}
             <button
               type="button"
               on:click={() => (showRules = false)}
-              class="mt-4 w-full py-3 rounded-2xl font-bold bg-white/10 border border-white/20 active:scale-95 transition-all"
+              class="mt-3 w-full py-3 rounded-2xl font-bold bg-white/10 border border-white/20 active:scale-95 transition-all"
             >
               닫기
             </button>
+          </div>
+        </div>
+      {/if}
+
+      <!-- Hard mode briefing: shown before the first hard run, later from the rules sheet -->
+      {#if intro}
+        <div class="absolute inset-0 flex flex-col bg-[#070812]">
+          <div class="mt-14 flex-1 overflow-y-auto touch-pan-y px-5 pt-2 pb-4">
+            <p class="text-[11px] font-black tracking-[0.4em] text-rose-300 text-center">HARD MODE</p>
+            <h2 class="mt-1 text-3xl font-black text-center text-white">하드 모드 안내</h2>
+
+            <h3 class="mt-6 text-sm font-black text-cyan-300">달라지는 규칙</h3>
+            <ul class="mt-2 space-y-1.5 text-sm text-gray-200 bg-white/5 border border-white/10 rounded-2xl p-4">
+              <li>🌊 {MODES.hard.waves.length}웨이브, 보스는 {HARD_BOSS_WAVES}웨이브</li>
+              <li>🔧 보스를 잡으면 기지 체력 {MODES.hard.repair} 회복</li>
+              <li>💣 폭탄은 웨이브가 오를수록 강해짐</li>
+              <li>⏸ 오른쪽 위 버튼으로 일시정지</li>
+              <li>🎁 클리어하면 용돈 카드뽑기 1회 추가</li>
+            </ul>
+
+            <h3 class="mt-6 text-sm font-black text-cyan-300">새로운 적</h3>
+            <ul class="mt-2 space-y-2">
+              {#each NEW_ENEMIES as enemy}
+                <li class="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/10">
+                  <img src="{IMG}/{enemy.file}.webp" alt="" class="w-14 h-14 shrink-0" />
+                  <span class="min-w-0">
+                    <span class="block font-black">{enemy.name}</span>
+                    <span class="block text-xs text-gray-300">{enemy.text}</span>
+                  </span>
+                </li>
+              {/each}
+            </ul>
+
+            <h3 class="mt-6 text-sm font-black text-cyan-300">보스의 새 패턴</h3>
+            <ul class="mt-2 space-y-2">
+              <li class="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/10">
+                <img src="{IMG}/boss-generator.webp" alt="" class="w-14 h-14 shrink-0" />
+                <span class="min-w-0">
+                  <span class="block font-black">보호막 발전기</span>
+                  <span class="block text-xs text-gray-300">
+                    보스 주위를 도는 발전기가 남아 있으면 보스는 피해를 받지 않아요. 발전기부터 부수세요.
+                  </span>
+                </span>
+              </li>
+              <li class="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/10">
+                <img src="{IMG}/boss-final.webp" alt="" class="w-14 h-14 shrink-0" />
+                <span class="min-w-0">
+                  <span class="block font-black">주포 충전</span>
+                  <span class="block text-xs text-gray-300">
+                    최종 보스가 멈춰서 주포를 충전해요. 그동안 코어에 화력을 모아 게이지를 채우면 충전이 끊기고
+                    보스가 잠시 무방비가 돼요. 못 끊으면 기지 체력이 {BOSSES.final.charge.damage} 깎여요.
+                  </span>
+                </span>
+              </li>
+            </ul>
+
+            <h3 class="mt-6 text-sm font-black text-fuchsia-300">신화 무기 · {UNLOCK_WAVE}웨이브를 넘기면 등장</h3>
+            <ul class="mt-2 space-y-2">
+              {#each lateCards("mythic") as card}
+                <li class="flex items-center gap-3 p-3 rounded-2xl border {RARITY_STYLE.mythic}">
+                  <span class="text-3xl w-10 text-center shrink-0">{card.icon}</span>
+                  <span class="min-w-0">
+                    <span class="block font-black">{card.label}</span>
+                    <span class="block text-xs text-gray-200">{card.desc(0)}</span>
+                  </span>
+                </li>
+              {/each}
+            </ul>
+
+            <h3 class="mt-6 text-sm font-black text-emerald-300">진화 · 해당 카드를 끝까지 올리면 등장</h3>
+            <ul class="mt-2 space-y-2">
+              {#each lateCards("evo") as card}
+                <li class="flex items-center gap-3 p-3 rounded-2xl border {RARITY_STYLE.evo}">
+                  <span class="text-3xl w-10 text-center shrink-0">{card.icon}</span>
+                  <span class="min-w-0">
+                    <span class="block font-black">{card.label}</span>
+                    <span class="block text-xs text-gray-200">{card.desc(0)}</span>
+                  </span>
+                </li>
+              {/each}
+            </ul>
+            <p class="mt-3 text-xs text-gray-400 text-center">진화도 {UNLOCK_WAVE}웨이브를 넘긴 뒤부터 나와요.</p>
+          </div>
+          <div class="px-5 pt-3 pb-[max(env(safe-area-inset-bottom),16px)] bg-black/60">
+            <button
+              type="button"
+              on:click={closeIntro}
+              class="w-full max-w-xs mx-auto block py-4 rounded-2xl font-black text-lg text-white bg-gradient-to-r from-rose-600 to-fuchsia-600 active:scale-95 transition-all"
+            >
+              {intro === "start" ? "출격" : "닫기"}
+            </button>
+            {#if intro === "start"}
+              <p class="mt-2 text-[11px] text-gray-400 text-center">이 안내는 게임 방법에서 다시 볼 수 있어요.</p>
+            {/if}
           </div>
         </div>
       {/if}
@@ -672,9 +1171,11 @@
           <p class="font-bold text-cyan-200 animate-pulse">불러오는 중...</p>
         {:else if screen === "upgrade"}
           {#if hud.rich}
-            <p class="text-xs font-black tracking-widest text-amber-300">중간 보스 격파!</p>
+            <p class="text-xs font-black tracking-widest text-amber-300">보스 격파!</p>
             <h2 class="mt-1 text-2xl font-black">보상 카드를 고르세요</h2>
-            <p class="mt-1 text-xs text-gray-300">이번에는 희귀 이상 카드만 나옵니다</p>
+            <p class="mt-1 text-xs text-gray-300">
+              {hud.wave === UNLOCK_WAVE ? "신화 무기와 진화 카드가 풀렸어요" : "이번에는 희귀 이상 카드만 나옵니다"}
+            </p>
           {:else}
             <p class="text-xs font-black tracking-widest text-cyan-300">{hud.wave}웨이브 돌파!</p>
             <h2 class="mt-1 text-2xl font-black">카드 한 장을 고르세요</h2>
@@ -721,34 +1222,43 @@
         {:else if screen === "over"}
           <h2 class="text-4xl font-black text-rose-400">GAME OVER</h2>
           <p class="mt-3 text-gray-300">
-            {LAST_WAVE}웨이브 중 <strong class="text-white">{hud.wave}웨이브</strong>에서 기지가 무너졌습니다.
+            {lastWave}웨이브 중 <strong class="text-white">{hud.wave}웨이브</strong>에서 기지가 무너졌습니다.
           </p>
           <button
             type="button"
-            on:click={startGame}
+            on:click={() => startGame()}
             class="mt-6 w-full py-4 rounded-2xl font-black text-lg text-gray-900 bg-cyan-300 active:scale-95 transition-all"
           >
             다시 도전
           </button>
+          <button
+            type="button"
+            on:click={backToTitle}
+            class="mt-3 w-full py-3 rounded-2xl font-bold text-gray-200 bg-white/10 active:scale-95 transition-all"
+          >
+            처음 화면으로
+          </button>
         {:else if screen === "clear"}
           <h2 class="text-4xl font-black text-amber-300 drop-shadow-[0_0_18px_rgba(252,211,77,0.7)]">
-            CLEAR!
+            {mode === "hard" ? "HARD CLEAR!" : "CLEAR!"}
           </h2>
-          <p class="mt-3 text-gray-200">보스를 격파하고 기지를 지켜냈습니다.</p>
-          {#if reward === "checking"}
+          <p class="mt-3 text-gray-200">
+            {mode === "hard" ? `최종 보스를 격파하고 ${lastWave}번의 공세를 모두 막아냈습니다.` : "보스를 격파하고 기지를 지켜냈습니다."}
+          </p>
+          {#if rewards[mode] === "checking"}
             <p class="mt-6 text-sm text-gray-300 animate-pulse">보상 확인 중...</p>
-          {:else if reward === "available"}
+          {:else if rewards[mode] === "available"}
             <p class="mt-4 text-xs text-gray-300">
               카드는 한 번만 뽑을 수 있고, 뽑은 금액은 장부에 기록돼요.
             </p>
             <button
               type="button"
-              on:click={goToReward}
+              on:click={() => goToReward(mode)}
               class="mt-4 w-full py-4 rounded-2xl font-black text-lg text-white bg-gradient-to-r from-amber-500 to-rose-500 active:scale-95 transition-all"
             >
               🎁 용돈 카드 뽑으러 가기
             </button>
-          {:else if reward === "claimed"}
+          {:else if rewards[mode] === "claimed"}
             <p class="mt-6 text-sm font-bold text-amber-200">클리어 보상은 이미 받았어요.</p>
           {:else}
             <p class="mt-6 text-sm text-rose-300">보상 정보를 확인하지 못했습니다.</p>
@@ -762,10 +1272,17 @@
           {/if}
           <button
             type="button"
-            on:click={startGame}
+            on:click={() => startGame()}
             class="mt-3 w-full py-3 rounded-2xl font-bold text-gray-200 bg-white/10 active:scale-95 transition-all"
           >
             한 판 더
+          </button>
+          <button
+            type="button"
+            on:click={backToTitle}
+            class="mt-2 w-full py-2 text-sm font-bold text-gray-300 active:scale-95 transition-all"
+          >
+            처음 화면으로
           </button>
         {/if}
       </div>
