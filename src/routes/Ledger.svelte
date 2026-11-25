@@ -103,8 +103,7 @@
   }
 
   function addRuleAmount(val) {
-    const current = cleanAmount(newRuleAmount);
-    newRuleAmount = String(current + val);
+    newRuleAmount = (cleanAmount(newRuleAmount) + val).toLocaleString();
   }
 
 
@@ -112,10 +111,13 @@
     const ruleAmount = cleanAmount(newRuleAmount);
     if (!newRuleTitle.trim() || !ruleAmount)
       return toast("내역 이름과 금액을 모두 입력해주세요.", "info");
+    const ruleDay = parseInt(newRuleDay);
+    if (!(ruleDay >= 1 && ruleDay <= 31)) return toast("이체일은 1~31 사이로 입력해주세요.", "info");
+    if (newRuleGiver === newRuleReceiver) return toast("보내는 사람과 받는 사람이 같습니다.", "info");
 
     isRuleSubmitting = true;
     const payload = {
-      day: parseInt(newRuleDay) || 25,
+      day: ruleDay,
       title: newRuleTitle.trim(),
       amount: ruleAmount,
       giver: newRuleGiver,
@@ -225,13 +227,20 @@
     showForm = true;
   }
 
-  // The amount field only ever holds digits, shown with thousands separators.
+  // An amount field only ever holds digits, shown with thousands separators.
   // Anything else typed into it ("5만원", "오천") is dropped on the spot rather than
   // being cut down to a wrong number when saving.
+  function formatDigits(value) {
+    const digits = value.replace(/\D/g, "").replace(/^0+/, "").slice(0, 10);
+    return digits ? Number(digits).toLocaleString() : "";
+  }
+
   function onAmountInput(e) {
-    const digits = e.target.value.replace(/\D/g, "").replace(/^0+/, "").slice(0, 10);
-    amountText = digits ? Number(digits).toLocaleString() : "";
-    e.target.value = amountText;
+    amountText = e.target.value = formatDigits(e.target.value);
+  }
+
+  function onRuleAmountInput(e) {
+    newRuleAmount = e.target.value = formatDigits(e.target.value);
   }
 
   const cleanAmount = (v) =>
@@ -546,7 +555,7 @@
       </div>
 
       <!-- Tier 3: Filters & Rules Button -->
-      <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-white/15">
+      <div class="pt-2 border-t border-white/15">
         <div class="flex items-center gap-1.5">
           <select
             bind:value={viewAsUser}
@@ -577,16 +586,6 @@
             미정산만
           </button>
         </div>
-
-        {#if $isAdmin}
-          <button
-            type="button"
-            on:click={openRuleModal}
-            class="px-2.5 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold text-xs active:scale-95 transition-all shadow-sm flex items-center gap-1"
-          >
-            <span>📌</span> 고정 이체 ({rules.length})
-          </button>
-        {/if}
       </div>
     </div>
 
@@ -596,13 +595,22 @@
   </header>
 
   {#if $isAdmin}
-    <button
-      type="button"
-      on:click={openAddForm}
-      class="w-full py-4 rounded-3xl font-black text-sm text-white bg-indigo-600 hover:bg-indigo-700 shadow-md active:scale-[0.98] transition-all"
-    >
-      ➕ 새 내역 추가
-    </button>
+    <div class="flex gap-2">
+      <button
+        type="button"
+        on:click={openAddForm}
+        class="flex-1 py-4 rounded-3xl font-black text-sm text-white bg-indigo-600 hover:bg-indigo-700 shadow-md active:scale-[0.98] transition-all"
+      >
+        ➕ 새 내역 추가
+      </button>
+      <button
+        type="button"
+        on:click={openRuleModal}
+        class="shrink-0 px-5 py-4 rounded-3xl font-black text-sm text-indigo-700 dark:text-indigo-200 bg-white dark:bg-gray-800 border border-indigo-100 dark:border-gray-700 shadow-sm active:scale-[0.98] transition-all"
+      >
+        📌 고정 이체 <span class="text-indigo-400 dark:text-indigo-400">{rules.length}</span>
+      </button>
+    </div>
   {/if}
 
   <!-- Items List -->
@@ -842,10 +850,10 @@
   {#if showRuleModal}
     <Modal
       label="매월 고정 이체 관리"
-      class="max-w-sm p-6 space-y-4 flex flex-col"
+      class="max-w-sm p-6 space-y-4"
       on:close={() => (showRuleModal = false)}
     >
-      <div class="flex justify-between items-center shrink-0">
+      <div class="flex justify-between items-center">
         <div>
           <h2 class="text-lg font-black text-gray-900 dark:text-white flex items-center gap-1.5">
             📌 매월 고정 이체 관리
@@ -863,7 +871,7 @@
       </div>
 
       <!-- 1-Click Batch Apply Button -->
-      <div class="shrink-0 bg-indigo-50 dark:bg-indigo-950/40 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-800 space-y-2">
+      <div class="bg-indigo-50 dark:bg-indigo-950/40 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-800 space-y-2">
         <div class="flex justify-between items-center text-xs font-bold text-indigo-950 dark:text-indigo-200">
           <span>{displayMonth}월 장부로 일괄 가져오기</span>
           <span class="text-indigo-600 dark:text-indigo-400">{rules.length}개 규칙</span>
@@ -878,8 +886,8 @@
         </button>
       </div>
 
-      <!-- Rules List (Scrollable) -->
-      <div class="flex-1 overflow-y-auto space-y-2 pr-1 min-h-[100px] max-h-[220px]">
+      <!-- Rules List: all of it, the pop-up itself scrolls -->
+      <div class="space-y-2">
         {#if isRulesLoading && rules.length === 0}
           <Spinner label="고정 이체 불러오는 중..." />
         {:else if rules.length === 0}
@@ -888,13 +896,13 @@
           </div>
         {:else}
           {#each rules as rule}
-            <div class="bg-gray-50 dark:bg-gray-900 p-3.5 rounded-2xl flex justify-between items-center border border-gray-100 dark:border-gray-700">
-              <div>
-                <div class="flex items-center gap-1.5">
-                  <span class="text-[10px] bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-black px-1.5 py-0.5 rounded">
+            <div class="bg-gray-50 dark:bg-gray-900 p-3.5 rounded-2xl flex justify-between items-center gap-2 border border-gray-100 dark:border-gray-700">
+              <div class="min-w-0">
+                <div class="flex items-start gap-1.5">
+                  <span class="shrink-0 whitespace-nowrap text-[10px] bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-black px-1.5 py-0.5 rounded">
                     매월 {rule.day}일
                   </span>
-                  <span class="font-bold text-xs text-gray-900 dark:text-white">
+                  <span class="font-bold text-xs text-gray-900 dark:text-white break-keep">
                     {rule.title}
                   </span>
                 </div>
@@ -924,7 +932,7 @@
       </div>
 
       <!-- Add New Fixed Rule Form -->
-      <div class="shrink-0 p-4 bg-gray-50 dark:bg-gray-900 rounded-2xl space-y-3 border border-gray-100 dark:border-gray-700">
+      <div class="p-4 bg-gray-50 dark:bg-gray-900 rounded-2xl space-y-3 border border-gray-100 dark:border-gray-700">
         <span class="text-xs font-black text-gray-800 dark:text-gray-200 block">
           ➕ 새 고정 이체 규칙 등록
         </span>
@@ -948,7 +956,7 @@
             bind:value={newRuleTitle}
             aria-label="내역 이름"
             placeholder="내역 이름 (예: 범수 정기입금)"
-            class="flex-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 rounded-xl text-xs font-bold outline-none border border-gray-200 dark:border-gray-700"
+            class="flex-1 min-w-0 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 rounded-xl text-xs font-bold outline-none border border-gray-200 dark:border-gray-700"
           />
         </div>
 
@@ -957,7 +965,10 @@
           <div class="relative">
             <input
               type="text"
-              bind:value={newRuleAmount}
+              inputmode="numeric"
+              autocomplete="off"
+              value={newRuleAmount}
+              on:input={onRuleAmountInput}
               aria-label="이체 금액"
               placeholder="이체 금액 입력"
               class="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2.5 rounded-xl text-xs font-black outline-none border border-gray-200 dark:border-gray-700 pr-8"
