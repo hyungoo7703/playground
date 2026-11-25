@@ -109,7 +109,7 @@ const HARD_WAVES = [
 // the enemies so it still clears a screen late on.
 // Endless mode has no wave table: ENDLESS below builds each wave. Its HP multiplier is
 // further multiplied by late.rate for every wave past late.from, so no build keeps up
-// for ever, and it alone has the coin shop and the freeze skill.
+// for ever, and it alone has the coin shop (hasShop) and the freeze skill (hasFreeze).
 export const MODES = {
   normal: {
     waves: NORMAL_WAVES,
@@ -137,6 +137,7 @@ export const MODES = {
     repair: 2,
     bombScales: true,
     hasShop: true,
+    hasFreeze: true,
   },
 };
 export const SPEED_CAP = 2; // enemies never get faster than this multiple of their own speed
@@ -229,27 +230,30 @@ export const BOSSES = {
       { below: 0.25, speed: 66, shellEvery: 0.75, shells: 4, addEvery: 2, add: ["blinker", "bomber", "dart"], chargeEvery: 6 },
     ],
   },
+  // The Void Titan, an endless-only boss. A phase with wellEvery drops gravity wells that
+  // bend the player's bullets towards them, somewhere in well.x and well.y; with decoyEvery
+  // it splits into copies that many seconds after the last one is gone, the copies and
+  // itself taking the places in decoyX at random; sealEvery does the same for its seals.
+  titan: {
+    hp: 300000,
+    radius: 68,
+    y: 186,
+    warn: 4,
+    well: { seconds: 5, radius: 150, pull: 1500, x: [60, 300], y: [280, 430] },
+    decoys: 2,
+    decoyHp: 0.012, // of the Titan's full HP
+    decoyX: [70, 180, 290],
+    seals: 3,
+    sealHp: 0.006,
+    phases: [
+      { below: 1, speed: 36, shellEvery: 1.3, shells: 2, addEvery: 3, add: ["phaser", "dart"], wellEvery: 7 },
+      { below: 0.66, speed: 44, shellEvery: 1.1, shells: 2, addEvery: 2.6, add: ["mender", "blinker"], wellEvery: 7, decoyEvery: 14 },
+      { below: 0.33, speed: 52, shellEvery: 0.9, shells: 3, addEvery: 2.2, add: ["phaser", "bomber"], wellEvery: 6, decoyEvery: 12, sealEvery: 15 },
+    ],
+  },
 };
-
-// The Void Titan, an endless-only boss. A phase with wellEvery drops gravity wells that
-// bend the player's bullets towards them; with decoyEvery it splits into copies that many
-// seconds after the last one is gone; sealEvery does the same for its seals.
-BOSSES.titan = {
-  hp: 300000,
-  radius: 68,
-  y: 186,
-  warn: 4,
-  well: { seconds: 5, radius: 150, pull: 1500 },
-  decoys: 2,
-  decoyHp: 0.012, // of the Titan's full HP
-  seals: 3,
-  sealHp: 0.006,
-  phases: [
-    { below: 1, speed: 36, shellEvery: 1.3, shells: 2, addEvery: 3, add: ["phaser", "dart"], wellEvery: 7 },
-    { below: 0.66, speed: 44, shellEvery: 1.1, shells: 2, addEvery: 2.6, add: ["mender", "blinker"], wellEvery: 7, decoyEvery: 14 },
-    { below: 0.33, speed: 52, shellEvery: 0.9, shells: 3, addEvery: 2.2, add: ["phaser", "bomber"], wellEvery: 6, decoyEvery: 12, sealEvery: 15 },
-  ],
-};
+// Seconds from a boss settling in to its first use of each attack
+export const BOSS_OPENING = { shellT: 2, addT: 3, wellT: 3, decoyT: 2, sealT: 2 };
 
 export const RATE_STEP = 0.82; // fire interval multiplier per level
 export const SHIELD_CHARGES = 2;
@@ -304,7 +308,7 @@ export const CACHE_COINS = 40;
 
 // The better cards are only offered once this many waves are cleared
 export const UNLOCK_WAVE = 15;
-export const TRANSCEND_WAVE = 50;
+export const TRANSCEND_WAVE = 45; // a few picks ahead of the Titan at wave 50
 export const REPEAT_WAVE = 30;
 
 // How often a card of each rarity is offered, and from how many cleared waves.

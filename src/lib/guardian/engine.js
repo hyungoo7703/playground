@@ -54,6 +54,7 @@ import {
   CACHE_COINS,
   SPEED_CAP,
   ENDLESS,
+  BOSS_OPENING,
   SHOP,
   FREEZE,
 } from "./config.js";
@@ -248,15 +249,11 @@ function spawnBoss(state, events) {
     radius: def.radius,
     dir: 1,
     phase: -1,
-    shellT: 2,
-    addT: 3,
+    ...BOSS_OPENING,
     chargeT: 0,
     charging: 0,
     chargeTaken: 0,
     stun: 0,
-    wellT: 3,
-    decoyT: 2,
-    sealT: 2,
   });
   state.bossPending = false;
   events.push({ type: "bossArrive" });
@@ -284,7 +281,7 @@ function raiseOrbiters(state, boss, type, count, hp) {
 // The Titan and its new copies trade places, so the player cannot keep track of the real one
 function splitIntoDecoys(state, boss) {
   const def = BOSSES[boss.type];
-  const slots = [70, 180, 290].sort(() => state.rand() - 0.5);
+  const slots = [...def.decoyX].sort(() => state.rand() - 0.5);
   boss.x = slots[0];
   for (let i = 0; i < def.decoys; i++) {
     const decoy = spawn(state, "decoy", slots[i + 1], boss.y);
@@ -425,6 +422,8 @@ function rollChoices(state) {
     const card = UPGRADES[k];
     const rarity = RARITY[card.rarity];
     if (state.levels[k] >= card.max) return false;
+    // A repair is no card to offer a base that has nothing to repair
+    if (k === "mend" && state.hp >= PLAYER.hp) return false;
     if (state.wave + 1 < (rarity.from ?? 0)) return false;
     if (rarity.isEndlessOnly && state.rules.waves) return false;
     return !card.needs || state.levels[card.needs] >= UPGRADES[card.needs].max;
@@ -492,7 +491,9 @@ function stepBoss(state, boss, dt, events) {
 
   if (phase.wellEvery && (boss.wellT -= dt) <= 0) {
     boss.wellT = phase.wellEvery;
-    const well = { x: 60 + state.rand() * (FIELD.w - 120), y: 280 + state.rand() * 150, until: state.time + def.well.seconds };
+    const [left, right] = def.well.x;
+    const [top, bottom] = def.well.y;
+    const well = { x: left + state.rand() * (right - left), y: top + state.rand() * (bottom - top), until: state.time + def.well.seconds };
     state.wells.push(well);
     events.push({ type: "well", x: well.x, y: well.y });
   }
@@ -934,7 +935,7 @@ export function buy(state, item) {
 /** Spend coins to stop everything on the field for a moment. */
 export function useFreeze(state) {
   const events = [];
-  if (state.phase !== "playing" || !state.shop || state.coins < state.freezeCost) return events;
+  if (state.phase !== "playing" || !state.rules.hasFreeze || state.coins < state.freezeCost) return events;
   state.coins -= state.freezeCost;
   state.freezeCost += FREEZE.costStep;
   state.frozenUntil = state.time + FREEZE.seconds;

@@ -137,7 +137,7 @@
   const HARD_BOSS_WAVES = MODES.hard.waves.flatMap((wave, i) => (typeof wave === "string" ? [i + 1] : [])).join(" · ");
   // Each briefing is shown once before the first run of its mode
   const INTRO_KEY = { hard: "guardian_hard_intro_seen", endless: "guardian_endless_intro_seen" };
-  const MODE_NAMES = { normal: "일반", hard: "하드", endless: "무한" };
+  const TITAN_WAVE = (ENDLESS.bosses.indexOf("titan") + 1) * ENDLESS.bossEvery;
   // The furthest endless wave reached on this device, for when the ranking cannot be loaded
   const bestKey = `guardian_endless_best_${$currentUser}`;
 
@@ -165,6 +165,8 @@
   let showRanking = false;
   let records = null; // null while loading, false when the server cannot say, else best waves per member
   let localBest = Number(localStorage.getItem(bestKey)) || 0;
+  let hasSentRun = false; // this run's wave has gone to the server
+  let hasResent = false;
 
   // Endless mode has no last wave
   $: lastWave = MODES[mode].waves?.length;
@@ -354,7 +356,11 @@
       sound.stopMusic();
       input.firing = false;
     }
-    if (game.phase === "over" && mode === "endless") saveRecord(game.wave + 1);
+    if (mode === "endless" && game.wave + 1 > localBest) {
+      localBest = game.wave + 1;
+      localStorage.setItem(bestKey, String(localBest));
+    }
+    if (game.phase === "over") sendRecord();
     if (game.phase === "clear") {
       play("victory");
       localStorage.setItem(pendingKey[mode], "1");
@@ -865,6 +871,7 @@
   function startGame(nextMode = mode) {
     mode = nextMode;
     game = createGame(mode);
+    hasSentRun = false;
     particles = [];
     effects = [];
     texts = [];
@@ -900,6 +907,7 @@
   }
 
   function backToTitle() {
+    sendRecord();
     sound.stopMusic();
     if (isPaused) setPaused(false);
     game = null;
@@ -938,14 +946,20 @@
   async function loadRecords() {
     const res = await api.getGuardianRecords();
     records = res.success ? res.records : false;
+    // A best the server never got (closed tab, failed save) goes up now, once
+    const mine = (records || []).find((r) => r.user_name === $currentUser)?.wave ?? 0;
+    if (records && localBest > mine && !hasResent) {
+      hasResent = true;
+      await api.saveGuardianRecord(localBest);
+      loadRecords();
+    }
   }
 
-  async function saveRecord(wave) {
-    if (wave > localBest) {
-      localBest = wave;
-      localStorage.setItem(bestKey, String(wave));
-    }
-    await api.saveGuardianRecord(wave);
+  // An endless run is over, by defeat or by leaving: its wave goes to the ranking
+  async function sendRecord() {
+    if (mode !== "endless" || !game || hasSentRun) return;
+    hasSentRun = true;
+    await api.saveGuardianRecord(game.wave + 1);
     loadRecords();
   }
 
@@ -1011,6 +1025,8 @@
   });
 
   onDestroy(() => {
+    // Leaving by the exit button mid-run
+    if (screen === "playing" || screen === "upgrade") sendRecord();
     cancelAnimationFrame(raf);
     sound?.close();
   });
@@ -1095,7 +1111,7 @@
         {hud.bombCost}
       </span>
     </button>
-    {#if mode === "endless"}
+    {#if MODES[mode].hasFreeze}
       <button
         type="button"
         on:pointerdown|stopPropagation
@@ -1334,7 +1350,7 @@
               {/each}
             </ul>
 
-            <h3 class="mt-6 text-sm font-black text-cyan-300">특수 적 · {TRANSCEND_WAVE}웨이브부터</h3>
+            <h3 class="mt-6 text-sm font-black text-cyan-300">특수 적 · {ENDLESS.types.hive.from}웨이브부터</h3>
             <ul class="mt-2 space-y-2">
               {#each SPECIAL_ENEMIES as enemy}
                 <li class="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/10">
@@ -1347,7 +1363,7 @@
               {/each}
             </ul>
 
-            <h3 class="mt-6 text-sm font-black text-amber-300">{TRANSCEND_WAVE}웨이브 보스 · 보이드 타이탄</h3>
+            <h3 class="mt-6 text-sm font-black text-amber-300">{TITAN_WAVE}웨이브 보스 · 보이드 타이탄</h3>
             <div class="mt-2 flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/10">
               <img src="{IMG}/boss-titan.webp" alt="" class="w-16 h-16 shrink-0" />
               <ul class="min-w-0 space-y-1 text-xs text-gray-300">
