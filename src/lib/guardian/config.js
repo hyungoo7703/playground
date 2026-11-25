@@ -232,8 +232,8 @@ export const BOSSES = {
 };
 
 // The Void Titan, an endless-only boss. A phase with wellEvery drops gravity wells that
-// bend the player's bullets towards them; with decoyEvery it splits into copies whenever
-// none is left; with sealEvery it puts up seals whenever none is left.
+// bend the player's bullets towards them; with decoyEvery it splits into copies that many
+// seconds after the last one is gone; sealEvery does the same for its seals.
 BOSSES.titan = {
   hp: 300000,
   radius: 68,

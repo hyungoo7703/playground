@@ -496,12 +496,14 @@ function stepBoss(state, boss, dt, events) {
     state.wells.push(well);
     events.push({ type: "well", x: well.x, y: well.y });
   }
-  if (phase.decoyEvery && (boss.decoyT -= dt) <= 0 && !state.enemies.some((e) => e.type === "decoy" && !e.dead)) {
+  // These two clocks only run while none is up, so destroying them buys the full interval
+  const isUp = (type) => state.enemies.some((e) => e.type === type && !e.dead);
+  if (phase.decoyEvery && !isUp("decoy") && (boss.decoyT -= dt) <= 0) {
     boss.decoyT = phase.decoyEvery;
     splitIntoDecoys(state, boss);
     events.push({ type: "decoys", x: boss.x, y: boss.y });
   }
-  if (phase.sealEvery && (boss.sealT -= dt) <= 0 && !state.enemies.some((e) => e.type === "seal" && !e.dead)) {
+  if (phase.sealEvery && !isUp("seal") && (boss.sealT -= dt) <= 0) {
     boss.sealT = phase.sealEvery;
     raiseOrbiters(state, boss, "seal", def.seals, boss.maxHp * def.sealHp);
     events.push({ type: "seals", x: boss.x, y: boss.y });
