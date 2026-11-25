@@ -1220,6 +1220,8 @@
             <p class="px-3 py-1.5 rounded-full text-xs font-bold text-amber-200 bg-black/50 border border-amber-300/40">
               {#if rewards[key] === "claimed"}
                 {key === "hard" ? "하드" : "일반"} 클리어 보상은 이미 받았어요
+              {:else if rewards[key] === "checking"}
+                ⏳ {key === "hard" ? "하드" : "일반"} 클리어 보상 확인 중…
               {:else}
                 🎁 {key === "hard" ? "하드" : "일반"} 클리어 보상: 용돈 카드뽑기 1회
               {/if}
@@ -1275,6 +1277,19 @@
                 <button type="button" on:click={() => startGame("hard")} class="shrink-0 px-4 rounded-2xl text-sm font-bold text-gray-200 bg-black/60 border border-white/20 active:scale-95 transition-all">새로</button>
               {/if}
             </div>
+          <!-- Until the ledger has answered, a mode that looks locked may not be -->
+          {:else if rewards.normal === "checking"}
+            <p class="w-full py-3 rounded-2xl text-center text-sm font-bold text-gray-300 bg-black/50 border border-white/10">
+              ⏳ 클리어 여부를 확인하는 중…
+            </p>
+          {:else if rewards.normal === "error"}
+            <button
+              type="button"
+              on:click={checkReward}
+              class="w-full py-3 rounded-2xl text-sm font-bold text-amber-200 bg-black/50 border border-amber-300/30 active:scale-95 transition-all"
+            >
+              ⚠️ 클리어 여부를 확인하지 못했어요 · 다시 확인
+            </button>
           {:else}
             <p class="w-full py-3 rounded-2xl text-center text-sm font-bold text-gray-400 bg-black/50 border border-white/10">
               🔒 하드 모드는 일반 모드를 클리어하면 열려요
@@ -1298,6 +1313,20 @@
                 <button type="button" on:click={() => startGame("endless")} class="shrink-0 px-4 rounded-2xl text-sm font-bold text-gray-200 bg-black/60 border border-white/20 active:scale-95 transition-all">새로</button>
               {/if}
             </div>
+          {:else if !isHardOpen}
+            <!-- The line above already speaks for both -->
+          {:else if rewards.hard === "checking"}
+            <p class="w-full py-3 rounded-2xl text-center text-sm font-bold text-gray-300 bg-black/50 border border-white/10">
+              ⏳ 클리어 여부를 확인하는 중…
+            </p>
+          {:else if rewards.hard === "error"}
+            <button
+              type="button"
+              on:click={checkReward}
+              class="w-full py-3 rounded-2xl text-sm font-bold text-amber-200 bg-black/50 border border-amber-300/30 active:scale-95 transition-all"
+            >
+              ⚠️ 클리어 여부를 확인하지 못했어요 · 다시 확인
+            </button>
           {/if}
           <div class="flex">
             <button
