@@ -100,6 +100,10 @@ export const api = {
     sendPushNotification: (data) => fetchFromGAS('sendPushNotification', data),
     // Members may call this one: the server sends a fixed message to admins only
     notifyReward: (data) => fetchFromGAS('notifyReward', data),
+
+    // Neon Guardian endless mode: one best wave per family member
+    getGuardianRecords: () => fetchFromGAS('getGuardianRecords'),
+    saveGuardianRecord: (wave) => fetchFromGAS('saveGuardianRecord', { wave }),
 };
 
 

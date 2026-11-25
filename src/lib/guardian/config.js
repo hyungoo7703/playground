@@ -31,8 +31,18 @@ export const ENEMIES = {
   artillery: { hp: 16, speed: 55, radius: 22, leak: 0, coins: 5, holdY: [80, 170], shellEvery: 3.2 },
   // Dying, it deals boomRatio × its full HP to everything within `boom`
   bomber: { hp: 7, speed: 48, radius: 16, leak: 3, coins: 3, boom: 72, boomRatio: 1.2 },
+  // Launches a mini every `spawnEvery` seconds until it is shot down
+  hive: { hp: 60, speed: 16, radius: 28, leak: 4, coins: 8, spawnEvery: 2.2 },
+  // Nothing can hit it during every other `phaseEvery` seconds
+  phaser: { hp: 9, speed: 50, radius: 15, leak: 2, coins: 4, phaseEvery: 1.4 },
+  // Gives every other enemy within `heal` back healRate of its full HP per second
+  mender: { hp: 12, speed: 30, radius: 18, leak: 2, coins: 5, heal: 90, healRate: 0.1 },
   // Circles its boss, which takes no damage while one is up. Its HP comes from the boss.
   generator: { hp: 1, speed: 0, radius: 15, leak: 0, coins: 0, orbitX: 104, orbitY: 58, turn: 1.1 },
+  // Circles the Titan; while one is up the automatic weapons do not fire. HP from the boss.
+  seal: { hp: 1, speed: 0, radius: 15, leak: 0, coins: 0, orbitX: 118, orbitY: 66, turn: -1.4 },
+  // A copy of the Titan that looks and shoots like it. HP from the boss.
+  decoy: { hp: 1, speed: 40, radius: 68, leak: 0, coins: 0, shellEvery: 2.4 },
 };
 export const GUARD_RATIO = 0.5;
 
@@ -97,6 +107,9 @@ const HARD_WAVES = [
 // per wave. pace multiplies every spawn time of the wave table. bossHp scales every boss;
 // repair is the base HP given back for a boss kill. bombScales makes the bomb grow with
 // the enemies so it still clears a screen late on.
+// Endless mode has no wave table: ENDLESS below builds each wave. Its HP multiplier is
+// further multiplied by late.rate for every wave past late.from, so no build keeps up
+// for ever, and it alone has the coin shop and the freeze skill.
 export const MODES = {
   normal: {
     waves: NORMAL_WAVES,
@@ -116,7 +129,52 @@ export const MODES = {
     repair: 2,
     bombScales: true,
   },
+  endless: {
+    hpGrowth: { base: 1, linear: 0.11, square: 0, cubic: 0.0018, late: { from: 30, rate: 1.04 } },
+    speedGrowth: 0.028,
+    pace: 0.9,
+    bossHp: 1,
+    repair: 2,
+    bombScales: true,
+    hasShop: true,
+  },
 };
+export const SPEED_CAP = 2; // enemies never get faster than this multiple of their own speed
+
+// An endless wave spends budget points (base + perWave * wave, up to max) on a few of the
+// enemy types open by then (`from` is a wave number), spread over `seconds`. Every
+// bossEvery-th wave is a boss: the listed ones in turn, then the last two alternating.
+// A boss's HP is its own times bossHp, and past the list it grows as the enemies have
+// since its first visit.
+export const ENDLESS = {
+  budget: { base: 10, perWave: 8.5, max: 300 },
+  seconds: { base: 14, perWave: 0.3, max: 24 },
+  bossEvery: 10,
+  bosses: ["midboss", "boss", "warlord", "final", "titan"],
+  bossHp: [1.5, 2.3, 2.4, 1.7, 1],
+  returnEscorts: ["phaser", "mender"], // a returning boss also calls these in
+  eliteFrom: 12,
+  eliteChance: 0.012, // per wave past eliteFrom, up to eliteMax
+  eliteMax: 0.4,
+  eliteCost: 2.5,
+  types: {
+    drone: { from: 1, cost: 1 },
+    dart: { from: 2, cost: 1.3 },
+    carrier: { from: 3, cost: 3 },
+    tank: { from: 5, cost: 6 },
+    bomber: { from: 6, cost: 3 },
+    blinker: { from: 8, cost: 2 },
+    shielder: { from: 11, cost: 5 },
+    artillery: { from: 13, cost: 6 },
+    hive: { from: 50, cost: 14 },
+    phaser: { from: 50, cost: 3 },
+    mender: { from: 50, cost: 6 },
+  },
+};
+
+// Endless mode's coin sinks: [first price, added after each purchase]
+export const SHOP = { repair: [40, 25], shield: [30, 15], extra: [60, 40] };
+export const FREEZE = { cost: 35, costStep: 20, seconds: 3 };
 
 // A phase applies while the boss HP fraction is at or below `below`; `add` lists the
 // escorts it calls in. `generators` are put up on entering the phase and make the boss
@@ -173,6 +231,26 @@ export const BOSSES = {
   },
 };
 
+// The Void Titan, an endless-only boss. A phase with wellEvery drops gravity wells that
+// bend the player's bullets towards them; with decoyEvery it splits into copies whenever
+// none is left; with sealEvery it puts up seals whenever none is left.
+BOSSES.titan = {
+  hp: 300000,
+  radius: 68,
+  y: 186,
+  warn: 4,
+  well: { seconds: 5, radius: 150, pull: 1500 },
+  decoys: 2,
+  decoyHp: 0.012, // of the Titan's full HP
+  seals: 3,
+  sealHp: 0.006,
+  phases: [
+    { below: 1, speed: 36, shellEvery: 1.3, shells: 2, addEvery: 3, add: ["phaser", "dart"], wellEvery: 7 },
+    { below: 0.66, speed: 44, shellEvery: 1.1, shells: 2, addEvery: 2.6, add: ["mender", "blinker"], wellEvery: 7, decoyEvery: 14 },
+    { below: 0.33, speed: 52, shellEvery: 0.9, shells: 3, addEvery: 2.2, add: ["phaser", "bomber"], wellEvery: 6, decoyEvery: 12, sealEvery: 15 },
+  ],
+};
+
 export const RATE_STEP = 0.82; // fire interval multiplier per level
 export const SHIELD_CHARGES = 2;
 export const BOUNTY_STEP = 0.5;
@@ -212,16 +290,33 @@ export const CLUSTER = { count: 3, offset: 0.9, radius: 0.7 }; // extra blasts a
 export const TEMPEST_JUMPS = 4;
 export const TEMPEST_RANGE = 1.3;
 
-// Late cards are only offered once this many waves are cleared
-export const UNLOCK_WAVE = 15;
+// Transcendent weapons
+export const STRIKE_EVERY = [6, 4]; // by level
+export const STRIKE_MULT = [40, 60];
+export const STRIKE_RADIUS = 85;
+export const STRIKE_DELAY = 0.7; // seconds between the marker and the hit
+export const CHRONO_PACE = [0.85, 0.72]; // enemy speed multiplier, by level
 
-// How often a card of each rarity is offered
+// Repeatable cards
+export const HASTE_STEP = 0.94; // fire interval multiplier per level
+export const MEND_HP = 2;
+export const CACHE_COINS = 40;
+
+// The better cards are only offered once this many waves are cleared
+export const UNLOCK_WAVE = 15;
+export const TRANSCEND_WAVE = 50;
+export const REPEAT_WAVE = 30;
+
+// How often a card of each rarity is offered, and from how many cleared waves.
+// Repeatable cards have no top level and only exist where a run has no end.
 export const RARITY = {
   common: { label: "일반", weight: 6 },
   rare: { label: "희귀", weight: 3 },
   epic: { label: "전설", weight: 1 },
-  mythic: { label: "신화", weight: 3, late: true },
-  evo: { label: "진화", weight: 4, late: true },
+  mythic: { label: "신화", weight: 3, from: UNLOCK_WAVE },
+  evo: { label: "진화", weight: 4, from: UNLOCK_WAVE },
+  transcend: { label: "초월", weight: 4, from: TRANSCEND_WAVE },
+  repeat: { label: "반복", weight: 2, from: REPEAT_WAVE, isEndlessOnly: true },
 };
 
 // desc(level) says what taking the card gives when it is currently at `level`.
@@ -245,4 +340,11 @@ export const UPGRADES = {
   rail: { label: "레일건", icon: "☄️", rarity: "evo", max: 1, needs: "pierce", desc: () => "관통탄 진화: 모든 적을 뚫고 탄이 빨라짐" },
   cluster: { label: "집속탄", icon: "🎆", rarity: "evo", max: 1, needs: "blast", desc: () => `폭발탄 진화: 주변에서 ${CLUSTER.count}번 더 폭발` },
   tempest: { label: "번개 폭풍", icon: "⛈️", rarity: "evo", max: 1, needs: "chain", desc: () => `연쇄 번개 진화: 번개가 ${2 + TEMPEST_JUMPS}기까지 튐` },
+  strike: { label: "위성 포격", icon: "📡", rarity: "transcend", max: 2, desc: (lv) => `${STRIKE_EVERY[lv]}초마다 적이 가장 몰린 곳에 대형 포격` },
+  twin: { label: "쌍둥이 포탑", icon: "♊", rarity: "transcend", max: 1, desc: () => "조준 반대편으로도 같은 탄을 동시에 발사" },
+  chrono: { label: "시간 왜곡", icon: "⏳", rarity: "transcend", max: 2, desc: (lv) => `모든 적이 항상 ${Math.round((1 - CHRONO_PACE[lv]) * 100)}% 느려짐` },
+  power: { label: "출력 증폭", icon: "🔋", rarity: "repeat", max: Infinity, desc: () => "공격력 +1" },
+  haste: { label: "가속 장치", icon: "⏩", rarity: "repeat", max: 12, desc: () => `발사 속도 ${Math.round((1 / HASTE_STEP - 1) * 100)}% 증가` },
+  mend: { label: "응급 수리", icon: "🔧", rarity: "repeat", max: Infinity, desc: () => `기지 체력 ${MEND_HP} 즉시 회복` },
+  cache: { label: "코인 상자", image: "coin.webp", rarity: "repeat", max: Infinity, desc: () => `코인 ${CACHE_COINS}개 획득` },
 };

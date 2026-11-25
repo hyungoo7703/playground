@@ -7,7 +7,8 @@
   import { REWARD_LABELS } from "../lib/rewards.js";
   import { createSound } from "../lib/guardian/sound.js";
   import GameExitButton from "../lib/components/GameExitButton.svelte";
-  import { createGame, update, pickUpgrade, useBomb, reroll, dronePosition } from "../lib/guardian/engine.js";
+  import Ranking from "../lib/guardian/Ranking.svelte";
+  import { createGame, update, pickUpgrade, useBomb, useFreeze, reroll, buy, dronePosition } from "../lib/guardian/engine.js";
   import {
     FIELD,
     PLAYER,
@@ -18,14 +19,21 @@
     UPGRADES,
     RARITY,
     UNLOCK_WAVE,
+    TRANSCEND_WAVE,
+    REPEAT_WAVE,
+    ENDLESS,
+    FREEZE,
     DRONE_COUNT,
     VORTEX_RADIUS,
+    STRIKE_RADIUS,
+    STRIKE_DELAY,
   } from "../lib/guardian/config.js";
 
   const IMG = `${base}/images/guardian`;
   const SND = `${base}/sounds`;
 
-  const MUSIC = { normal: "retro-color-moon.mp3", hard: "lesiakower-cyber-day-alarm-clock-418781.mp3" };
+  const HARD_MUSIC = "lesiakower-cyber-day-alarm-clock-418781.mp3";
+  const MUSIC = { normal: "retro-color-moon.mp3", hard: HARD_MUSIC, endless: HARD_MUSIC };
   // name: [file, volume, minimum ms between plays, seconds to play (0 = whole file)].
   // Several files run for seconds, so the rapid ones are cut short to keep them from piling up.
   const SOUNDS = {
@@ -40,6 +48,13 @@
     missileHit: ["bomb-explosion.mp3", 0.25, 150, 0.5],
     laser: ["zap-synth.mp3", 0.45, 0, 0.6],
     vortex: ["warp.mp3", 0.45, 0, 1.2],
+    strikeMark: ["beep-warning.mp3", 0.25, 0, 0.3],
+    well: ["warp.mp3", 0.5, 0, 1.2],
+    decoys: ["warp.mp3", 0.7, 0, 0],
+    seals: ["beep-warning.mp3", 0.6, 0, 0],
+    strike: ["epic-cinematic-explosion.mp3", 0.5, 0, 1],
+    freeze: ["glass-clink.mp3", 0.8, 0, 0],
+    buy: ["drop-coin.mp3", 0.5, 0, 0],
     blink: ["warp.mp3", 0.12, 150, 0.25],
     deflect: ["glass-clink.mp3", 0.2, 160, 0.2],
     coin: ["drop-coin.mp3", 0.3, 90, 0.4],
@@ -67,6 +82,8 @@
     epic: "border-amber-300/80 bg-amber-400/15 shadow-[0_0_22px_rgba(251,191,36,0.45)]",
     mythic: "border-fuchsia-300/80 bg-fuchsia-500/15 shadow-[0_0_24px_rgba(232,121,249,0.5)]",
     evo: "border-emerald-300/80 bg-emerald-400/15 shadow-[0_0_24px_rgba(52,211,153,0.5)]",
+    transcend: "border-rose-300/80 bg-rose-500/15 shadow-[0_0_24px_rgba(251,113,133,0.55)]",
+    repeat: "border-teal-300/60 bg-teal-400/10",
   };
   const RARITY_TEXT = {
     common: "text-gray-300",
@@ -74,6 +91,8 @@
     epic: "text-amber-300",
     mythic: "text-fuchsia-300",
     evo: "text-emerald-300",
+    transcend: "text-rose-300",
+    repeat: "text-teal-300",
   };
 
   // Draw size in field units and the glow colour added around each sprite
@@ -87,14 +106,20 @@
     blinker: { file: "enemy-blinker", size: 46, glow: "#b56bff" },
     artillery: { file: "enemy-artillery", size: 66, glow: "#ff4d4d" },
     bomber: { file: "enemy-bomber", size: 46, glow: "#fff07a" },
+    hive: { file: "enemy-hive", size: 80, glow: "#ff7ad9" },
+    phaser: { file: "enemy-phaser", size: 46, glow: "#c8fff4" },
+    mender: { file: "enemy-mender", size: 52, glow: "#7dffb0" },
     generator: { file: "boss-generator", size: 42, glow: "#7fd8ff" },
     boss: { file: "boss", size: 168, glow: "#27e4ff" },
     midboss: { file: "boss", size: 124, glow: "#ff5ad1" },
     warlord: { file: "boss", size: 152, glow: "#ff9d2e" },
     final: { file: "boss-final", size: 200, glow: "#c58bff" },
+    titan: { file: "boss-titan", size: 196, glow: "#ffd27a" },
+    decoy: { file: "boss-titan", size: 196, glow: "#ffd27a" },
+    seal: { file: "boss-generator", size: 42, glow: "#ff5a7a" },
     turret: { file: "turret", size: 60, glow: "#27e4ff" },
   };
-  const BOSS_NAMES = { midboss: "중간 보스", boss: "보스 전함", warlord: "강화 전함", final: "최종 보스" };
+  const BOSS_NAMES = { midboss: "중간 보스", boss: "보스 전함", warlord: "강화 전함", final: "드레드노트", titan: "보이드 타이탄" };
 
   // What the hard mode briefing shows
   const NEW_ENEMIES = [
@@ -103,9 +128,18 @@
     { file: "enemy-artillery", name: "포격기", text: "화면 위쪽에 멈춰서, 격추될 때까지 기지로 포탄을 쏴요." },
     { file: "enemy-bomber", name: "자폭기", text: "죽을 때 폭발해 주변 적도 휩쓸어요. 통과하면 체력이 3 깎여요." },
   ];
+  const SPECIAL_ENEMIES = [
+    { file: "enemy-hive", name: "모함", text: "크고 느리지만, 격추될 때까지 소형기를 계속 내보내요." },
+    { file: "enemy-phaser", name: "위상기", text: "주기적으로 반투명해지고, 그동안은 어떤 공격도 통과해요." },
+    { file: "enemy-mender", name: "치유기", text: "주변 적의 체력을 계속 회복시켜요. 먼저 잡으세요." },
+  ];
   const lateCards = (rarity) => Object.values(UPGRADES).filter((card) => card.rarity === rarity);
   const HARD_BOSS_WAVES = MODES.hard.waves.flatMap((wave, i) => (typeof wave === "string" ? [i + 1] : [])).join(" · ");
-  const INTRO_KEY = "guardian_hard_intro_seen";
+  // Each briefing is shown once before the first run of its mode
+  const INTRO_KEY = { hard: "guardian_hard_intro_seen", endless: "guardian_endless_intro_seen" };
+  const MODE_NAMES = { normal: "일반", hard: "하드", endless: "무한" };
+  // The furthest endless wave reached on this device, for when the ranking cannot be loaded
+  const bestKey = `guardian_endless_best_${$currentUser}`;
 
   // The key the card pick knows each mode's reward by
   const REWARD_KEY = { normal: "guardian", hard: "guardianHard" };
@@ -127,11 +161,17 @@
   let isMuted = false;
   let isPaused = false;
   let showRules = false;
-  let intro = null; // null | "start" (leads into the first hard run) | "review"
+  let intro = null; // null | { mode, isStart }: isStart leads into the first run of that mode
+  let showRanking = false;
+  let records = null; // null while loading, false when the server cannot say, else best waves per member
+  let localBest = Number(localStorage.getItem(bestKey)) || 0;
 
-  $: lastWave = MODES[mode].waves.length;
-  // Hard mode opens with a normal clear, whether or not its card has been drawn
+  // Endless mode has no last wave
+  $: lastWave = MODES[mode].waves?.length;
+  // Each mode opens with a clear of the one before, whether or not its card has been drawn
   $: isHardOpen = rewards.normal === "claimed" || pending.normal;
+  $: isEndlessOpen = rewards.hard === "claimed" || pending.hard;
+  $: ranking = (records || []).filter((r) => r.wave > 0).sort((a, b) => b.wave - a.wave);
 
   let wrap;
   let canvas;
@@ -247,6 +287,17 @@
       else if (e.type === "missileHit") {
         addEffect(e, 0.3);
         burst(e.x, e.y, "#ffb347", 10, 160);
+      } else if (e.type === "strike") {
+        addEffect(e, 0.45);
+        burst(e.x, e.y, "#ffd27a", 30, 260);
+        shake = Math.max(shake, 9);
+      } else if (e.type === "well") say("중력 왜곡", e.x, e.y - 20, "#8fb8ff");
+      else if (e.type === "decoys") {
+        say("분신!", e.x, e.y + 100, "#ffd27a");
+        flash = 0.35;
+      } else if (e.type === "seals") say("자동 무기 봉인", e.x, e.y + 100, "#ff8a9d");
+      else if (e.type === "freeze") {
+        say("시간 정지", FIELD.w / 2, FIELD.h / 2, "#bfe9ff");
       } else if (e.type === "boom") {
         addEffect(e, 0.35);
         burst(e.x, e.y, "#fff07a", 18, 220);
@@ -292,18 +343,18 @@
       hud.hp !== game.hp ||
       hud.shield !== game.shield ||
       hud.coins !== coins ||
-      hud.bombCost !== game.bombCost;
+      hud.bombCost !== game.bombCost ||
+      hud.freezeCost !== game.freezeCost;
     if (changed) {
-      hud = { ...hud, wave: game.wave + 1, hp: game.hp, shield: game.shield, coins, bombCost: game.bombCost };
+      hud = { ...hud, wave: game.wave + 1, hp: game.hp, shield: game.shield, coins, bombCost: game.bombCost, freezeCost: game.freezeCost };
     }
-    if (game.phase === "upgrade" && hud.choices !== game.choices) {
-      hud = { ...hud, choices: game.choices, levels: { ...game.levels }, rerollCost: game.rerollCost, rich: game.richDraft };
-    }
+    if (game.phase === "upgrade" && hud.choices !== game.choices) syncPick();
     if (game.phase === screen || finale) return;
     if (game.phase === "over" || game.phase === "clear") {
       sound.stopMusic();
       input.firing = false;
     }
+    if (game.phase === "over" && mode === "endless") saveRecord(game.wave + 1);
     if (game.phase === "clear") {
       play("victory");
       localStorage.setItem(pendingKey[mode], "1");
@@ -311,6 +362,22 @@
       checkReward();
     }
     screen = game.phase;
+  }
+
+  // What the card pick screen shows: the hand, the levels, and the prices
+  function syncPick() {
+    hud = {
+      ...hud,
+      hp: game.hp,
+      shield: game.shield,
+      coins: Math.floor(game.coins),
+      choices: game.choices,
+      levels: { ...game.levels },
+      rerollCost: game.rerollCost,
+      rich: game.richDraft,
+      shop: game.shop && { ...game.shop },
+      hasExtraPick: game.hasExtraPick,
+    };
   }
 
   // The wreck keeps blowing up for a moment before the clear screen comes in
@@ -422,17 +489,36 @@
       ctx.stroke();
       ctx.setLineDash([]);
     }
+    if (def.heal) {
+      circle(e.x, e.y, def.heal);
+      ctx.fillStyle = "rgba(125,255,176,0.06)";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(125,255,176,0.5)";
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([3, 6]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
     let turn = 0;
     if (e.type === "dart") turn = Math.cos(e.swayPhase + game.time * def.swayRate) * -0.3;
-    if (e.type === "generator") {
+    if (def.orbitX) {
       turn = game.time * 2;
       if (boss) {
-        ctx.strokeStyle = "rgba(127,216,255,0.6)";
+        ctx.strokeStyle = e.type === "seal" ? "rgba(255,90,122,0.6)" : "rgba(127,216,255,0.6)";
         ctx.lineWidth = 2;
         line(e.x, e.y, boss.x, boss.y);
       }
     }
+    if (e.ghost) ctx.globalAlpha = 0.28;
+    // The only tell of a copy: it shimmers a little
+    if (e.type === "decoy") ctx.globalAlpha = 0.82 + 0.1 * Math.sin(game.time * 9 + e.swayPhase);
     stamp(e.type, e.x, e.y, turn, e.elite ? ELITE.size : 1);
+    ctx.globalAlpha = 1;
+    if (e.mended) {
+      ctx.fillStyle = "#7dffb0";
+      ctx.fillRect(e.x - 5, e.y - e.radius - 16, 10, 2.5);
+      ctx.fillRect(e.x - 1.25, e.y - e.radius - 19.75, 2.5, 10);
+    }
     if (e.elite) {
       ctx.strokeStyle = "#ff4d6d";
       ctx.lineWidth = 2.5;
@@ -454,7 +540,7 @@
       circle(e.x, e.y, e.radius + 4);
       ctx.stroke();
     }
-    if (e.hp < e.maxHp && e.maxHp > 4) {
+    if (e.hp < e.maxHp && e.maxHp > 4 && e.type !== "decoy") {
       const w = e.radius * 1.6;
       ctx.fillStyle = "rgba(0,0,0,0.6)";
       ctx.fillRect(e.x - w / 2, e.y - e.radius - 9, w, 3);
@@ -470,6 +556,16 @@
       ctx.strokeStyle = fx.type === "blast" ? "#ffb347" : "#ff7a3d";
       ctx.lineWidth = fx.type === "blast" ? 3 : 5;
       circle(fx.x, fx.y, fx.radius * (1 - t * 0.6));
+      ctx.stroke();
+    } else if (fx.type === "strike") {
+      // A column of light coming down on the marked spot
+      ctx.fillStyle = "rgba(255,210,122,0.5)";
+      ctx.fillRect(fx.x - 16 * t, 0, 32 * t, fx.y);
+      ctx.fillStyle = "rgba(255,255,255,0.55)";
+      circle(fx.x, fx.y, fx.radius * (1 - t * 0.4));
+      ctx.fill();
+      ctx.strokeStyle = "#ffd27a";
+      ctx.lineWidth = 5;
       ctx.stroke();
     } else if (fx.type === "boom") {
       ctx.fillStyle = "rgba(255,240,122,0.35)";
@@ -517,7 +613,7 @@
     ctx.textAlign = "left";
     ctx.font = "800 10px system-ui, sans-serif";
     ctx.fillStyle = "#ffd6dd";
-    ctx.fillText(BOSS_NAMES[boss.type], 30, 58);
+    ctx.fillText(BOSS_NAMES[boss.type] + (boss.visit > 1 ? ` Mk.${boss.visit}` : ""), 30, 58);
     ctx.fillStyle = "rgba(0,0,0,0.6)";
     ctx.fillRect(30, 62, FIELD.w - 60, 7);
     ctx.fillStyle = boss.shielded ? "#7fd8ff" : "#ff3355";
@@ -533,6 +629,8 @@
       hint = "코어를 집중 공격해 충전을 끊으세요!";
     } else if (boss.stun > 0) hint = "충전 차단! 지금이 기회";
     else if (boss.shielded) hint = "발전기를 먼저 부수세요";
+    else if (game.isSealed) hint = "봉인 수정을 부수면 자동 무기가 돌아옵니다";
+    else if (game.enemies.some((e) => e.type === "decoy")) hint = "진짜는 하나! 체력 바가 줄어드는 쪽입니다";
     if (hint) {
       ctx.textAlign = "center";
       ctx.font = "800 12px system-ui, sans-serif";
@@ -598,7 +696,43 @@
       }
       ctx.globalAlpha = 1;
 
+      for (const well of game.wells) {
+        const { radius } = BOSSES.titan.well;
+        ctx.globalAlpha = Math.min(1, (well.until - game.time) * 2);
+        ctx.fillStyle = "rgba(20,40,110,0.3)";
+        circle(well.x, well.y, radius);
+        ctx.fill();
+        ctx.strokeStyle = "#8fb8ff";
+        ctx.lineWidth = 1.5;
+        // Rings falling into the centre
+        for (let i = 0; i < 3; i++) {
+          circle(well.x, well.y, radius * (1 - ((game.time * 0.6 + i / 3) % 1)));
+          ctx.stroke();
+        }
+        ctx.fillStyle = "#0a1030";
+        circle(well.x, well.y, 12);
+        ctx.fill();
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+
       for (const e of game.enemies) drawEnemy(e, boss);
+
+      for (const s of game.strikes) {
+        const closing = s.left / STRIKE_DELAY;
+        ctx.strokeStyle = "#ffd27a";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([8, 6]);
+        circle(s.x, s.y, STRIKE_RADIUS);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        circle(s.x, s.y, STRIKE_RADIUS * closing);
+        ctx.stroke();
+      }
+      if (game.frozenUntil > game.time) {
+        ctx.fillStyle = "rgba(150,215,255,0.14)";
+        ctx.fillRect(0, 0, FIELD.w, FIELD.baseY);
+      }
 
       ctx.lineCap = "round";
       for (const b of game.bullets) {
@@ -643,22 +777,25 @@
 
     // Turret: the sprite is the round base, the barrel is drawn so the aim is visible
     if (stamps.turret) stamp("turret", FIELD.turretX, FIELD.turretY);
-    ctx.save();
-    ctx.translate(FIELD.turretX, FIELD.turretY);
-    ctx.rotate(game ? game.aim : input.aim);
-    ctx.fillStyle = "#0b1730";
-    ctx.strokeStyle = "#27e4ff";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.rect(-5, -34, 10, 28);
-    ctx.fill();
-    ctx.stroke();
-    if (muzzle > 0) {
-      ctx.fillStyle = "#eaffff";
-      circle(0, -38, 7);
+    const aim = game ? game.aim : input.aim;
+    for (const angle of game?.levels.twin ? [aim, -aim] : [aim]) {
+      ctx.save();
+      ctx.translate(FIELD.turretX, FIELD.turretY);
+      ctx.rotate(angle);
+      ctx.fillStyle = "#0b1730";
+      ctx.strokeStyle = "#27e4ff";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.rect(-5, -34, 10, 28);
       ctx.fill();
+      ctx.stroke();
+      if (muzzle > 0) {
+        ctx.fillStyle = "#eaffff";
+        circle(0, -38, 7);
+        ctx.fill();
+      }
+      ctx.restore();
     }
-    ctx.restore();
 
     if (game?.levels.drones) {
       for (let i = 0; i < DRONE_COUNT[game.levels.drones - 1]; i++) {
@@ -741,17 +878,17 @@
     sound.playMusic(MUSIC[mode]);
   }
 
-  // The first hard run starts from the briefing
-  function startHard() {
-    if (localStorage.getItem(INTRO_KEY)) startGame("hard");
-    else intro = "start";
+  // The first run of a mode with a briefing starts from it
+  function startWithIntro(nextMode) {
+    if (localStorage.getItem(INTRO_KEY[nextMode])) startGame(nextMode);
+    else intro = { mode: nextMode, isStart: true };
   }
 
   function closeIntro() {
-    localStorage.setItem(INTRO_KEY, "1");
-    const shouldStart = intro === "start";
+    localStorage.setItem(INTRO_KEY[intro.mode], "1");
+    const { mode: nextMode, isStart } = intro;
     intro = null;
-    if (shouldStart) startGame("hard");
+    if (isStart) startGame(nextMode);
   }
 
   function setPaused(value) {
@@ -784,6 +921,32 @@
   function bomb() {
     handle(useBomb(game));
     syncHud();
+  }
+
+  function freeze() {
+    handle(useFreeze(game));
+    syncHud();
+  }
+
+  function buyItem(item) {
+    if (!buy(game, item)) return;
+    play("buy");
+    syncPick();
+  }
+
+  // The server keeps each member's furthest wave; an old backend does not know the action
+  async function loadRecords() {
+    const res = await api.getGuardianRecords();
+    records = res.success ? res.records : false;
+  }
+
+  async function saveRecord(wave) {
+    if (wave > localBest) {
+      localBest = wave;
+      localStorage.setItem(bestKey, String(wave));
+    }
+    await api.saveGuardianRecord(wave);
+    loadRecords();
   }
 
   function toggleMute() {
@@ -831,6 +994,7 @@
     ctx = canvas.getContext("2d");
     sound = createSound(SND, [...new Set(Object.values(SOUNDS).map(([file]) => file))]);
     checkReward();
+    loadRecords();
 
     try {
       const files = [...new Set(Object.values(SPRITES).map((s) => s.file)), "background"];
@@ -875,8 +1039,8 @@
     </div>
     {#if screen === "playing" || screen === "upgrade"}
       <div class="flex-1 min-w-0">
-        <p class="text-[11px] font-black tracking-widest {mode === 'hard' ? 'text-rose-300' : 'text-cyan-300'}">
-          {mode === "hard" ? "HARD " : ""}WAVE {hud.wave} / {lastWave}
+        <p class="text-[11px] font-black tracking-widest {mode === 'normal' ? 'text-cyan-300' : 'text-rose-300'}">
+          {mode === "normal" ? "" : `${mode.toUpperCase()} `}WAVE {hud.wave}{lastWave ? ` / ${lastWave}` : ""}
         </p>
         <div class="flex items-center gap-1 mt-1" aria-label="기지 체력 {hud.hp}">
           {#each Array(PLAYER.hp) as _, i}
@@ -931,6 +1095,22 @@
         {hud.bombCost}
       </span>
     </button>
+    {#if mode === "endless"}
+      <button
+        type="button"
+        on:pointerdown|stopPropagation
+        on:click={freeze}
+        disabled={hud.coins < hud.freezeCost}
+        aria-label="시간 정지 사용, 코인 {hud.freezeCost}개"
+        class="absolute left-[76px] bottom-[max(env(safe-area-inset-bottom),12px)] flex flex-col items-center active:scale-90 transition-all disabled:opacity-35"
+      >
+        <img src="{IMG}/skill-freeze.webp" alt="" class="w-14 h-14" />
+        <span class="flex items-center gap-0.5 text-[11px] font-black text-amber-300 -mt-1">
+          <img src="{IMG}/coin.webp" alt="" class="w-3.5 h-3.5" />
+          {hud.freezeCost}
+        </span>
+      </button>
+    {/if}
   {/if}
 
   {#if screen === "playing" && isPaused}
@@ -940,7 +1120,7 @@
     >
       <div class="w-full max-w-xs text-center">
         <h2 class="text-3xl font-black text-cyan-200">일시정지</h2>
-        <p class="mt-2 text-sm text-gray-300">{lastWave}웨이브 중 {hud.wave}웨이브 진행 중</p>
+        <p class="mt-2 text-sm text-gray-300">{lastWave ? `${lastWave}웨이브 중 ` : ""}{hud.wave}웨이브 진행 중</p>
         <button
           type="button"
           on:click={() => setPaused(false)}
@@ -1012,7 +1192,7 @@
           {#if isHardOpen}
             <button
               type="button"
-              on:click={startHard}
+              on:click={() => startWithIntro("hard")}
               class="w-full py-4 rounded-2xl font-black text-lg text-white bg-gradient-to-r from-rose-600 to-fuchsia-600 active:scale-95 transition-all shadow-[0_0_24px_rgba(244,63,94,0.6)]"
             >
               🔥 하드 모드 <span class="text-sm font-bold opacity-80">· {MODES.hard.waves.length}웨이브</span>
@@ -1022,13 +1202,34 @@
               🔒 하드 모드는 일반 모드를 클리어하면 열려요
             </p>
           {/if}
-          <button
-            type="button"
-            on:click={() => (showRules = true)}
-            class="w-full py-2 text-sm font-bold text-gray-300 active:scale-95 transition-all"
-          >
-            게임 방법
-          </button>
+          {#if isEndlessOpen}
+            <button
+              type="button"
+              on:click={() => startWithIntro("endless")}
+              class="w-full py-4 rounded-2xl font-black text-lg text-white bg-gradient-to-r from-violet-600 to-indigo-600 active:scale-95 transition-all shadow-[0_0_24px_rgba(139,92,246,0.6)]"
+            >
+              ♾️ 무한 모드
+              {#if localBest}<span class="text-sm font-bold opacity-80">· 최고 {localBest}웨이브</span>{/if}
+            </button>
+          {/if}
+          <div class="flex">
+            <button
+              type="button"
+              on:click={() => (showRules = true)}
+              class="flex-1 py-2 text-sm font-bold text-gray-300 active:scale-95 transition-all"
+            >
+              게임 방법
+            </button>
+            {#if isEndlessOpen}
+              <button
+                type="button"
+                on:click={() => (showRanking = true)}
+                class="flex-1 py-2 text-sm font-bold text-amber-200 active:scale-95 transition-all"
+              >
+                🏆 무한 모드 랭킹
+              </button>
+            {/if}
+          </div>
         </div>
       </div>
 
@@ -1048,11 +1249,23 @@
                 type="button"
                 on:click={() => {
                   showRules = false;
-                  intro = "review";
+                  intro = { mode: "hard", isStart: false };
                 }}
                 class="mt-3 w-full py-3 rounded-2xl font-bold text-rose-200 bg-rose-500/15 border border-rose-300/40 active:scale-95 transition-all"
               >
                 🔥 하드 모드 안내 보기
+              </button>
+            {/if}
+            {#if isEndlessOpen}
+              <button
+                type="button"
+                on:click={() => {
+                  showRules = false;
+                  intro = { mode: "endless", isStart: false };
+                }}
+                class="mt-3 w-full py-3 rounded-2xl font-bold text-violet-200 bg-violet-500/15 border border-violet-300/40 active:scale-95 transition-all"
+              >
+                ♾️ 무한 모드 안내 보기
               </button>
             {/if}
             <button
@@ -1066,8 +1279,111 @@
         </div>
       {/if}
 
-      <!-- Hard mode briefing: shown before the first hard run, later from the rules sheet -->
-      {#if intro}
+      {#if showRanking}
+        <div class="absolute inset-0 flex items-center justify-center p-5 bg-black/85">
+          <div class="w-full max-w-xs">
+            <h2 class="text-xl font-black text-amber-200 text-center">🏆 무한 모드 랭킹</h2>
+            <div class="mt-4"><Ranking {ranking} {records} {localBest} me={$currentUser} /></div>
+            <button
+              type="button"
+              on:click={() => (showRanking = false)}
+              class="mt-4 w-full py-3 rounded-2xl font-bold bg-white/10 border border-white/20 active:scale-95 transition-all"
+            >
+              닫기
+            </button>
+          </div>
+        </div>
+      {/if}
+
+      <!-- Mode briefing: shown before the first run of the mode, later from the rules sheet -->
+      {#if intro?.mode === "endless"}
+        <div class="absolute inset-0 flex flex-col bg-[#070812]">
+          <div class="mt-14 flex-1 overflow-y-auto touch-pan-y px-5 pt-2 pb-4">
+            <p class="text-[11px] font-black tracking-[0.4em] text-violet-300 text-center">ENDLESS MODE</p>
+            <h2 class="mt-1 text-3xl font-black text-center text-white">무한 모드 안내</h2>
+
+            <h3 class="mt-6 text-sm font-black text-cyan-300">규칙</h3>
+            <ul class="mt-2 space-y-1.5 text-sm text-gray-200 bg-white/5 border border-white/10 rounded-2xl p-4">
+              <li>♾️ 끝이 없어요. 얼마나 멀리 가는지가 기록이에요</li>
+              <li>👾 {ENDLESS.bossEvery}웨이브마다 보스, 뒤로 갈수록 더 강해져서 돌아와요</li>
+              <li>🔧 보스를 잡으면 기지 체력 {MODES.endless.repair} 회복</li>
+              <li>🏆 최고 기록은 가족 랭킹에 올라가요</li>
+            </ul>
+
+            <h3 class="mt-6 text-sm font-black text-amber-300">코인 쓸 곳</h3>
+            <ul class="mt-2 space-y-1.5 text-sm text-gray-200 bg-white/5 border border-white/10 rounded-2xl p-4">
+              <li>🛒 웨이브 사이 상점: 기지 수리, 보호막, 카드 한 장 더 고르기</li>
+              <li>⏱️ 시간 정지: 화면의 적이 {FREEZE.seconds}초 동안 멈춰요 (폭탄 옆 버튼)</li>
+              <li>💣 폭탄과 카드 바꾸기는 그대로</li>
+            </ul>
+
+            <h3 class="mt-6 text-sm font-black text-teal-300">반복 카드 · {REPEAT_WAVE}웨이브를 넘기면 등장</h3>
+            <ul class="mt-2 space-y-2">
+              {#each lateCards("repeat") as card}
+                <li class="flex items-center gap-3 p-3 rounded-2xl border {RARITY_STYLE.repeat}">
+                  {#if card.image}
+                    <img src="{IMG}/{card.image}" alt="" class="w-9 h-9 shrink-0" />
+                  {:else}
+                    <span class="text-3xl w-10 text-center shrink-0">{card.icon}</span>
+                  {/if}
+                  <span class="min-w-0">
+                    <span class="block font-black">{card.label}</span>
+                    <span class="block text-xs text-gray-200">{card.desc(0)} · 계속 다시 나와요</span>
+                  </span>
+                </li>
+              {/each}
+            </ul>
+
+            <h3 class="mt-6 text-sm font-black text-cyan-300">특수 적 · {TRANSCEND_WAVE}웨이브부터</h3>
+            <ul class="mt-2 space-y-2">
+              {#each SPECIAL_ENEMIES as enemy}
+                <li class="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/10">
+                  <img src="{IMG}/{enemy.file}.webp" alt="" class="w-14 h-14 shrink-0" />
+                  <span class="min-w-0">
+                    <span class="block font-black">{enemy.name}</span>
+                    <span class="block text-xs text-gray-300">{enemy.text}</span>
+                  </span>
+                </li>
+              {/each}
+            </ul>
+
+            <h3 class="mt-6 text-sm font-black text-amber-300">{TRANSCEND_WAVE}웨이브 보스 · 보이드 타이탄</h3>
+            <div class="mt-2 flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/10">
+              <img src="{IMG}/boss-titan.webp" alt="" class="w-16 h-16 shrink-0" />
+              <ul class="min-w-0 space-y-1 text-xs text-gray-300">
+                <li><strong class="text-white">중력 왜곡</strong> · 중력장 근처를 지나는 내 탄이 휘어요</li>
+                <li><strong class="text-white">분신</strong> · 셋으로 갈라지고 진짜는 하나뿐이에요</li>
+                <li><strong class="text-white">무기 봉인</strong> · 수정을 부술 때까지 자동 무기가 꺼져요</li>
+              </ul>
+            </div>
+
+            <h3 class="mt-6 text-sm font-black text-rose-300">초월 무기 · {TRANSCEND_WAVE}웨이브를 넘기면 등장</h3>
+            <ul class="mt-2 space-y-2">
+              {#each lateCards("transcend") as card}
+                <li class="flex items-center gap-3 p-3 rounded-2xl border {RARITY_STYLE.transcend}">
+                  <span class="text-3xl w-10 text-center shrink-0">{card.icon}</span>
+                  <span class="min-w-0">
+                    <span class="block font-black">{card.label}</span>
+                    <span class="block text-xs text-gray-200">{card.desc(0)}</span>
+                  </span>
+                </li>
+              {/each}
+            </ul>
+          </div>
+          <div class="px-5 pt-3 pb-[max(env(safe-area-inset-bottom),16px)] bg-black/60">
+            <button
+              type="button"
+              on:click={closeIntro}
+              class="w-full max-w-xs mx-auto block py-4 rounded-2xl font-black text-lg text-white bg-gradient-to-r from-violet-600 to-indigo-600 active:scale-95 transition-all"
+            >
+              {intro.isStart ? "출격" : "닫기"}
+            </button>
+            {#if intro.isStart}
+              <p class="mt-2 text-[11px] text-gray-400 text-center">이 안내는 게임 방법에서 다시 볼 수 있어요.</p>
+            {/if}
+          </div>
+        </div>
+      {:else if intro}
         <div class="absolute inset-0 flex flex-col bg-[#070812]">
           <div class="mt-14 flex-1 overflow-y-auto touch-pan-y px-5 pt-2 pb-4">
             <p class="text-[11px] font-black tracking-[0.4em] text-rose-300 text-center">HARD MODE</p>
@@ -1111,7 +1427,7 @@
                 <span class="min-w-0">
                   <span class="block font-black">주포 충전</span>
                   <span class="block text-xs text-gray-300">
-                    최종 보스가 멈춰서 주포를 충전해요. 그동안 코어에 화력을 모아 게이지를 채우면 충전이 끊기고
+                    마지막 보스 드레드노트가 멈춰서 주포를 충전해요. 그동안 코어에 화력을 모아 게이지를 채우면 충전이 끊기고
                     보스가 잠시 무방비가 돼요. 못 끊으면 기지 체력이 {BOSSES.final.charge.damage} 깎여요.
                   </span>
                 </span>
@@ -1151,9 +1467,9 @@
               on:click={closeIntro}
               class="w-full max-w-xs mx-auto block py-4 rounded-2xl font-black text-lg text-white bg-gradient-to-r from-rose-600 to-fuchsia-600 active:scale-95 transition-all"
             >
-              {intro === "start" ? "출격" : "닫기"}
+              {intro.isStart ? "출격" : "닫기"}
             </button>
-            {#if intro === "start"}
+            {#if intro.isStart}
               <p class="mt-2 text-[11px] text-gray-400 text-center">이 안내는 게임 방법에서 다시 볼 수 있어요.</p>
             {/if}
           </div>
@@ -1200,11 +1516,15 @@
                   <span class="block font-black">{card.label}</span>
                   <span class="block text-xs text-gray-200">{card.desc(hud.levels[key])}</span>
                 </span>
-                <span class="flex gap-0.5" aria-label="현재 {hud.levels[key]}단계, 최대 {card.max}단계">
-                  {#each Array(card.max) as _, i}
-                    <span class="w-1.5 h-4 rounded-sm {i < hud.levels[key] ? 'bg-cyan-300' : 'bg-white/20'}"></span>
-                  {/each}
-                </span>
+                {#if card.max > 12}
+                  {#if hud.levels[key]}<span class="text-xs font-black text-teal-200">×{hud.levels[key]}</span>{/if}
+                {:else}
+                  <span class="flex gap-0.5" aria-label="현재 {hud.levels[key]}단계, 최대 {card.max}단계">
+                    {#each Array(card.max) as _, i}
+                      <span class="{card.max > 6 ? 'w-1' : 'w-1.5'} h-4 rounded-sm {i < hud.levels[key] ? 'bg-cyan-300' : 'bg-white/20'}"></span>
+                    {/each}
+                  </span>
+                {/if}
               </button>
             {/each}
           </div>
@@ -1219,11 +1539,45 @@
             <span class="text-amber-300">{hud.rerollCost}</span>
             <span class="text-gray-400 font-medium">(보유 {hud.coins})</span>
           </button>
+          {#if hud.shop}
+            <!-- Endless mode's shop: prices go up with every purchase -->
+            <div class="mt-2 grid grid-cols-3 gap-2">
+              {#each [["repair", "🔧", "수리 +1"], ["shield", "🛡️", "보호막 +1"], ["extra", "🃏", "한 장 더"]] as [item, icon, label]}
+                <button
+                  type="button"
+                  on:click={() => buyItem(item)}
+                  disabled={hud.coins < hud.shop[item] ||
+                    (item === "repair" && hud.hp >= PLAYER.hp) ||
+                    (item === "extra" && (hud.hasExtraPick || hud.choices.length < 2))}
+                  class="py-2 rounded-xl text-xs font-bold bg-white/10 border border-white/20 active:scale-95 transition-all disabled:opacity-40"
+                >
+                  <span class="block">{icon} {label}</span>
+                  <span class="flex items-center justify-center gap-0.5 text-amber-300">
+                    <img src="{IMG}/coin.webp" alt="코인" class="w-3.5 h-3.5" />
+                    {hud.shop[item]}
+                  </span>
+                </button>
+              {/each}
+            </div>
+            {#if hud.hasExtraPick}
+              <p class="mt-2 text-xs font-bold text-teal-200">이번에는 카드를 두 장 고릅니다.</p>
+            {/if}
+          {/if}
         {:else if screen === "over"}
           <h2 class="text-4xl font-black text-rose-400">GAME OVER</h2>
-          <p class="mt-3 text-gray-300">
-            {lastWave}웨이브 중 <strong class="text-white">{hud.wave}웨이브</strong>에서 기지가 무너졌습니다.
-          </p>
+          {#if mode === "endless"}
+            <p class="mt-3 text-gray-300">
+              <strong class="text-2xl text-white">{hud.wave}웨이브</strong>까지 버텼습니다.
+            </p>
+            <p class="mt-1 text-sm font-bold text-amber-200">
+              {hud.wave >= localBest ? "🎉 내 최고 기록!" : `내 최고 기록 ${localBest}웨이브`}
+            </p>
+            <div class="mt-4"><Ranking {ranking} {records} {localBest} me={$currentUser} /></div>
+          {:else}
+            <p class="mt-3 text-gray-300">
+              {lastWave}웨이브 중 <strong class="text-white">{hud.wave}웨이브</strong>에서 기지가 무너졌습니다.
+            </p>
+          {/if}
           <button
             type="button"
             on:click={() => startGame()}
