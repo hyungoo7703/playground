@@ -73,8 +73,9 @@
     }
   }
 
-  function handlePopState(e) {
-    if (isOpen) {
+  function handlePopState() {
+    // Still on this modal's own entry: the back press closed a dialog opened on top of it
+    if (isOpen && history.state?.modal !== "familyButler") {
       historyPushed = false;
       onClose();
     }

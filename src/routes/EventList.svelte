@@ -2,13 +2,19 @@
   import { onMount } from "svelte";
   import { api } from "../lib/api.js";
   import { toast, confirmDialog } from "../lib/feedback.js";
-  import { formatDate } from "../lib/utils.js";
+  import { formatDate, onResume } from "../lib/utils.js";
   import { isAdmin } from "../lib/store.js";
   import { readCache, writeCache } from "../lib/cache.js";
+  import LoadError from "../lib/components/LoadError.svelte";
   import Spinner from "../lib/components/Spinner.svelte";
   import Modal from "../lib/components/Modal.svelte";
 
-  let events = readCache("events") || [];
+  // The saved copy may come from the home page, which keeps the server's order
+  const byDate = (a, b) => a.date.localeCompare(b.date);
+  let events = (readCache("events") || []).sort(byDate);
+  // Loading failed and there is no saved copy to show instead
+  let hasFailed = false;
+  let showPast = false;
   let isLoading = events.length === 0;
 
   // Selected Category Filter
@@ -66,7 +72,7 @@
   async function fetchEvents() {
     const cached = readCache("events");
     if (cached) {
-      events = cached;
+      events = cached.sort(byDate);
       isLoading = false;
     } else {
       isLoading = true;
@@ -75,11 +81,12 @@
     const res = await api.getEvents();
     todayStr = formatDate(new Date());
     if (res.success) {
-      events = res.events.sort((a, b) => a.date.localeCompare(b.date));
+      events = res.events.sort(byDate);
       writeCache("events", events);
     } else if (!cached) {
       toast("일정을 불러오지 못했습니다.", "error");
     }
+    hasFailed = !res.success && !cached;
     isLoading = false;
   }
 
@@ -307,12 +314,18 @@
   onMount(() => {
     fetchEvents();
     loadDDay();
+    return onResume(fetchEvents);
   });
 
   $: filteredEvents =
     selectedCategory === "전체"
       ? events
       : events.filter((e) => e.category === selectedCategory);
+  // Today and later come first, nearest first; what is over waits behind a button,
+  // most recent first, so a year of history never pushes today off the screen
+  $: comingEvents = filteredEvents.filter((e) => e.date >= todayStr);
+  $: pastEvents = filteredEvents.filter((e) => e.date < todayStr).reverse();
+  $: shownEvents = showPast ? [...comingEvents, ...pastEvents] : comingEvents;
 
 </script>
 
@@ -399,7 +412,7 @@
     <button
       type="button"
       on:click={() => (selectedCategory = "전체")}
-      class="px-3.5 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all {selectedCategory ===
+      class="px-3.5 py-3 rounded-2xl text-xs font-bold whitespace-nowrap transition-all {selectedCategory ===
       '전체'
         ? 'bg-rose-500 text-white shadow-sm'
         : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 border border-gray-100 dark:border-gray-700'}"
@@ -410,7 +423,7 @@
       <button
         type="button"
         on:click={() => (selectedCategory = cat)}
-        class="px-3.5 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all {selectedCategory ===
+        class="px-3.5 py-3 rounded-2xl text-xs font-bold whitespace-nowrap transition-all {selectedCategory ===
         cat
           ? 'bg-rose-500 text-white shadow-sm'
           : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 border border-gray-100 dark:border-gray-700'}"
@@ -426,6 +439,8 @@
       <div class="py-16 text-center">
         <Spinner label="가족 일정을 불러오는 중..." />
       </div>
+    {:else if hasFailed}
+      <LoadError message="일정을 불러오지 못했습니다." on:retry={fetchEvents} />
     {:else if filteredEvents.length === 0}
       <div class="bg-white dark:bg-gray-800 rounded-3xl p-10 text-center shadow-sm border border-gray-100 dark:border-gray-700 text-gray-500 dark:text-gray-400">
         <span class="text-4xl block mb-2">☕</span>
@@ -433,7 +448,10 @@
         <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">다가오는 생일이나 외식 일정을 등록해보세요!</p>
       </div>
     {:else}
-      {#each filteredEvents as event (event.id)}
+      {#if comingEvents.length === 0}
+        <p class="py-6 text-center text-sm font-bold text-gray-500 dark:text-gray-400">다가오는 일정이 없습니다.</p>
+      {/if}
+      {#each shownEvents as event (event.id)}
         {@const dDayInfo = getDDayLabel(event.date)}
         {@const dateInfo = formatDisplayDate(event.date)}
         {@const isDDayPinned = currentDDayId === event.id}
@@ -465,12 +483,13 @@
 
           <!-- Content Details -->
           <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-1.5 mb-1">
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+            <!-- Next to three admin buttons the two badges do not fit on one line: they wrap whole -->
+            <div class="flex flex-wrap items-center gap-1 mb-1">
+              <span class="whitespace-nowrap text-[10px] font-bold px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
                 {CATEGORY_EMOJIS[event.category] || "📅"} {event.category}
               </span>
               <span
-                class="text-[10px] font-black px-2 py-0.5 rounded-full {dDayInfo.isToday
+                class="whitespace-nowrap text-[10px] font-black px-2 py-0.5 rounded-full {dDayInfo.isToday
                   ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/60 dark:text-rose-200 animate-pulse'
                   : dDayInfo.isFuture
                     ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
@@ -497,7 +516,7 @@
             <button
               type="button"
               on:click={() => toggleDDay(event)}
-              class="w-9 h-9 flex items-center justify-center rounded-xl text-sm transition-all active:scale-90 {isDDayPinned
+              class="w-10 h-10 flex items-center justify-center rounded-xl text-sm transition-all active:scale-90 {isDDayPinned
                 ? 'bg-rose-500 text-white shadow-sm'
                 : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-400 hover:text-rose-500'}"
               title={isDDayPinned ? "홈 D-Day 해제" : "홈 D-Day로 설정"}
@@ -511,7 +530,7 @@
               <button
                 type="button"
                 on:click={() => openEditModal(event)}
-                class="w-9 h-9 flex items-center justify-center bg-gray-100 hover:bg-indigo-50 dark:bg-gray-700 dark:hover:bg-indigo-950 text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-600 rounded-xl text-xs font-bold transition-all"
+                class="w-10 h-10 flex items-center justify-center bg-gray-100 hover:bg-indigo-50 dark:bg-gray-700 dark:hover:bg-indigo-950 text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-600 rounded-xl text-xs font-bold transition-all"
                 title="수정"
                 aria-label="일정 수정"
               >
@@ -521,7 +540,7 @@
                 type="button"
                 disabled={deletingId === event.id}
                 on:click={() => handleDelete(event.id)}
-                class="w-9 h-9 bg-gray-100 hover:bg-rose-50 dark:bg-gray-700 dark:hover:bg-rose-950 text-gray-500 dark:text-gray-400 hover:text-rose-500 dark:hover:text-rose-500 disabled:opacity-40 rounded-xl text-xs font-bold transition-all flex items-center justify-center"
+                class="w-10 h-10 bg-gray-100 hover:bg-rose-50 dark:bg-gray-700 dark:hover:bg-rose-950 text-gray-500 dark:text-gray-400 hover:text-rose-500 dark:hover:text-rose-500 disabled:opacity-40 rounded-xl text-xs font-bold transition-all flex items-center justify-center"
                 title="삭제"
                 aria-label="일정 삭제"
               >
@@ -538,6 +557,16 @@
           </div>
         </div>
       {/each}
+      {#if pastEvents.length > 0}
+        <button
+          type="button"
+          on:click={() => (showPast = !showPast)}
+          aria-expanded={showPast}
+          class="w-full py-3.5 rounded-2xl text-xs font-bold text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 active:scale-[0.98] transition-all"
+        >
+          {showPast ? "지난 일정 접기 ▲" : `지난 일정 ${pastEvents.length}개 보기 ▼`}
+        </button>
+      {/if}
     {/if}
   </div>
 

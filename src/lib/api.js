@@ -15,6 +15,36 @@ function generateAppToken() {
     return hash.toString(16);
 }
 
+// A sheet cell comes back as whatever type the sheet made of it: a title of "1225" is a
+// number, a settled flag may be the word "FALSE", an amount may be text with commas.
+// The pages call string methods on titles and add amounts up, so the shapes are fixed
+// here, once, for all of them.
+const text = (v) => (v == null ? "" : String(v));
+const toAmount = (v) => (typeof v === "number" ? v : Number(String(v).replace(/[^\d.-]/g, "")) || 0);
+const isTrue = (v) => v === true || String(v).toUpperCase() === "TRUE";
+const withText = (item, keys) => ({ ...item, ...Object.fromEntries(keys.map((k) => [k, text(item[k])])) });
+
+const SHAPES = {
+    ledger: (item) => ({
+        ...withText(item, ["type", "title", "giver", "receiver"]),
+        amount: toAmount(item.amount),
+        is_settled: isTrue(item.is_settled),
+    }),
+    events: (item) => withText(item, ["title", "category"]),
+    attendance: (item) => withText(item, ["user_name", "message"]),
+    posts: (item) => withText(item, ["author", "category", "title", "content", "image_url"]),
+    comments: (item) => withText(item, ["author", "content"]),
+    stocks: (item) => withText(item, ["stock_name", "owner", "currency", "memo"]),
+};
+
+function normalize(result) {
+    if (!result?.success) return result;
+    for (const [key, shape] of Object.entries(SHAPES)) {
+        if (Array.isArray(result[key])) result[key] = result[key].map(shape);
+    }
+    return result;
+}
+
 async function fetchFromGAS(action, payload = {}) {
     try {
         const response = await fetch(GAS_URL, {
@@ -30,8 +60,7 @@ async function fetchFromGAS(action, payload = {}) {
                 ...payload
             }),
         });
-        const result = await response.json();
-        return result;
+        return normalize(await response.json());
     } catch (error) {
         console.error(`API Error (${action}):`, error);
         return { success: false, message: error.message };

@@ -28,3 +28,20 @@ export function parseDate(str) {
 export function kstNow() {
     return new Date(Date.now() + (new Date().getTimezoneOffset() + 540) * 60000);
 }
+
+/**
+ * Call `callback` when the app comes back to the front after being hidden for at least
+ * `minAwayMs`: a page left open would otherwise keep showing what it loaded hours ago.
+ * @param {() => void} callback
+ * @param {number} [minAwayMs]
+ * @returns {() => void} stops listening; hand it back from onMount
+ */
+export function onResume(callback, minAwayMs = 30000) {
+    let hiddenAt = 0;
+    const onChange = () => {
+        if (document.hidden) hiddenAt = Date.now();
+        else if (hiddenAt && Date.now() - hiddenAt >= minAwayMs) callback();
+    };
+    document.addEventListener("visibilitychange", onChange);
+    return () => document.removeEventListener("visibilitychange", onChange);
+}

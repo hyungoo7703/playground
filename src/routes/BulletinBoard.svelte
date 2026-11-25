@@ -2,9 +2,10 @@
   import { onMount } from "svelte";
   import { api } from "../lib/api.js";
   import { toast, confirmDialog } from "../lib/feedback.js";
-  import { formatDate } from "../lib/utils.js";
+  import { formatDate, onResume } from "../lib/utils.js";
   import { readCache, writeCache } from "../lib/cache.js";
   import Spinner from "../lib/components/Spinner.svelte";
+  import LoadError from "../lib/components/LoadError.svelte";
   import Modal from "../lib/components/Modal.svelte";
   import { currentUser, isAdmin } from "../lib/store.js";
 
@@ -78,6 +79,9 @@
     범수: "👦",
   };
 
+  // Loading failed and there is no saved copy to show instead
+  let hasFailed = false;
+
   async function loadPosts() {
     const cached = readCache("posts");
     if (cached) {
@@ -94,6 +98,7 @@
     } else if (!cached) {
       toast("게시글 불러오기 실패", "error");
     }
+    hasFailed = !res.success && !cached;
     isLoading = false;
   }
 
@@ -210,6 +215,7 @@
 
   onMount(() => {
     loadPosts();
+    return onResume(loadPosts);
   });
 
   $: filteredPosts =
@@ -259,7 +265,7 @@
     <button
       type="button"
       on:click={() => (selectedCategory = "전체")}
-      class="px-3.5 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all {selectedCategory ===
+      class="px-3.5 py-3 rounded-2xl text-xs font-bold whitespace-nowrap transition-all {selectedCategory ===
       '전체'
         ? 'bg-indigo-600 text-white shadow-sm'
         : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 border border-gray-100 dark:border-gray-700'}"
@@ -270,7 +276,7 @@
       <button
         type="button"
         on:click={() => (selectedCategory = cat)}
-        class="px-3.5 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all {selectedCategory ===
+        class="px-3.5 py-3 rounded-2xl text-xs font-bold whitespace-nowrap transition-all {selectedCategory ===
         cat
           ? 'bg-indigo-600 text-white shadow-sm'
           : 'bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 border border-gray-100 dark:border-gray-700'}"
@@ -286,6 +292,8 @@
       <div class="py-16 text-center">
         <Spinner label="게시글을 불러오는 중..." />
       </div>
+    {:else if hasFailed}
+      <LoadError message="게시글을 불러오지 못했습니다." on:retry={loadPosts} />
     {:else if filteredPosts.length === 0}
       <div class="bg-white dark:bg-gray-800 rounded-3xl p-10 text-center shadow-sm border border-gray-100 dark:border-gray-700 text-gray-500 dark:text-gray-400">
         <span class="text-4xl block mb-2">📮</span>

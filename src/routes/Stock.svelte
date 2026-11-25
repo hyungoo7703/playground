@@ -3,9 +3,10 @@
   import { slide } from "svelte/transition";
   import { api } from "../lib/api.js";
   import { toast, confirmDialog } from "../lib/feedback.js";
-  import { formatDate } from "../lib/utils.js";
+  import { formatDate, onResume } from "../lib/utils.js";
   import { readCache, writeCache } from "../lib/cache.js";
   import Spinner from "../lib/components/Spinner.svelte";
+  import LoadError from "../lib/components/LoadError.svelte";
   import { isAdmin } from "../lib/store.js";
 
   let stocks = [];
@@ -109,6 +110,9 @@
     newStock.quantity = String(current + q);
   }
 
+  // Loading failed and there is no saved copy to show instead
+  let hasFailed = false;
+
   async function loadStocks() {
     const cached = readCache("stocks");
     if (cached) {
@@ -125,6 +129,7 @@
     } else if (!cached) {
       toast("데이터 불러오기 실패", "error");
     }
+    hasFailed = !res.success && !cached;
     isLoading = false;
   }
 
@@ -221,6 +226,7 @@
   onMount(() => {
     loadStocks();
     loadFxRate();
+    return onResume(loadStocks);
   });
 
   // 같은 종목이라도 통화가 다르면 별도 그룹 (원화·달러 합산 방지)
@@ -576,6 +582,8 @@
         <div class="py-16 text-center">
           <Spinner label="주식 데이터를 불러오는 중..." />
         </div>
+      {:else if hasFailed}
+        <LoadError message="주식 데이터를 불러오지 못했습니다." on:retry={loadStocks} />
       {:else if stocks.length === 0}
         <div class="text-center py-16 bg-white dark:bg-gray-800 rounded-3xl p-6 text-gray-500 dark:text-gray-400 shadow-sm border border-gray-100 dark:border-gray-700">
           <span class="text-4xl block mb-2">📈</span>

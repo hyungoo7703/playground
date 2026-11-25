@@ -1,12 +1,12 @@
 <script>
   import { onMount } from "svelte";
-  import { fade } from "svelte/transition";
   import { api } from "../lib/api.js";
   import { toast, confirmDialog } from "../lib/feedback.js";
-  import { formatDate } from "../lib/utils.js";
+  import { formatDate, onResume } from "../lib/utils.js";
   import { readCache, writeCache } from "../lib/cache.js";
   import { currentUser, isAdmin } from "../lib/store.js";
   import Spinner from "../lib/components/Spinner.svelte";
+  import LoadError from "../lib/components/LoadError.svelte";
   import Modal from "../lib/components/Modal.svelte";
 
 
@@ -15,25 +15,35 @@
   let showForm = false;
   let isSubmitting = false;
 
-  // Form State
-  let formData = {
-    id: null,
-    date: formatDate(new Date()),
-    type: "이체",
-    title: "",
-    amount: "",
-    giver: "나",
-    receiver: "가족",
-    is_settled: false,
-  };
-
   const USERS = ["아빠", "엄마", "현구", "범수"];
   const TYPES = ["이체", "지출", "수입"];
+
+  // A new entry starts out from whoever is filling it in, to someone else
+  function blankForm() {
+    const giver = USERS.includes($currentUser) ? $currentUser : USERS[0];
+    return {
+      id: null,
+      date: formatDate(new Date()),
+      type: "이체",
+      title: "",
+      giver,
+      receiver: USERS.find((u) => u !== giver),
+      is_settled: false,
+    };
+  }
+
+  // Form State
+  let formData = blankForm();
+  let amountText = ""; // the amount as typed: digits with thousands separators
+
+  // Loading failed and there is no saved copy to show instead
+  let hasFailed = false;
+  const byDate = (a, b) => new Date(a.date) - new Date(b.date);
 
   async function loadLedger() {
     const cached = readCache("ledger");
     if (cached) {
-      ledgerItems = cached.sort((a, b) => new Date(a.date) - new Date(b.date));
+      ledgerItems = cached.sort(byDate);
       isLoading = false;
     } else {
       isLoading = true;
@@ -41,18 +51,18 @@
 
     const res = await api.getLedger();
     if (res.success) {
-      ledgerItems = res.ledger.sort(
-        (a, b) => new Date(a.date) - new Date(b.date),
-      );
+      ledgerItems = res.ledger.sort(byDate);
       writeCache("ledger", ledgerItems);
     } else if (!cached) {
       toast("장부 불러오기 실패: " + (res.message || "알 수 없는 오류"), "error");
     }
+    hasFailed = !res.success && !cached;
     isLoading = false;
   }
 
   let viewAsUser = USERS.includes($currentUser) ? $currentUser : "현구";
   let showOnlyMine = false;
+  let showOnlyUnsettled = false;
 
 
   // Fixed Rules State
@@ -76,6 +86,7 @@
     loadLedger();
     // 헤더의 '고정 이체 (N)' 개수를 바로 보여주기 위해 미리 로드
     if ($isAdmin) loadRules();
+    return onResume(loadLedger);
   });
 
   async function loadRules() {
@@ -203,36 +214,44 @@
   }
 
   function openAddForm() {
-    formData = {
-      id: null,
-      date: formatDate(new Date()),
-      type: "이체",
-      title: "",
-      amount: "",
-      giver: "나",
-      receiver: "가족",
-      is_settled: false,
-    };
+    formData = blankForm();
+    amountText = "";
     showForm = true;
   }
 
   function openEditForm(item) {
     formData = { ...item };
+    amountText = item.amount ? item.amount.toLocaleString() : "";
     showForm = true;
+  }
+
+  // The amount field only ever holds digits, shown with thousands separators.
+  // Anything else typed into it ("5만원", "오천") is dropped on the spot rather than
+  // being cut down to a wrong number when saving.
+  function onAmountInput(e) {
+    const digits = e.target.value.replace(/\D/g, "").replace(/^0+/, "").slice(0, 10);
+    amountText = digits ? Number(digits).toLocaleString() : "";
+    e.target.value = amountText;
   }
 
   const cleanAmount = (v) =>
     parseFloat(String(v).replace(/[^\d.-]/g, "")) || 0;
 
   async function handleSubmit() {
-    const amount = cleanAmount(formData.amount);
-    if (!formData.title || !amount)
-      return toast("내용과 금액을 입력해주세요.", "info");
+    const title = formData.title.trim();
+    const amount = Number(amountText.replace(/\D/g, ""));
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(formData.date)) return toast("날짜를 선택해주세요.", "info");
+    if (!title) return toast("내용을 입력해주세요.", "info");
+    if (!amount) return toast("금액을 숫자로 입력해주세요.", "info");
+    if (!USERS.includes(formData.giver) || !USERS.includes(formData.receiver))
+      return toast("누가, 누구에게를 선택해주세요.", "info");
+    if (formData.type === "이체" && formData.giver === formData.receiver)
+      return toast("주는 사람과 받는 사람이 같습니다.", "info");
 
     isSubmitting = true;
     let res;
 
-    const payload = { ...formData, amount };
+    const payload = { ...formData, title, amount };
 
     if (payload.date) {
       payload.day = new Date(payload.date).getDate();
@@ -321,7 +340,8 @@
     );
   }
 
-  $: filteredItems = ledgerItems.filter((item) => {
+  // The month on screen, for the chosen person if asked: what the totals are counted over
+  $: monthItems = ledgerItems.filter((item) => {
     const d = new Date(item.date);
     const isMonthMatch =
       d.getFullYear() === displayYear && d.getMonth() + 1 === displayMonth;
@@ -333,12 +353,14 @@
     return true;
   });
 
-  $: totalAmount = filteredItems.reduce(
+  $: totalAmount = monthItems.reduce(
     (sum, item) => sum + cleanAmount(item.amount),
     0,
   );
 
-  $: unsettledItems = filteredItems.filter((i) => !i.is_settled);
+  $: unsettledItems = monthItems.filter((i) => !i.is_settled);
+  // What the list shows
+  $: filteredItems = showOnlyUnsettled ? unsettledItems : monthItems;
   $: unsettledAmount = unsettledItems.reduce(
     (sum, item) => sum + cleanAmount(item.amount),
     0,
@@ -350,9 +372,7 @@
   let isBatchSendingNudge = false;
 
   // Only unsettled items with type === "이체"
-  $: unsettledTransfers = filteredItems.filter(
-    (i) => (!i.is_settled || i.is_settled === "FALSE") && i.type === "이체",
-  );
+  $: unsettledTransfers = unsettledItems.filter((i) => i.type === "이체");
 
   // Group unsettled transfers by 'giver' (주는 사람)
   $: debtorsList = Object.values(
@@ -471,7 +491,7 @@
           <button
             type="button"
             on:click={prevMonth}
-            class="w-8 h-8 -my-1 flex items-center justify-center text-indigo-200 hover:text-white active:scale-75 transition-all"
+            class="w-10 h-10 -my-2 flex items-center justify-center text-indigo-200 hover:text-white active:scale-75 transition-all"
             aria-label="이전 달"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -484,7 +504,7 @@
           <button
             type="button"
             on:click={nextMonth}
-            class="w-8 h-8 -my-1 flex items-center justify-center text-indigo-200 hover:text-white active:scale-75 transition-all"
+            class="w-10 h-10 -my-2 flex items-center justify-center text-indigo-200 hover:text-white active:scale-75 transition-all"
             aria-label="다음 달"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -497,7 +517,7 @@
           <button
             type="button"
             on:click={openNudgeModal}
-            class="text-xs bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-2xl font-bold backdrop-blur-md active:scale-95 transition-all flex items-center gap-1.5 border border-white/20"
+            class="text-xs bg-white/20 hover:bg-white/30 text-white px-3 py-2.5 rounded-2xl font-bold backdrop-blur-md active:scale-95 transition-all flex items-center gap-1.5 border border-white/20"
           >
             <span>📢</span> 독촉하기
           </button>
@@ -512,34 +532,49 @@
 
         <div class="flex items-baseline justify-center gap-1">
           <p class="text-4xl font-black tracking-tight text-white">
-            {unsettledAmount.toLocaleString()}
+            {hasFailed ? "-" : unsettledAmount.toLocaleString()}
           </p>
           <span class="text-lg font-bold text-indigo-200">원</span>
         </div>
         <p class="text-[11px] text-indigo-300 font-medium">
-          총 이체 예정 {totalAmount.toLocaleString()}원 · 미정산 {unsettledItems.length}건
+          {#if hasFailed}
+            불러오지 못해 금액을 알 수 없습니다
+          {:else}
+            총 이체 예정 {totalAmount.toLocaleString()}원 · 미정산 {unsettledItems.length}건
+          {/if}
         </p>
       </div>
 
       <!-- Tier 3: Filters & Rules Button -->
-      <div class="flex items-center justify-between gap-2 pt-2 border-t border-white/15">
+      <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-white/15">
         <div class="flex items-center gap-1.5">
           <select
             bind:value={viewAsUser}
             aria-label="기준 사용자"
             disabled={!$isAdmin}
-            class="bg-black/25 text-indigo-100 text-xs font-bold py-1.5 px-2.5 rounded-xl border-none outline-none backdrop-blur-md"
+            class="bg-black/25 text-indigo-100 text-xs font-bold py-2.5 px-2.5 rounded-xl border-none outline-none backdrop-blur-md"
           >
             {#each USERS as u}<option value={u}>{u}</option>{/each}
           </select>
           <button
             type="button"
             on:click={() => (showOnlyMine = !showOnlyMine)}
-            class="text-xs font-bold px-2.5 py-1.5 rounded-xl transition-all border {showOnlyMine
+            aria-pressed={showOnlyMine}
+            class="text-xs font-bold px-2.5 py-2.5 rounded-xl transition-all border {showOnlyMine
               ? 'bg-white text-indigo-700 border-white shadow-sm'
               : 'bg-black/20 text-indigo-200 border-transparent hover:bg-black/30'}"
           >
             내 내역만
+          </button>
+          <button
+            type="button"
+            on:click={() => (showOnlyUnsettled = !showOnlyUnsettled)}
+            aria-pressed={showOnlyUnsettled}
+            class="text-xs font-bold px-2.5 py-2.5 rounded-xl transition-all border {showOnlyUnsettled
+              ? 'bg-white text-indigo-700 border-white shadow-sm'
+              : 'bg-black/20 text-indigo-200 border-transparent hover:bg-black/30'}"
+          >
+            미정산만
           </button>
         </div>
 
@@ -547,7 +582,7 @@
           <button
             type="button"
             on:click={openRuleModal}
-            class="px-2.5 py-1.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold text-xs active:scale-95 transition-all shadow-sm flex items-center gap-1"
+            class="px-2.5 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold text-xs active:scale-95 transition-all shadow-sm flex items-center gap-1"
           >
             <span>📌</span> 고정 이체 ({rules.length})
           </button>
@@ -560,18 +595,32 @@
     <div class="absolute -left-10 -bottom-10 w-40 h-40 bg-purple-400/20 rounded-full blur-2xl"></div>
   </header>
 
+  {#if $isAdmin}
+    <button
+      type="button"
+      on:click={openAddForm}
+      class="w-full py-4 rounded-3xl font-black text-sm text-white bg-indigo-600 hover:bg-indigo-700 shadow-md active:scale-[0.98] transition-all"
+    >
+      ➕ 새 내역 추가
+    </button>
+  {/if}
+
   <!-- Items List -->
   <div class="space-y-3">
     {#if isLoading}
       <div class="flex flex-col items-center justify-center py-16">
         <Spinner label="장부를 불러오는 중..." />
       </div>
+    {:else if hasFailed}
+      <LoadError message="장부를 불러오지 못했습니다." on:retry={loadLedger} />
     {:else if filteredItems.length === 0}
       <div class="bg-white dark:bg-gray-800 rounded-3xl p-10 text-center shadow-sm border border-gray-100 dark:border-gray-700 text-gray-500 dark:text-gray-400">
         <span class="text-4xl block mb-2">💸</span>
-        <p class="text-sm font-bold text-gray-600 dark:text-gray-300">내역이 없습니다.</p>
-        {#if $isAdmin}
-          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">우측 하단의 '+' 버튼으로 새 내역을 추가해보세요!</p>
+        <p class="text-sm font-bold text-gray-600 dark:text-gray-300">
+          {showOnlyUnsettled ? "미정산 내역이 없습니다." : "내역이 없습니다."}
+        </p>
+        {#if $isAdmin && !showOnlyUnsettled}
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">위의 '새 내역 추가' 버튼으로 추가해보세요!</p>
         {/if}
       </div>
     {:else}
@@ -635,7 +684,7 @@
               type="button"
               disabled={settlingId === item.id}
               on:click|stopPropagation={() => toggleSettle(item)}
-              class="inline-flex items-center justify-center min-w-[76px] text-xs font-bold px-3 py-1.5 rounded-full border transition-all active:scale-90 {settlingId === item.id ? 'opacity-60 cursor-not-allowed' : ''} {item.is_settled
+              class="inline-flex items-center justify-center min-w-[84px] min-h-[40px] text-xs font-bold px-3.5 py-2 rounded-full border transition-all active:scale-90 {settlingId === item.id ? 'opacity-60 cursor-not-allowed' : ''} {item.is_settled
                 ? 'border-gray-200 text-gray-400 bg-gray-50 dark:bg-gray-700/50 dark:border-gray-600'
                 : 'border-rose-200 text-rose-600 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800'}"
             >
@@ -724,7 +773,10 @@
           <input
             id="ledger-amount"
             type="text"
-            bind:value={formData.amount}
+            inputmode="numeric"
+            autocomplete="off"
+            value={amountText}
+            on:input={onAmountInput}
             placeholder="0"
             class="w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-xl px-3.5 py-3 text-lg font-black outline-none border border-gray-200 dark:border-gray-700"
           />
@@ -1076,18 +1128,4 @@
     </Modal>
   {/if}
 
-  <!-- Floating Add Button for Admin -->
-  {#if $isAdmin}
-
-    <button
-      type="button"
-      on:click={() => openAddForm()}
-      aria-label="내역 추가"
-      style="bottom: calc(5rem + env(safe-area-inset-bottom)); right: max(1.25rem, calc(50% - 14rem + 1.25rem));"
-      class="fixed w-14 h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-2xl flex items-center justify-center text-3xl font-light z-40 active:scale-90 transition-all border-2 border-white/20"
-      transition:fade
-    >
-      +
-    </button>
-  {/if}
 </div>

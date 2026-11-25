@@ -1,7 +1,16 @@
 <script context="module">
-  // Shared across instances: nested modals lock scroll once and only the
-  // topmost one reacts to Escape, even if a lower one closes first
+  // Shared across instances: nested modals lock scroll once and only the topmost
+  // one reacts to Escape or the back button, even if a lower one closes first
   const stack = [];
+  // History entries this file takes back out itself: their popstate is no back press
+  let ownPops = 0;
+
+  if (typeof window !== "undefined") {
+    window.addEventListener("popstate", () => {
+      if (ownPops > 0) ownPops--;
+      else stack[stack.length - 1]?.onBack();
+    });
+  }
 </script>
 
 <script>
@@ -15,23 +24,39 @@
 
   const dispatch = createEventDispatcher();
   let panel;
-  const id = {};
+  let isBackPressed = false;
+  const entry = {
+    onBack() {
+      isBackPressed = true;
+      dispatch("close");
+    },
+  };
 
   onMount(() => {
     const prevFocus = document.activeElement;
-    stack.push(id);
+    stack.push(entry);
     document.body.style.overflow = "hidden";
     panel.focus({ preventScroll: true });
+    // A history entry of its own, so the phone's back button closes the modal
+    // instead of leaving the page underneath it
+    const token = Math.random().toString(36).slice(2);
+    history.pushState({ ...history.state, modal: token }, "");
 
     return () => {
-      stack.splice(stack.indexOf(id), 1);
+      stack.splice(stack.indexOf(entry), 1);
       if (stack.length === 0) document.body.style.overflow = "";
       prevFocus?.focus?.({ preventScroll: true });
+      // Closed some other way: take the entry back out, unless a link inside
+      // the modal has already moved on to another page
+      if (!isBackPressed && history.state?.modal === token) {
+        ownPops++;
+        history.back();
+      }
     };
   });
 
   function onKeydown(e) {
-    if (e.key === "Escape" && stack[stack.length - 1] === id) dispatch("close");
+    if (e.key === "Escape" && stack[stack.length - 1] === entry) dispatch("close");
   }
 </script>
 

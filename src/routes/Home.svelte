@@ -48,6 +48,7 @@
   // Stock summary widget
   let stockCount = 0;
   let stockTotalAmount = 0;
+  let hasDollarStocks = false;
   let stockLoaded = false;
 
   let dDayEvent = null;
@@ -172,10 +173,11 @@
     if (!stocks || !Array.isArray(stocks)) return;
     const uniqueNames = new Set(stocks.map((s) => s.stock_name));
     stockCount = uniqueNames.size;
-    stockTotalAmount = stocks.reduce(
-      (sum, s) => sum + (Number(s.price) * Number(s.quantity) || 0),
-      0,
-    );
+    // Won only, like the stock page's own total: a dollar price is not an amount in won
+    stockTotalAmount = stocks
+      .filter((s) => s.currency !== "USD")
+      .reduce((sum, s) => sum + (Number(s.price) * Number(s.quantity) || 0), 0);
+    hasDollarStocks = stocks.some((s) => s.currency === "USD");
     stockLoaded = true;
   }
 
@@ -429,7 +431,7 @@
         {#if stockLoaded}
           <p class="text-xs text-emerald-700 dark:text-emerald-300 font-bold mt-1">
             {stockCount > 0
-              ? `총 ${stockCount}개 종목 · ${stockTotalAmount.toLocaleString()}원 투자 중 📈`
+              ? `총 ${stockCount}개 종목 · ${stockTotalAmount.toLocaleString()}원 투자 중${hasDollarStocks ? " (달러 종목 제외)" : ""} 📈`
               : "아직 주식 내역이 없습니다. 시작해보세요! 🚀"}
           </p>
         {:else}

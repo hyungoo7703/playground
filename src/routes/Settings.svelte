@@ -337,9 +337,15 @@
     </div>
 
     <p class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-      Google Gemini 기반의 AI 게이트웨이 서비스와 통신합니다. 서버에서 동기화하거나 직접 입력할 수 있습니다.
+      {#if $isAdmin}
+        Google Gemini 기반의 AI 게이트웨이 서비스와 통신합니다. 서버에서 동기화하거나 직접 입력할 수 있습니다.
+      {:else}
+        AI 집사를 쓰려면 이 기기에서 아래 버튼을 한 번 눌러 연결해 주세요.
+      {/if}
     </p>
 
+    <!-- The address and token are the admin's business; everyone else just connects -->
+    {#if $isAdmin}
     <!-- AI URL Input -->
     <div class="space-y-1">
       <label for="ai-url-input" class="block text-xs font-bold text-gray-600 dark:text-gray-300">AI 서버 주소 (URL)</label>
@@ -382,6 +388,7 @@
         />
       {/if}
     </div>
+    {/if}
 
     <!-- Feedback Message Box -->
     {#if aiMessage}
@@ -398,16 +405,17 @@
     {/if}
 
     <!-- Action Buttons -->
-    <div class="grid grid-cols-2 gap-2 pt-1">
+    <div class="grid {$isAdmin ? 'grid-cols-2' : ''} gap-2 pt-1">
       <button
         on:click={handleSyncAiConfig}
         disabled={aiStatus === "syncing"}
-        class="py-2.5 px-3 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300 font-bold rounded-xl text-xs active:scale-95 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+        class="py-3 px-3 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300 font-bold rounded-xl text-xs active:scale-95 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
       >
         <span>🔄</span>
-        <span>{aiStatus === "syncing" ? "가져오는 중..." : "서버에서 동기화"}</span>
+        <span>{aiStatus === "syncing" ? "가져오는 중..." : $isAdmin ? "서버에서 동기화" : "AI 연결하기"}</span>
       </button>
 
+      {#if $isAdmin}
       <button
         on:click={handleTestAiConnection}
         disabled={aiStatus === "testing" || !aiUrl}
@@ -416,14 +424,17 @@
         <span>⚡</span>
         <span>{aiStatus === "testing" ? "확인 중..." : "연결 테스트"}</span>
       </button>
+      {/if}
     </div>
 
+    {#if $isAdmin}
     <button
       on:click={handleSaveAiConfig}
-      class="w-full py-2 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95 transition-all"
+      class="w-full py-3 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 font-bold rounded-xl text-xs active:scale-95 transition-all"
     >
       직접 입력값 로컬 저장
     </button>
+    {/if}
 
     <!-- 내 위치 날씨 -->
     <div
@@ -618,10 +629,10 @@
       on:click={resetStorage}
       class="w-full flex items-center justify-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl text-red-600 dark:text-red-400 font-bold active:scale-95 transition-all text-xs"
     >
-      <span>🗑️</span> 로컬스토리지 초기화
+      <span>🗑️</span> 이 기기의 앱 데이터 초기화
     </button>
     <p class="text-[11px] text-gray-500 dark:text-gray-400 text-center">
-      로그인 접속 코드 및 AI 연결 토큰을 포함한 모든 브라우저 데이터가 초기화됩니다.
+      이 기기에 저장된 로그인 정보와 설정만 지워집니다. 장부·일정·게시글은 서버에 그대로 남습니다.
     </p>
   </section>
 </div>
