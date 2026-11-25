@@ -26,17 +26,23 @@
   // The game and occasional tools load on first visit (svelte-routing awaits
   // a function component). A tab left open across a deploy can request
   // chunk hashes that no longer exist, so reload once to pick up the new build.
-  const lazy = (load) => () =>
-    load()
-      .then((mod) => {
-        sessionStorage.removeItem("chunkReload");
-        return mod;
-      })
-      .catch((err) => {
-        if (sessionStorage.getItem("chunkReload")) throw err;
-        sessionStorage.setItem("chunkReload", "1");
-        window.location.reload();
-      });
+  // The router asks again on every history change, the back button included: it has to
+  // get the same promise back, or the page would be torn down and built anew under the user.
+  const lazy = (load) => {
+    let loading;
+    return () =>
+      (loading ??= load()
+        .then((mod) => {
+          sessionStorage.removeItem("chunkReload");
+          return mod;
+        })
+        .catch((err) => {
+          loading = undefined;
+          if (sessionStorage.getItem("chunkReload")) throw err;
+          sessionStorage.setItem("chunkReload", "1");
+          window.location.reload();
+        }));
+  };
 
   const Stock = lazy(() => import("../routes/Stock.svelte"));
   const CardPick = lazy(() => import("../routes/CardPick.svelte"));

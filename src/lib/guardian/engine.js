@@ -64,22 +64,46 @@ const DRONE_TURN = 1.8; // rad per second
 const MISSILE_TURN = 7;
 const HELD_PACE = 0.15; // how much of its own movement an enemy keeps inside a vortex
 
-function mulberry32(seed) {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
+// Bump when a change to the state or the cards would break a run saved before it
+const SAVE_VERSION = 1;
+
+// mulberry32, with its position kept in the state so that a saved run carries on with the same dice
+function addDice(state) {
+  state.rand = () => {
+    state.seed = (state.seed + 0x6d2b79f5) >>> 0;
+    let t = state.seed;
     t = Math.imul(t ^ (t >>> 15), t | 1);
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
+  return state;
 }
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
+/** A run as text, to carry on with later. */
+export function saveGame(state) {
+  // `rand` and `rules` are put back by loadGame; a railgun bullet's endless pierce has no JSON form
+  return JSON.stringify({ version: SAVE_VERSION, state }, (key, value) =>
+    key === "rand" || key === "rules" ? undefined : value === Infinity ? "Infinity" : value,
+  );
+}
+
+/** The run `saveGame` wrote, or null when the text is not one this version can carry on with. */
+export function loadGame(text) {
+  try {
+    const { version, state } = JSON.parse(text, (key, value) => (value === "Infinity" ? Infinity : value));
+    if (version !== SAVE_VERSION || !MODES[state.mode]) return null;
+    state.rules = MODES[state.mode];
+    return addDice(state);
+  } catch {
+    return null;
+  }
+}
+
 export function createGame(mode = "normal", seed = Date.now()) {
-  const state = {
-    rand: mulberry32(seed),
+  const state = addDice({
+    seed: seed >>> 0,
     mode,
     rules: MODES[mode],
     phase: "playing", // playing | upgrade | over | clear
@@ -121,7 +145,7 @@ export function createGame(mode = "normal", seed = Date.now()) {
     bossPending: false, // a boss wave whose boss has not appeared yet
     richDraft: false, // the next card pick offers no common cards
     nextId: 1,
-  };
+  });
   startWave(state, []);
   return state;
 }

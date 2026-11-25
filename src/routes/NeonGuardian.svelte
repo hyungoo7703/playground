@@ -8,7 +8,7 @@
   import { createSound } from "../lib/guardian/sound.js";
   import GameExitButton from "../lib/components/GameExitButton.svelte";
   import Ranking from "../lib/guardian/Ranking.svelte";
-  import { createGame, update, pickUpgrade, useBomb, useFreeze, reroll, buy, dronePosition } from "../lib/guardian/engine.js";
+  import { createGame, saveGame, loadGame, update, pickUpgrade, useBomb, useFreeze, reroll, buy, dronePosition } from "../lib/guardian/engine.js";
   import {
     FIELD,
     PLAYER,
@@ -149,6 +149,12 @@
     hard: `guardian_hard_reward_pending_${$currentUser}`,
   };
 
+  // A run left unfinished waits here, one per mode
+  const saveKey = (key) => `guardian_save_${key}_${$currentUser}`;
+  const loadRun = (key) => loadGame(localStorage.getItem(saveKey(key)));
+  // Marks the history entry a run sits on, so the back button pauses before it leaves
+  const runEntry = Math.random().toString(36).slice(2);
+
   let screen = "loading"; // loading | start | playing | upgrade | over | clear
   let mode = "normal";
   let hud = { wave: 1, hp: PLAYER.hp, shield: 0, coins: 0, bombCost: PLAYER.bombCost, rerollCost: 0, choices: [], levels: {} };
@@ -158,6 +164,8 @@
     normal: localStorage.getItem(pendingKey.normal) === "1",
     hard: localStorage.getItem(pendingKey.hard) === "1",
   };
+  // The wave each mode's saved run is on, 0 without one
+  let saves = Object.fromEntries(Object.keys(MODES).map((key) => [key, (loadRun(key)?.wave ?? -1) + 1]));
   let isMuted = false;
   let isPaused = false;
   let showRules = false;
@@ -334,7 +342,12 @@
         flash = 0.8;
         shake = 20;
         lastBoss = e;
-      } else if (e.type === "clear") finale = { left: mode === "hard" ? 2.6 : 1.2, next: 0.15 };
+      } else if (e.type === "clear") {
+        finale = { left: mode === "hard" ? 2.6 : 1.2, next: 0.15 };
+        // Earned already, even if the app is closed during the fireworks
+        localStorage.setItem(pendingKey[mode], "1");
+        pending[mode] = true;
+      }
     }
   }
 
@@ -363,10 +376,9 @@
     if (game.phase === "over") sendRecord();
     if (game.phase === "clear") {
       play("victory");
-      localStorage.setItem(pendingKey[mode], "1");
-      pending[mode] = true;
       checkReward();
     }
+    saveRun();
     screen = game.phase;
   }
 
@@ -868,9 +880,18 @@
     input.firing = false;
   }
 
-  function startGame(nextMode = mode) {
+  // Keeps the run for later while it is still going, and forgets it once it has ended
+  function saveRun() {
+    if (!game) return;
+    const isLive = game.phase === "playing" || game.phase === "upgrade";
+    if (isLive) localStorage.setItem(saveKey(mode), saveGame(game));
+    else localStorage.removeItem(saveKey(mode));
+    saves[mode] = isLive ? game.wave + 1 : 0;
+  }
+
+  function startGame(nextMode = mode, saved = null) {
     mode = nextMode;
-    game = createGame(mode);
+    game = saved ?? createGame(mode);
     hasSentRun = false;
     particles = [];
     effects = [];
@@ -883,6 +904,12 @@
     syncHud();
     sound.resume();
     sound.playMusic(MUSIC[mode]);
+    if (history.state?.guardian !== runEntry) history.pushState({ ...history.state, guardian: runEntry }, "");
+    // A run picked up in the middle of a wave waits for the player
+    if (saved?.phase === "playing") {
+      setPaused(true);
+      draw();
+    }
   }
 
   // The first run of a mode with a briefing starts from it
@@ -901,12 +928,25 @@
   function setPaused(value) {
     isPaused = value;
     input.firing = false;
-    if (value) return sound.suspend();
+    if (value) {
+      saveRun();
+      return sound.suspend();
+    }
     lastTime = performance.now();
     sound.resume();
   }
 
+  // The back button, or a button standing in for it: a run in full swing pauses,
+  // one that is paused or over goes back to the title
+  function onBack() {
+    if (!game || history.state?.guardian === runEntry) return;
+    if (isPaused || screen === "over" || screen === "clear") return backToTitle();
+    history.pushState({ ...history.state, guardian: runEntry }, "");
+    setPaused(true);
+  }
+
   function backToTitle() {
+    saveRun();
     sendRecord();
     sound.stopMusic();
     if (isPaused) setPaused(false);
@@ -995,6 +1035,7 @@
       raf = 0;
       // Coming back to a run in full swing would cost base HP
       if (screen === "playing") isPaused = true;
+      saveRun();
       sound.suspend();
       input.firing = false;
     } else if (!raf) {
@@ -1025,14 +1066,15 @@
   });
 
   onDestroy(() => {
-    // Leaving by the exit button mid-run
+    // Leaving mid-run
+    saveRun();
     if (screen === "playing" || screen === "upgrade") sendRecord();
     cancelAnimationFrame(raf);
     sound?.close();
   });
 </script>
 
-<svelte:window on:resize={resize} />
+<svelte:window on:resize={resize} on:popstate={onBack} />
 <svelte:document on:visibilitychange={onVisibility} />
 
 <div
@@ -1048,11 +1090,8 @@
   <canvas bind:this={canvas} class="absolute inset-0 w-full h-full"></canvas>
 
   <!-- HUD -->
-  <!-- Above the overlays so leaving and muting work on every screen -->
+  <!-- Above the overlays so muting works on every screen -->
   <div class="absolute top-0 inset-x-0 z-20 flex items-center gap-2 p-3 pointer-events-none">
-    <div class="pointer-events-auto" on:pointerdown|stopPropagation>
-      <GameExitButton />
-    </div>
     {#if screen === "playing" || screen === "upgrade"}
       <div class="flex-1 min-w-0">
         <p class="text-[11px] font-black tracking-widest {mode === 'normal' ? 'text-cyan-300' : 'text-rose-300'}">
@@ -1072,6 +1111,9 @@
         {hud.coins}
       </div>
     {:else}
+      <div class="pointer-events-auto" on:pointerdown|stopPropagation>
+        <GameExitButton />
+      </div>
       <div class="flex-1"></div>
     {/if}
     {#if screen === "playing"}
@@ -1129,9 +1171,10 @@
     {/if}
   {/if}
 
-  {#if screen === "playing" && isPaused}
+  <!-- Over the card pick as well, which the back button can pause too -->
+  {#if isPaused && (screen === "playing" || screen === "upgrade")}
     <div
-      class="absolute inset-0 z-10 flex items-center justify-center p-5 bg-black/70"
+      class="absolute inset-0 z-[15] flex items-center justify-center p-5 {screen === 'upgrade' ? 'bg-[#05060f]' : 'bg-black/70'}"
       on:pointerdown|stopPropagation
     >
       <div class="w-full max-w-xs text-center">
@@ -1146,11 +1189,12 @@
         </button>
         <button
           type="button"
-          on:click={backToTitle}
+          on:click={() => history.back()}
           class="mt-3 w-full py-3 rounded-2xl font-bold text-gray-200 bg-white/10 active:scale-95 transition-all"
         >
-          그만두고 처음 화면으로
+          저장하고 처음 화면으로
         </button>
+        <p class="mt-3 text-xs text-gray-400">나갔다 와도 여기서부터 이어할 수 있어요</p>
       </div>
     </div>
   {/if}
@@ -1198,35 +1242,62 @@
               </button>
             {/if}
           {/each}
-          <button
-            type="button"
-            on:click={() => startGame("normal")}
-            class="w-full py-4 rounded-2xl font-black text-lg text-gray-900 bg-cyan-300 active:scale-95 transition-all shadow-[0_0_24px_rgba(39,228,255,0.6)]"
-          >
-            게임 시작 <span class="text-sm font-bold opacity-70">· {MODES.normal.waves.length}웨이브</span>
-          </button>
-          {#if isHardOpen}
+          <div class="flex gap-2">
             <button
               type="button"
-              on:click={() => startWithIntro("hard")}
-              class="w-full py-4 rounded-2xl font-black text-lg text-white bg-gradient-to-r from-rose-600 to-fuchsia-600 active:scale-95 transition-all shadow-[0_0_24px_rgba(244,63,94,0.6)]"
+              on:click={() => (saves.normal ? startGame("normal", loadRun("normal")) : startGame("normal"))}
+              class="flex-1 py-4 rounded-2xl font-black text-lg text-gray-900 bg-cyan-300 active:scale-95 transition-all shadow-[0_0_24px_rgba(39,228,255,0.6)]"
             >
-              🔥 하드 모드 <span class="text-sm font-bold opacity-80">· {MODES.hard.waves.length}웨이브</span>
+              {#if saves.normal}
+                ▶ 이어하기 <span class="text-sm font-bold opacity-70">· {saves.normal}웨이브</span>
+              {:else}
+                게임 시작 <span class="text-sm font-bold opacity-70">· {MODES.normal.waves.length}웨이브</span>
+              {/if}
             </button>
+            {#if saves.normal}
+              <button type="button" on:click={() => startGame("normal")} class="shrink-0 px-4 rounded-2xl text-sm font-bold text-gray-200 bg-black/60 border border-white/20 active:scale-95 transition-all">새로</button>
+            {/if}
+          </div>
+          {#if isHardOpen}
+            <div class="flex gap-2">
+              <button
+                type="button"
+                on:click={() => (saves.hard ? startGame("hard", loadRun("hard")) : startWithIntro("hard"))}
+                class="flex-1 py-4 rounded-2xl font-black text-lg text-white bg-gradient-to-r from-rose-600 to-fuchsia-600 active:scale-95 transition-all shadow-[0_0_24px_rgba(244,63,94,0.6)]"
+              >
+                {#if saves.hard}
+                  🔥 하드 이어하기 <span class="text-sm font-bold opacity-80">· {saves.hard}웨이브</span>
+                {:else}
+                  🔥 하드 모드 <span class="text-sm font-bold opacity-80">· {MODES.hard.waves.length}웨이브</span>
+                {/if}
+              </button>
+              {#if saves.hard}
+                <button type="button" on:click={() => startGame("hard")} class="shrink-0 px-4 rounded-2xl text-sm font-bold text-gray-200 bg-black/60 border border-white/20 active:scale-95 transition-all">새로</button>
+              {/if}
+            </div>
           {:else}
             <p class="w-full py-3 rounded-2xl text-center text-sm font-bold text-gray-400 bg-black/50 border border-white/10">
               🔒 하드 모드는 일반 모드를 클리어하면 열려요
             </p>
           {/if}
           {#if isEndlessOpen}
-            <button
-              type="button"
-              on:click={() => startWithIntro("endless")}
-              class="w-full py-4 rounded-2xl font-black text-lg text-white bg-gradient-to-r from-violet-600 to-indigo-600 active:scale-95 transition-all shadow-[0_0_24px_rgba(139,92,246,0.6)]"
-            >
-              ♾️ 무한 모드
-              {#if localBest}<span class="text-sm font-bold opacity-80">· 최고 {localBest}웨이브</span>{/if}
-            </button>
+            <div class="flex gap-2">
+              <button
+                type="button"
+                on:click={() => (saves.endless ? startGame("endless", loadRun("endless")) : startWithIntro("endless"))}
+                class="flex-1 py-4 rounded-2xl font-black text-lg text-white bg-gradient-to-r from-violet-600 to-indigo-600 active:scale-95 transition-all shadow-[0_0_24px_rgba(139,92,246,0.6)]"
+              >
+                {#if saves.endless}
+                  ♾️ 무한 이어하기 <span class="text-sm font-bold opacity-80">· {saves.endless}웨이브</span>
+                {:else}
+                  ♾️ 무한 모드
+                  {#if localBest}<span class="text-sm font-bold opacity-80">· 최고 {localBest}웨이브</span>{/if}
+                {/if}
+              </button>
+              {#if saves.endless}
+                <button type="button" on:click={() => startGame("endless")} class="shrink-0 px-4 rounded-2xl text-sm font-bold text-gray-200 bg-black/60 border border-white/20 active:scale-95 transition-all">새로</button>
+              {/if}
+            </div>
           {/if}
           <div class="flex">
             <button
@@ -1603,7 +1674,7 @@
           </button>
           <button
             type="button"
-            on:click={backToTitle}
+            on:click={() => history.back()}
             class="mt-3 w-full py-3 rounded-2xl font-bold text-gray-200 bg-white/10 active:scale-95 transition-all"
           >
             처음 화면으로
@@ -1649,7 +1720,7 @@
           </button>
           <button
             type="button"
-            on:click={backToTitle}
+            on:click={() => history.back()}
             class="mt-2 w-full py-2 text-sm font-bold text-gray-300 active:scale-95 transition-all"
           >
             처음 화면으로
