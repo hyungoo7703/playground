@@ -207,6 +207,10 @@ function kill(state, enemy, events) {
     state.bossDeadline = 0;
     // However long the fight took, the next wave leaves the same pause as after any other
     state.waveTime = Math.min(state.waveTime, RULES.waveSeconds - RULES.breather);
+    if (state.wave === RULES.clearWave && !state.cleared) {
+      state.cleared = true;
+      events.push({ type: "clear" });
+    }
   }
 }
 

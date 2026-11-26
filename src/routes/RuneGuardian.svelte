@@ -1,8 +1,10 @@
 <script>
   import { onMount, onDestroy } from "svelte";
+  import { navigate } from "svelte-routing";
   import { base, currentUser } from "../lib/store.js";
   import { api } from "../lib/api.js";
   import { toast } from "../lib/feedback.js";
+  import { REWARD_LABELS } from "../lib/rewards.js";
   import GameExitButton from "../lib/components/GameExitButton.svelte";
   import Ranking from "../lib/rune/Ranking.svelte";
   import { createSound } from "../lib/rune/sound.js";
@@ -137,6 +139,7 @@
     "유닛을 누르면 사거리가 보여요. 가장자리는 길에 가까워요.",
     "행운을 올리면 희귀 이상이 더 자주 나와요.",
     "보스는 60초 안에 잡아야 해요. 화력을 아껴 두지 마세요.",
+    "40웨이브의 마왕을 쓰러뜨리면 클리어예요.",
   ];
   const tip = TIPS[Math.floor(Math.random() * TIPS.length)];
   const IMAGE_FILES = [...Object.keys(UNITS), ...Object.keys(ENEMIES), ...Object.keys(BOSSES), "background", "circle"];
@@ -155,6 +158,12 @@
   let startsAfterRules = false;
   let showBook = false;
   let showRanking = false;
+  // The first clear earns one allowance card pick. A clear whose card has not been drawn yet
+  // survives closing the app.
+  const pendingKey = `rune_reward_pending_${$currentUser}`;
+  let reward = "checking"; // checking | available | claimed | error
+  let isRewardPending = localStorage.getItem(pendingKey) === "1";
+  let showClear = false;
   let reveal = null; // the full-screen arrival of a legendary or a mythic: { key, tier, isShown, title }
   let banner = null; // a line across the top for an epic: { text, color }
   let info = null; // the unit tapped: { slot, key }
@@ -363,6 +372,17 @@
         addEffect({ ...e, type: "ghost" }, 0.7);
         burst(e.x, e.y, "#ffd866", 60, 240);
         flash = { color: "#ffd866", life: 0.6 };
+      } else if (e.type === "clear") {
+        play("mythic");
+        showClear = true;
+        if (reward !== "claimed") {
+          localStorage.setItem(pendingKey, "1");
+          isRewardPending = true;
+        }
+        saveRun();
+        // Not through sendRecord: the run goes on, and its last wave is still to be sent
+        api.saveRuneRecord(game.wave).then(loadRecords);
+        checkReward();
       } else if (e.type === "bossSummon") play("bossSummon");
       else if (e.type === "thief") {
         say("보물 고블린 등장!", FIELD.w / 2, VIEW.y + 72, "#ffd866", 16);
@@ -393,6 +413,7 @@
     for (const e of game.enemies) remember("enemies", e.type);
     const next = {
       wave: game.wave,
+      isCleared: !!game.cleared,
       gold: Math.floor(game.gold),
       count: game.enemies.length,
       price: summonPrice(game),
@@ -428,8 +449,8 @@
     const dt = Math.min((now - lastTime) / 1000, 0.05);
     lastTime = now;
     if (isPaused) return;
-    // Nothing moves while a legendary is arriving or the book is open
-    if (screen === "playing" && !reveal && !showBook) {
+    // Nothing moves while a legendary is arriving, the book is open or the clear is being announced
+    if (screen === "playing" && !reveal && !showBook && !showClear) {
       handle(update(game, dt * speed));
       if (game.enemies.length >= RULES.enemyLimit * RULES.dangerAt && game.phase === "playing") play("alarm");
       sync();
@@ -843,6 +864,7 @@
     effects = [];
     texts = [];
     bumps = {};
+    showClear = false;
     hits = {};
     blocks = {};
     told = {};
@@ -896,6 +918,7 @@
   function onBack() {
     if (!game || history.state?.rune === runEntry) return;
     if (showBook) showBook = false;
+    else if (showClear) showClear = false;
     else if (isPaused || screen === "over") return backToTitle();
     else setPaused(true);
     history.pushState({ ...history.state, rune: runEntry }, "");
@@ -964,6 +987,24 @@
     loadRecords();
   }
 
+  // The card pick writes the draw into the ledger under the reward's label; one such entry means it is spent
+  async function checkReward() {
+    reward = "checking";
+    const res = await api.getLedger();
+    if (!res.success) return (reward = "error");
+    const isClaimed = (res.ledger || []).some((item) => item.receiver === $currentUser && item.title?.includes(REWARD_LABELS.rune));
+    reward = isClaimed ? "claimed" : "available";
+    if (isClaimed) {
+      localStorage.removeItem(pendingKey);
+      isRewardPending = false;
+    }
+  }
+
+  function goToReward() {
+    saveRun();
+    navigate(`${base}/card-pick`, { state: { reward: "rune" } });
+  }
+
   function toggleMute() {
     isMuted = !isMuted;
     sound.setMuted(isMuted);
@@ -987,6 +1028,7 @@
   }
 
   onMount(async () => {
+    checkReward();
     ctx = canvas.getContext("2d");
     sound = createSound(SND, EFFECT_FILES, () => loadedCount++);
     loadRecords();
@@ -1034,7 +1076,9 @@
   <!-- HUD -->
   <div class="relative z-20 flex items-center gap-2 px-3 pt-3 pb-2">
     {#if screen === "playing"}
-      <p class="flex-1 min-w-0 text-sm font-black tracking-widest text-amber-200">WAVE {hud.wave}</p>
+      <p class="flex-1 min-w-0 text-sm font-black tracking-widest text-amber-200">
+        WAVE {hud.wave}{#if !hud.isCleared}<span class="text-[11px] opacity-60"> / {RULES.clearWave}</span>{/if}
+      </p>
       <div class="flex items-center gap-1 text-sm font-black text-amber-300">
         <img src="{IMG}/gold.webp" alt="골드" class="w-5 h-5" />
         {hud.gold}
@@ -1328,7 +1372,7 @@
     </div>
   {/if}
 
-  {#if screen === "playing" && isPaused}
+  {#if screen === "playing" && isPaused && !showClear}
     <div class="absolute inset-0 z-30 flex items-center justify-center p-5 bg-black/75">
       <div class="w-full max-w-xs text-center">
         <h2 class="text-3xl font-black text-amber-200">일시정지</h2>
@@ -1355,6 +1399,45 @@
           저장하고 처음 화면으로
         </button>
         <p class="mt-3 text-xs text-gray-400">나갔다 와도 여기서부터 이어할 수 있어요</p>
+      </div>
+    </div>
+  {/if}
+
+  {#if screen === "playing" && showClear}
+    <div class="absolute inset-0 z-30 flex items-center justify-center p-5 bg-black/85">
+      <div class="w-full max-w-xs text-center">
+        <p class="text-[11px] font-black tracking-[0.4em] text-amber-200">WAVE {RULES.clearWave}</p>
+        <h2 class="mt-1 text-5xl font-black text-amber-200" style="animation: rune-glow 2.6s ease-in-out infinite">CLEAR!</h2>
+        <p class="mt-3 text-gray-200 break-keep">마왕을 쓰러뜨리고 네 보스를 모두 물리쳤습니다.</p>
+        {#if reward === "checking"}
+          <p class="mt-6 text-sm text-gray-300 animate-pulse">보상 확인 중...</p>
+        {:else if reward === "available"}
+          <p class="mt-4 text-xs text-gray-300 break-keep">카드는 한 번만 뽑을 수 있고, 뽑은 금액은 장부에 기록돼요. 이 판은 저장되니 뽑고 와서 이어할 수 있어요.</p>
+          <button
+            type="button"
+            on:click={goToReward}
+            class="mt-4 w-full py-4 rounded-2xl font-black text-lg text-white bg-gradient-to-r from-amber-500 to-rose-500 active:scale-95 transition-all"
+          >
+            🎁 용돈 카드 뽑으러 가기
+          </button>
+        {:else if reward === "claimed"}
+          <p class="mt-6 text-sm font-bold text-amber-200">클리어 보상은 이미 받았어요.</p>
+        {:else}
+          <p class="mt-6 text-sm text-rose-300">보상 정보를 확인하지 못했습니다.</p>
+          <button type="button" on:click={checkReward} class="mt-3 w-full py-3 rounded-2xl font-bold bg-white/10 border border-white/20 active:scale-95 transition-all">
+            다시 확인
+          </button>
+        {/if}
+        <button
+          type="button"
+          on:click={() => {
+            showClear = false;
+            lastTime = performance.now();
+          }}
+          class="mt-3 w-full py-3 rounded-2xl font-bold text-gray-200 bg-white/10 active:scale-95 transition-all"
+        >
+          계속 도전하기 (랭킹)
+        </button>
       </div>
     </div>
   {/if}
@@ -1406,6 +1489,12 @@
               내 최고 기록 {localBest}웨이브
             </p>
           {/if}
+          {#if screen === "start"}
+            <p class="mt-2 text-xs font-bold text-gray-100 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] break-keep">
+              🏆 {RULES.clearWave}웨이브 마왕을 쓰러뜨리면 클리어
+              {#if reward === "claimed"}· 보상 받음{:else if reward === "available"}· 첫 클리어 보상: 용돈 카드뽑기 1회{/if}
+            </p>
+          {/if}
         </div>
         <div class="absolute inset-x-0 bottom-0 px-5 pt-10 pb-[max(env(safe-area-inset-bottom),16px)] bg-gradient-to-t from-black/90 to-transparent">
           {#if hasFailedToLoad}
@@ -1439,6 +1528,15 @@
             </div>
           {:else}
           <div class="max-w-xs mx-auto space-y-2" style="animation: rune-rise 0.5s ease-out">
+              {#if isRewardPending && reward === "available"}
+                <button
+                  type="button"
+                  on:click={goToReward}
+                  class="w-full py-3 rounded-2xl font-black text-white bg-gradient-to-r from-amber-500 to-rose-500 active:scale-95 transition-all"
+                >
+                  🎁 클리어 보상: 용돈 카드 뽑으러 가기
+                </button>
+              {/if}
               {#if savedWave}
                 <button
                   type="button"
@@ -1499,6 +1597,7 @@
           <li>⚔️ 물리는 중갑에, 마법은 마법저항에 막혀요. 적 머리 위 <b>회색 방패</b>가 중갑, <b>보라 보석</b>이 마법저항이에요.</li>
           <li>👾 적은 길을 계속 돌아요. <b>{RULES.enemyLimit}마리</b>가 쌓이거나, 보스를 <b>{RULES.bossSeconds}초</b> 안에 못 잡으면 끝이에요.</li>
           <li>👆 유닛을 누르면 사거리와 능력이 보여요.</li>
+          <li>🏆 <b>{RULES.clearWave}웨이브의 마왕</b>을 쓰러뜨리면 클리어! 첫 클리어에는 용돈 카드뽑기 1회를 드려요. 그 뒤로도 랭킹을 위해 계속할 수 있어요.</li>
         </ul>
         <button type="button" on:click={closeRules} class="mt-4 w-full py-3 rounded-2xl font-black text-gray-900 bg-amber-300 active:scale-95 transition-all">
           {startsAfterRules ? "시작하기" : "닫기"}

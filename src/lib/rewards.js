@@ -2,4 +2,5 @@
 // the label goes into the ledger title of the draw, which is also how a reward is known to be spent.
 export const REWARD_LABELS = {
   attendance: "출석 100일",
+  rune: "룬 가디언 클리어",
 };

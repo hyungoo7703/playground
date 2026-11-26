@@ -16,6 +16,7 @@ export const RULES = {
   breather: 2.5, // pause before the next wave when the road is cleared early
   waveGold: [20, 2], // for each wave survived: base, per wave number
   bossEvery: 10,
+  clearWave: 40, // beating this wave's boss wins the game; the run then goes on for the ranking
   bossSeconds: 60, // a boss still alive after this long ends the run
   bossWarn: 3,
   bossGold: [150, 10],
