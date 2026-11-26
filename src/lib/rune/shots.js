@@ -4,12 +4,14 @@ import { TIERS, UNITS } from "./config.js";
 
 const TAU = Math.PI * 2;
 
-// kind: [how fast it flies in field px a second (0: it is there at once), seconds it stays after landing]
+// kind: [how fast it flies in field px a second (0: it is there at once), seconds it stays after landing,
+//        how far the unit moves with it: in after its target for a blade, a kick back for the rest]
 const KINDS = {
-  slash: [0, 0.2],
-  thrust: [0, 0.22],
-  arrow: [1000, 0.12],
-  tracer: [0, 0.24],
+  slash: [0, 0.28, 8],
+  smite: [0, 0.34, 8],
+  thrust: [0, 0.22, 7],
+  arrow: [620, 0.22],
+  tracer: [0, 0.3],
   orb: [620, 0.28],
   shard: [700, 0.32],
   bolt: [0, 0.16],
@@ -26,11 +28,11 @@ const SHOTS = {
   swordsman: ["slash", "#fff1c9"],
   rogue: ["slash", "#d9c8ff", 0.8],
   knight: ["slash", "#dbe9ff", 1.3],
-  paladin: ["slash", "#ffe27a", 1.6],
+  paladin: ["smite", "#ffe27a", 1.5],
   valkyrie: ["thrust", "#bfe9ff", 1.7],
   dragonknight: ["thrust", "#ff7a3d", 2.3, 1],
   archer: ["arrow", "#e9dcae"],
-  ranger: ["arrow", "#b9f08a"],
+  ranger: ["arrow", "#b9f08a", 1.15],
   sniper: ["tracer", "#9fe8ff", 1.4],
   apprentice: ["orb", "#c3b0ff"],
   pyromancer: ["orb", "#ff9a3d", 1.2],
@@ -50,7 +52,7 @@ const ease = (p) => 1 - (1 - p) * (1 - p);
 /** The shot for an attack the game reported, from the slot centre `from`. */
 export function makeShot(e, from) {
   const [kind, color, size = 1, shake = 0] = SHOTS[e.key];
-  const [speed, after] = KINDS[kind];
+  const [speed, after, kick = -2.5] = KINDS[kind];
   const muzzle = { x: from.x, y: from.y - 6 };
   // A meteor and the sword of judgment come out of the sky, not out of the unit
   const start = kind === "meteor" ? { x: e.x + 60, y: e.y - 170 } : kind === "sword" ? { x: e.x + 14, y: e.y - 170 } : muzzle;
@@ -62,6 +64,7 @@ export function makeShot(e, from) {
     rank: TIERS.indexOf(UNITS[e.key].tier), // 0 common .. 4 mythic
     size: size * (e.crit ? 1.6 : 1),
     shake,
+    kick,
     x: start.x,
     y: start.y,
     x2: e.x,
@@ -199,23 +202,59 @@ export function drawBolt(ctx, x, y, x2, y2, color, alpha) {
   ctx.stroke();
 }
 
+// The bow at the moment of release, `gone` of the way (0 to 1) to having faded
+function bow(ctx, fx, angle, gone) {
+  if (gone >= 1) return;
+  ctx.globalAlpha = 1 - gone;
+  ctx.strokeStyle = fx.color;
+  ctx.lineWidth = 2.2;
+  ctx.beginPath();
+  ctx.arc(fx.ox - Math.cos(angle) * 5, fx.oy - Math.sin(angle) * 5, 13, angle - 1.15, angle + 1.15);
+  ctx.closePath();
+  ctx.stroke();
+}
+
 // Each takes the shot, how far it has flown (0 to 1), how long ago it landed (0 to 1 of its stay),
 // and the angle it travels at
 const DRAW = {
   slash(ctx, fx, flown, p, angle) {
-    const r = 20 * fx.size;
+    const r = 24 * fx.size;
     const turn = fx.seed < 0.5 ? 1 : -1;
-    const x = fx.x2 - Math.cos(angle) * r * 0.55;
-    const y = fx.y2 - Math.sin(angle) * r * 0.55;
+    const ux = Math.cos(angle);
+    const uy = Math.sin(angle);
+    // The rush in: a streak from where the unit stands, gone as the blade comes round
+    if (p < 0.45) tail(ctx, fx.x2 - ux * 6, fx.y2 - uy * 6, angle, Math.hypot(fx.x2 - fx.x, fx.y2 - fx.y) * 0.8, 3.5 * fx.size, fx.color, 0.5 * (1 - p / 0.45));
+    const x = fx.x2 - ux * r * 0.55;
+    const y = fx.y2 - uy * r * 0.55;
     // The edge sweeps across first, and the far end of the arc follows it out
-    const front = angle + turn * 1.15 * (2 * Math.min(1, p / 0.35) - 1);
-    const back = angle + turn * 1.15 * (1.4 * Math.max(0, (p - 0.35) / 0.65) - 1);
+    const front = angle + turn * 1.15 * (2 * Math.min(1, p / 0.3) - 1);
+    const back = angle + turn * 1.15 * (1.4 * Math.max(0, (p - 0.3) / 0.7) - 1);
     const lo = Math.min(front, back);
     const hi = Math.max(front, back);
     if (fx.rank >= 2) crescent(ctx, x, y, r * 1.3, lo, hi, r * 0.3, fx.color, (1 - p * p) * 0.4);
-    crescent(ctx, x, y, r, lo, hi, r * 0.36, fx.color, 1 - p * p);
-    crescent(ctx, x, y, r, lo, hi, r * 0.14, "#ffffff", 1 - p * p);
-    if (fx.crit) rays(ctx, fx.x2, fx.y2, 22, "#ffffff", 1 - p, 4, fx.seed * TAU);
+    crescent(ctx, x, y, r, lo, hi, r * 0.44, fx.color, 1 - p * p);
+    crescent(ctx, x, y, r, lo, hi, r * 0.2, "#ffffff", 1 - p * p);
+    // Where the edge bites
+    if (p < 0.5) {
+      const bite = 1 - p / 0.5;
+      disc(ctx, fx.x2, fx.y2, 4.5 * fx.size * bite, "#ffffff", bite * 0.9);
+      rays(ctx, fx.x2, fx.y2, (8 + 12 * (1 - bite)) * fx.size, "#ffffff", bite, fx.crit ? 8 : 4, fx.seed * TAU);
+    }
+  },
+
+  // A paladin's blow: the sweep of the hammer, and light coming down with it to run out over the ground
+  smite(ctx, fx, flown, p, angle) {
+    DRAW.slash(ctx, fx, flown, p, angle);
+    const fade = 1 - p;
+    for (const [half, color, alpha] of [[10 * fade, fx.color, 0.4], [3.5 * fade, "#ffffff", 0.85]]) {
+      ctx.globalAlpha = fade * alpha;
+      ctx.fillStyle = color;
+      ctx.fillRect(fx.x2 - half, fx.y2 - 80, half * 2, 80);
+    }
+    for (const lag of [0, 0.3]) {
+      const out = (p - lag) / (1 - lag);
+      if (out > 0) ellipse(ctx, fx.x2, fx.y2 + 4, 8 + 26 * ease(out), (8 + 26 * ease(out)) * 0.42, fx.color, 1 - out, 2);
+    }
   },
 
   thrust(ctx, fx, flown, p, angle) {
@@ -237,30 +276,40 @@ const DRAW = {
   },
 
   arrow(ctx, fx, flown, p, angle) {
-    if (flown === 1) return rays(ctx, fx.x2, fx.y2, 4 + 7 * ease(p), fx.color, 1 - p, 4, fx.seed * TAU);
     const ux = Math.cos(angle);
     const uy = Math.sin(angle);
+    const s = fx.size;
+    bow(ctx, fx, angle, flown / 0.4);
+    // In flight, then standing in what it hit for a moment
     const x = fx.x + (fx.x2 - fx.x) * flown;
     const y = fx.y + (fx.y2 - fx.y) * flown;
-    tail(ctx, x, y, angle, 26, 1.4, fx.color, 0.35);
-    ctx.globalAlpha = 1;
+    const alpha = flown < 1 ? 1 : 1 - p;
+    if (flown < 1) tail(ctx, x, y, angle, 46 * s, 2.6 * s, fx.color, 0.5);
+    ctx.globalAlpha = alpha;
     ctx.strokeStyle = fx.color;
-    ctx.lineWidth = 1.6;
+    ctx.lineWidth = 2.2 * s;
     ctx.beginPath();
-    ctx.moveTo(x - ux * 11, y - uy * 11);
-    ctx.lineTo(x, y);
+    ctx.moveTo(x - ux * 2, y - uy * 2);
+    ctx.lineTo(x - ux * 18 * s, y - uy * 18 * s);
+    // The feathers
+    for (const side of [-1, 1]) {
+      ctx.moveTo(x - ux * 15 * s, y - uy * 15 * s);
+      ctx.lineTo(x - ux * 21 * s - uy * side * 3.4 * s, y - uy * 21 * s + ux * side * 3.4 * s);
+    }
     ctx.stroke();
-    polygon(ctx, [x + ux * 3.5, y + uy * 3.5, x - ux * 3 - uy * 2.6, y - uy * 3 + ux * 2.6, x - ux * 3 + uy * 2.6, y - uy * 3 - ux * 2.6], "#ffffff", 1);
+    polygon(ctx, [x + ux * 4.5 * s, y + uy * 4.5 * s, x - ux * 4 * s - uy * 3.6 * s, y - uy * 4 * s + ux * 3.6 * s, x - ux * 4 * s + uy * 3.6 * s, y - uy * 4 * s - ux * 3.6 * s], "#ffffff", alpha);
+    if (flown === 1) rays(ctx, fx.x2, fx.y2, (5 + 10 * ease(p)) * s, "#ffffff", 1 - p, 5, fx.seed * TAU);
   },
 
   tracer(ctx, fx, flown, p, angle) {
+    bow(ctx, fx, angle, p / 0.4);
     // The far end is there at once; the near end catches up with it
     const x = fx.x + (fx.x2 - fx.x) * p * 0.9;
     const y = fx.y + (fx.y2 - fx.y) * p * 0.9;
     const length = Math.hypot(fx.x2 - x, fx.y2 - y);
-    tail(ctx, fx.x2, fx.y2, angle, length, 5 * (1 - p), fx.color, (1 - p) * 0.55);
-    tail(ctx, fx.x2, fx.y2, angle, length, 1.8 * (1 - p), "#ffffff", 1 - p);
-    rays(ctx, fx.x2, fx.y2, 17 * (1 - p * 0.5), "#ffffff", 1 - p, 4, 0, 0.15);
+    tail(ctx, fx.x2, fx.y2, angle, length, 5 * fx.size * (1 - p), fx.color, (1 - p) * 0.55);
+    tail(ctx, fx.x2, fx.y2, angle, length, 1.8 * fx.size * (1 - p), "#ffffff", 1 - p);
+    rays(ctx, fx.x2, fx.y2, 17 * fx.size * (1 - p * 0.5), "#ffffff", 1 - p, 4, 0, 0.15);
     ring(ctx, fx.x2, fx.y2, 5 + 14 * ease(p), fx.color, 1 - p);
   },
 

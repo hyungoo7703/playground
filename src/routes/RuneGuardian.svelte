@@ -66,6 +66,7 @@
   const MUSIC = "openmindaudio-cinematic-action-epic-trailer-iron-vanguard-part-1-short-preview-488562.mp3";
   // How much louder an attack is for each tier above common
   const LOUDER = [1, 1.1, 1.3, 1.7, 2.2];
+  const BUMP = 0.16; // seconds a unit's move with its attack lasts
 
   // How each unit's attack sounds
   const VOICE = {
@@ -186,7 +187,7 @@
   let particles = [];
   let effects = []; // short-lived shots, rings, arcs and the fading shapes of the fallen
   let texts = []; // words floating up from where something happened
-  let bumps = {}; // slot -> seconds left of the little hop a unit makes when it attacks
+  let bumps = {}; // slot -> { life, x, y }: the move a unit makes as it attacks, and the seconds left of it
   let hits = {}; // enemy id -> seconds left of its flinch at being hit
   let shake = 0; // field px the picture is jolted by, dying away
   let flash = null; // { color, life }
@@ -280,7 +281,9 @@
     for (const e of events) {
       if (e.type === "attack") {
         const shot = makeShot(e, slotCenter(e.slot));
-        bumps[e.slot] = 0.12;
+        const from = slotCenter(e.slot);
+        const reach = Math.hypot(e.x - from.x, e.y - from.y) || 1;
+        bumps[e.slot] = { life: BUMP, x: ((e.x - from.x) / reach) * shot.kick, y: ((e.y - from.y) / reach) * shot.kick };
         addEffect(shot, shot.seconds);
         if (e.crit) say("치명타!", e.x, e.y - 16, "#fff36b", 11);
         play(VOICE[e.key], LOUDER[shot.rank]);
@@ -410,7 +413,7 @@
     effects = effects.filter((fx) => fx.life > 0);
     for (const t of texts) t.life -= dt;
     texts = texts.filter((t) => t.life > 0);
-    for (const slot in bumps) if ((bumps[slot] -= dt) <= 0) delete bumps[slot];
+    for (const slot in bumps) if ((bumps[slot].life -= dt) <= 0) delete bumps[slot];
     for (const id in hits) if ((hits[id] -= dt) <= 0) delete hits[id];
     shake = Math.max(0, shake - dt * 14);
     if (flash && (flash.life -= dt) <= 0) flash = null;
@@ -456,7 +459,15 @@
     ctx.strokeStyle = "rgba(0,0,0,0.5)";
     ctx.lineWidth = TRACK.width + 6;
     ctx.strokeRect(TRACK.left, TRACK.top, sideX, sideY);
-    ctx.strokeStyle = "#4a4355";
+    // It reddens as it fills, and throbs once the end is near
+    const full = game ? Math.min(1, game.enemies.length / RULES.enemyLimit) : 0;
+    const heat = Math.max(0, (full - 0.4) / 0.6);
+    if (full >= RULES.dangerAt) {
+      ctx.strokeStyle = `rgba(255,60,80,${0.35 + 0.3 * Math.sin(performance.now() / 140)})`;
+      ctx.lineWidth = TRACK.width + 14;
+      ctx.strokeRect(TRACK.left, TRACK.top, sideX, sideY);
+    }
+    ctx.strokeStyle = `rgb(${74 + 70 * heat},${67 - 30 * heat},${85 - 35 * heat})`;
     ctx.lineWidth = TRACK.width;
     ctx.strokeRect(TRACK.left, TRACK.top, sideX, sideY);
     ctx.strokeStyle = "rgba(255,255,255,0.09)";
@@ -532,8 +543,9 @@
     for (const unit of game.units) {
       const c = slotCenter(unit.slot);
       const isCarried = drag?.hasMoved && drag.slot === unit.slot;
-      const size = 46 * (1 + (bumps[unit.slot] ? 0.1 : 0));
-      drawUnit(unit.key, c.x, c.y, size, isCarried ? 0.3 : 1);
+      const bump = bumps[unit.slot];
+      const moved = bump ? bump.life / BUMP : 0;
+      drawUnit(unit.key, c.x + (bump?.x ?? 0) * moved, c.y + (bump?.y ?? 0) * moved, 46 * (1 + moved * 0.1), isCarried ? 0.3 : 1);
       if (unit.stunUntil > game.time) {
         roundRect(c.x - c.w / 2 + 2, c.y - c.h / 2 + 2, c.w - 4, c.h - 4, 9);
         ctx.fillStyle = "rgba(143,227,255,0.45)";
@@ -897,18 +909,7 @@
   <!-- HUD -->
   <div class="relative z-20 flex items-center gap-2 px-3 pt-3 pb-2">
     {#if screen === "playing"}
-      <div class="flex-1 min-w-0">
-        <p class="text-[11px] font-black tracking-widest text-amber-200">WAVE {hud.wave}</p>
-        <div class="mt-1 flex items-center gap-1.5" aria-label="길 위의 적 {hud.count}마리, 한도 {RULES.enemyLimit}마리">
-          <div class="h-2.5 flex-1 max-w-[150px] rounded-full bg-white/15 overflow-hidden">
-            <div
-              class="h-full rounded-full transition-all {danger ? 'bg-rose-500 animate-pulse' : 'bg-emerald-400'}"
-              style="width: {Math.min(100, (hud.count / RULES.enemyLimit) * 100)}%"
-            ></div>
-          </div>
-          <span class="text-[11px] font-black {danger ? 'text-rose-300' : 'text-gray-300'}">👾 {hud.count}/{RULES.enemyLimit}</span>
-        </div>
-      </div>
+      <p class="flex-1 min-w-0 text-sm font-black tracking-widest text-amber-200">WAVE {hud.wave}</p>
       <div class="flex items-center gap-1 text-sm font-black text-amber-300">
         <img src="{IMG}/gold.webp" alt="골드" class="w-5 h-5" />
         {hud.gold}
@@ -942,6 +943,22 @@
       {isMuted ? "🔇" : "🔊"}
     </button>
   </div>
+  {#if screen === "playing"}
+    <!-- How full the road is: the run ends when it fills -->
+    <div
+      class="relative z-20 mx-3 mb-2 h-6 rounded-full overflow-hidden bg-black/50 border {danger ? 'border-rose-400' : 'border-white/15'}"
+      aria-label="길 위의 적 {hud.count}마리, {RULES.enemyLimit}마리가 되면 패배"
+    >
+      <div
+        class="h-full transition-all {danger ? 'bg-rose-500 animate-pulse' : hud.count >= RULES.enemyLimit / 2 ? 'bg-amber-500' : 'bg-emerald-500'}"
+        style="width: {Math.min(100, (hud.count / RULES.enemyLimit) * 100)}%"
+      ></div>
+      <p class="absolute inset-0 flex items-center justify-between px-3 text-xs font-black drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+        <span>👾 적 {hud.count} / {RULES.enemyLimit}</span>
+        <span class={danger ? "text-white" : "text-white/70"}>{danger ? "⚠ 곧 가득 찹니다!" : "가득 차면 패배"}</span>
+      </p>
+    </div>
+  {/if}
 
   <!-- The board -->
   <div
