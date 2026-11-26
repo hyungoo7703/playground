@@ -22,6 +22,7 @@
     readyRecipes,
     slotCenter,
   } from "../lib/rune/engine.js";
+  import { makeShot, drawShot, drawBolt } from "../lib/rune/shots.js";
   import { FIELD, TRACK, GRID, RULES, TIERS, TIER, MERGE, UPGRADES, UNITS, RECIPES, ENEMIES, BOSSES } from "../lib/rune/config.js";
 
   const IMG = `${base}/images/rune`;
@@ -68,7 +69,7 @@
     boss: "openmindaudio-cinematic-action-epic-trailer-iron-vanguard-part-1-short-preview-488562.mp3",
   };
 
-  // How each unit's attack sounds and what colour it flies in
+  // How each unit's attack sounds
   const VOICE = {
     swordsman: "sword", rogue: "sword", knight: "sword", paladin: "sword", valkyrie: "sword",
     archer: "bow", sniper: "bow", ranger: "volley",
@@ -76,10 +77,6 @@
     pyromancer: "fire", dragonknight: "fire", elderdragon: "fire",
     cryomancer: "ice", stormcaller: "lightning",
     druid: "nature", alchemist: "nature", worldtree: "nature",
-  };
-  const SHOT_COLOR = {
-    sword: "#fff1c9", bow: "#e9dcae", volley: "#e9dcae", magic: "#c3b0ff", meteor: "#ff8a66",
-    fire: "#ff9a3d", ice: "#8fe3ff", lightning: "#fff36b", nature: "#8dff8a",
   };
   const UNIT_TEXT = {
     swordsman: "가까운 적을 빠르게 벤다",
@@ -189,7 +186,7 @@
 
   let drag = null; // { slot, key, x, y, hasMoved }
   let particles = [];
-  let effects = []; // short-lived shots, rings and arcs
+  let effects = []; // short-lived shots, rings, arcs and the fading shapes of the fallen
   let texts = []; // words floating up from where something happened
   let bumps = {}; // slot -> seconds left of the little hop a unit makes when it attacks
   let flash = null; // { color, life }
@@ -282,14 +279,17 @@
   function handle(events) {
     for (const e of events) {
       if (e.type === "attack") {
-        const from = slotCenter(e.slot);
-        const voice = VOICE[e.key];
+        const shot = makeShot(e, slotCenter(e.slot));
         bumps[e.slot] = 0.12;
-        addEffect({ type: "shot", x: from.x, y: from.y - 6, x2: e.x, y2: e.y, color: SHOT_COLOR[voice], splash: e.splash, crit: e.crit }, e.splash ? 0.22 : 0.13);
-        play(voice);
-      } else if (e.type === "chain") addEffect({ ...e, color: "#fff36b" }, 0.14);
-      else if (e.type === "kill") burst(e.x, e.y, "#d9f7c4", 5, 70);
-      else if (e.type === "gold") {
+        addEffect(shot, shot.seconds);
+        if (e.crit) say("치명타!", e.x, e.y - 16, "#fff36b", 11);
+        play(VOICE[e.key]);
+      } else if (e.type === "chain") addEffect({ ...e, color: "#fff36b" }, 0.16);
+      else if (e.type === "kill") {
+        // It stays a moment, so that what killed it has something to land on
+        addEffect({ ...e, type: "ghost" }, 0.22);
+        burst(e.x, e.y, "#d9f7c4", 5, 70);
+      } else if (e.type === "gold") {
         if (e.amount >= 5) say(`+${Math.floor(e.amount)}`, e.x, e.y - 10, "#ffd866");
       } else if (e.type === "summon") arrive(e, "summon");
       else if (e.type === "craft") arrive(e, "craft");
@@ -313,6 +313,7 @@
       } else if (e.type === "bossDead") {
         play("fanfare");
         sound.playMusic(MUSIC.field);
+        addEffect({ ...e, type: "ghost" }, 0.7);
         burst(e.x, e.y, "#ffd866", 60, 240);
         flash = { color: "#ffd866", life: 0.6 };
       } else if (e.type === "bossSummon") play("bossSummon");
@@ -388,7 +389,13 @@
       p.life -= dt;
     }
     particles = particles.filter((p) => p.life > 0);
-    for (const fx of effects) fx.life -= dt;
+    for (const fx of effects) {
+      fx.life -= dt;
+      if (fx.type === "shot" && !fx.hasLanded && fx.span - fx.life >= fx.fly) {
+        fx.hasLanded = true;
+        burst(fx.x2, fx.y2, fx.color, fx.splash ? 10 : fx.crit ? 8 : 3, fx.splash ? 130 : 70);
+      }
+    }
     effects = effects.filter((fx) => fx.life > 0);
     for (const t of texts) t.life -= dt;
     texts = texts.filter((t) => t.life > 0);
@@ -512,37 +519,29 @@
 
     for (const fx of effects) {
       const t = fx.life / fx.span;
-      ctx.globalAlpha = t;
-      ctx.strokeStyle = fx.color;
-      ctx.fillStyle = fx.color;
-      if (fx.type === "shot") {
-        ctx.lineWidth = fx.crit ? 3.5 : 1.8;
-        ctx.beginPath();
-        ctx.moveTo(fx.x, fx.y);
-        ctx.lineTo(fx.x2, fx.y2);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.arc(fx.x2, fx.y2, fx.crit ? 6 : 3.5, 0, Math.PI * 2);
-        ctx.fill();
-        if (fx.splash) {
-          ctx.globalAlpha = t * 0.35;
-          ctx.beginPath();
-          ctx.arc(fx.x2, fx.y2, fx.splash * (1.05 - t * 0.35), 0, Math.PI * 2);
-          ctx.fill();
-        }
-      } else if (fx.type === "chain") {
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(fx.x, fx.y);
-        ctx.lineTo((fx.x + fx.x2) / 2 + (Math.random() - 0.5) * 14, (fx.y + fx.y2) / 2 + (Math.random() - 0.5) * 14);
-        ctx.lineTo(fx.x2, fx.y2);
-        ctx.stroke();
-      } else if (fx.type === "ring") {
+      if (fx.type === "ghost") {
+        const size = (ENEMIES[fx.kind] ?? BOSSES[fx.kind]).size * 2.3 * (0.7 + 0.3 * t);
+        ctx.globalAlpha = Math.min(1, t * 1.5);
+        ctx.save();
+        ctx.translate(fx.x, fx.y);
+        if (fx.side < 2) ctx.scale(-1, 1);
+        ctx.drawImage(images[fx.kind], -size / 2, -size / 2 - 4, size, size);
+        ctx.restore();
+        continue;
+      }
+      // Light adds up where shots cross
+      ctx.globalCompositeOperation = "lighter";
+      if (fx.type === "shot") drawShot(ctx, fx, fx.span - fx.life);
+      else if (fx.type === "chain") drawBolt(ctx, fx.x, fx.y, fx.x2, fx.y2, fx.color, t);
+      else if (fx.type === "ring") {
+        ctx.globalAlpha = t;
+        ctx.strokeStyle = fx.color;
         ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.arc(fx.x, fx.y, fx.radius * (1 - t * 0.7), 0, Math.PI * 2);
         ctx.stroke();
       }
+      ctx.globalCompositeOperation = "source-over";
     }
     ctx.globalAlpha = 1;
     for (const p of particles) {

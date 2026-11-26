@@ -199,7 +199,7 @@ function kill(state, enemy, events) {
   if (enemy.type === "thief") gold = THIEF.gold[0] + THIEF.gold[1] * state.wave;
   else if (boss) gold = RULES.bossGold[0] + RULES.bossGold[1] * state.wave;
   else gold += boardWide(state, "bounty");
-  events.push({ type: boss ? "bossDead" : enemy.type === "thief" ? "thiefCaught" : "kill", kind: enemy.type, x: enemy.x, y: enemy.y });
+  events.push({ type: boss ? "bossDead" : enemy.type === "thief" ? "thiefCaught" : "kill", kind: enemy.type, x: enemy.x, y: enemy.y, side: enemy.side });
   gainGold(state, gold, enemy.x, enemy.y, events);
   if (boss) {
     state.bossDeadline = 0;
