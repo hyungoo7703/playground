@@ -67,6 +67,10 @@
   // How much louder an attack is for each tier above common
   const LOUDER = [1, 1.1, 1.3, 1.7, 2.2];
   const BUMP = 0.16; // seconds a unit's move with its attack lasts
+  const BLOCK = 0.3; // seconds the guard that turned a hit away shows
+  const GUARD = { armor: { color: "#c9d3e3", label: "중갑" }, ward: { color: "#c79bff", label: "마법저항" } };
+  // What an enemy is washed over with while something has hold of it
+  const TINT = { stopped: "#d6f1ff", slowed: "#3f9dff", enraged: "#ff3b3b" };
 
   // How each unit's attack sounds
   const VOICE = {
@@ -128,7 +132,7 @@
   // Shown one at a time under the loading bar
   const TIPS = [
     "같은 유닛 두 개를 겹치면 윗등급에 도전해요.",
-    "신화는 뽑기로 나오지 않아요. 도감의 조합식을 찾아보세요.",
+    "신화는 뽑기로 나오지 않아요. 도감에 적힌 세 유닛을 모으세요.",
     "중갑은 마법으로, 마법저항은 물리로 뚫으세요.",
     "유닛을 누르면 사거리가 보여요. 가장자리는 길에 가까워요.",
     "행운을 올리면 희귀 이상이 더 자주 나와요.",
@@ -190,6 +194,10 @@
   let bumps = {}; // slot -> { life, x, y }: the move a unit makes as it attacks, and the seconds left of it
   let hits = {}; // enemy id -> seconds left of its flinch at being hit
   let shake = 0; // field px the picture is jolted by, dying away
+  let blocks = {}; // enemy id -> { life, kind }: the armor or ward it just showed
+  let told = {}; // enemy id -> seconds until its guard is spelled out in words again
+  let toldAny = 0; // seconds until any guard is
+  const tints = {};
   let flash = null; // { color, life }
   const lastPlayed = {};
 
@@ -234,6 +242,39 @@
       const v = power * (0.3 + Math.random() * 0.7);
       particles.push({ x, y, vx: Math.cos(angle) * v, vy: Math.sin(angle) * v, life: 0.3 + Math.random() * 0.35, color });
     }
+  }
+
+  // An enemy's picture washed over with a colour
+  function tinted(type, color) {
+    const key = type + color;
+    if (!tints[key]) {
+      const img = images[type];
+      const copy = document.createElement("canvas");
+      copy.width = copy.height = Math.min(img.width, 160);
+      const c = copy.getContext("2d");
+      c.drawImage(img, 0, 0, copy.width, copy.height);
+      c.globalCompositeOperation = "source-atop";
+      c.globalAlpha = 0.55;
+      c.fillStyle = color;
+      c.fillRect(0, 0, copy.width, copy.height);
+      tints[key] = copy;
+    }
+    return tints[key];
+  }
+
+  // An enemy taking a hit from a unit: it flinches, or shows the armor or ward that turned part of it away
+  function strike(id, key, seconds) {
+    const enemy = game?.enemies.find((e) => e.id === id);
+    if (!enemy) return;
+    const def = ENEMIES[enemy.type] ?? BOSSES[enemy.type];
+    const kind = UNITS[key].type === "phys" ? "armor" : "ward";
+    if (UNITS[key].pierce || !def[kind]) return (hits[id] = seconds);
+    blocks[id] = { life: BLOCK, kind };
+    // Spelled out once in a while, not at every blow
+    if (told[id] > 0 || toldAny > 0) return;
+    told[id] = 3;
+    toldAny = 0.4;
+    say(`${GUARD[kind].label} -${Math.round(def[kind] * 100)}%`, enemy.x, enemy.y - def.size * 1.15 - 12, GUARD[kind].color, 11, 0.9);
   }
 
   function addEffect(effect, seconds) {
@@ -289,7 +330,7 @@
         play(VOICE[e.key], LOUDER[shot.rank]);
       } else if (e.type === "chain") {
         addEffect({ ...e, color: "#fff36b" }, 0.16);
-        hits[e.id] = 0.16;
+        strike(e.id, e.key, 0.16);
       }
       else if (e.type === "kill") {
         // It stays a moment, so that what killed it has something to land on
@@ -405,9 +446,9 @@
         // The better the unit, the harder it lands
         fx.hasLanded = true;
         burst(fx.x2, fx.y2, fx.color, 3 + fx.rank * 3 + (fx.splash ? 8 : 0) + (fx.crit ? 5 : 0), 70 + fx.rank * 30);
-        for (const id of fx.ids) hits[id] = 0.1 + fx.rank * 0.03;
+        for (const id of fx.ids) strike(id, fx.key, 0.1 + fx.rank * 0.03);
         shake = Math.max(shake, fx.shake);
-        if (fx.rank >= 3 && fx.dealt) say(String(Math.round(fx.dealt)), fx.x2 + (fx.seed - 0.5) * 22, fx.y2 - 18, TIER_COLOR[TIERS[fx.rank]], 7 + fx.rank * 1.7, 0.7);
+        if (fx.rank >= 3 && fx.dealt) say(String(Math.round(fx.dealt)), fx.x2 + (fx.seed - 0.5) * 22, fx.y2 - 18, fx.isCut ? "#9aa3b2" : TIER_COLOR[TIERS[fx.rank]], (7 + fx.rank * 1.7) * (fx.isCut ? 0.85 : 1), 0.7);
       }
     }
     effects = effects.filter((fx) => fx.life > 0);
@@ -415,6 +456,9 @@
     texts = texts.filter((t) => t.life > 0);
     for (const slot in bumps) if ((bumps[slot].life -= dt) <= 0) delete bumps[slot];
     for (const id in hits) if ((hits[id] -= dt) <= 0) delete hits[id];
+    for (const id in blocks) if ((blocks[id].life -= dt) <= 0) delete blocks[id];
+    for (const id in told) if ((told[id] -= dt) <= 0) delete told[id];
+    toldAny -= dt;
     shake = Math.max(0, shake - dt * 14);
     if (flash && (flash.life -= dt) <= 0) flash = null;
     draw();
@@ -509,11 +553,22 @@
       ctx.setLineDash([]);
     }
 
+    // Time stood still lies over the whole field
+    const isStopped = game.stopUntil > game.time;
+    if (isStopped) {
+      ctx.fillStyle = "rgba(150,215,255,0.12)";
+      ctx.fillRect(0, VIEW.y, FIELD.w, VIEW.h);
+    }
+    const now = performance.now();
+
     // Enemies, the lower ones in front
     for (const e of [...game.enemies].sort((a, b) => a.y - b.y)) {
-      const def = ENEMIES[e.type] ?? BOSSES[e.type];
+      const boss = BOSSES[e.type];
+      const def = boss ?? ENEMIES[e.type];
       const size = def.size * 2.3;
-      const img = images[e.type];
+      const isStunned = !boss && e.stunUntil > game.time;
+      const state = isStopped && !boss ? "stopped" : e.slowUntil > game.time ? "slowed" : def.enrage && e.hp < e.maxHp * def.enrage[0] ? "enraged" : null;
+      const img = state ? tinted(e.type, TINT[state]) : images[e.type];
       ctx.save();
       ctx.translate(e.x, e.y);
       // Drawn facing left: turned round on the two sides where they walk right or down
@@ -530,12 +585,80 @@
         ctx.globalAlpha = 1;
       }
       ctx.restore();
+      const w = size * 0.7;
+      const top = e.y - size / 2 - 8;
       if (e.hp < e.maxHp) {
-        const w = size * 0.7;
         ctx.fillStyle = "rgba(0,0,0,0.6)";
-        ctx.fillRect(e.x - w / 2, e.y - size / 2 - 8, w, 3.5);
-        ctx.fillStyle = e.poisonUntil > game.time ? "#8dff8a" : BOSSES[e.type] ? "#ff5a6e" : "#ffd24a";
-        ctx.fillRect(e.x - w / 2, e.y - size / 2 - 8, w * Math.max(0, e.hp / e.maxHp), 3.5);
+        ctx.fillRect(e.x - w / 2, top, w, 3.5);
+        ctx.fillStyle = e.poisonUntil > game.time ? "#8dff8a" : boss ? "#ff5a6e" : "#ffd24a";
+        ctx.fillRect(e.x - w / 2, top, w * Math.max(0, e.hp / e.maxHp), 3.5);
+      }
+      // What it is guarded by, always on show: a shield for armor, a gem for ward
+      let badgeX = e.x - w / 2 - 6;
+      for (const kind of ["armor", "ward"]) {
+        if (!def[kind]) continue;
+        ctx.fillStyle = GUARD[kind].color;
+        ctx.strokeStyle = "rgba(0,0,0,0.8)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        if (kind === "armor") {
+          ctx.moveTo(badgeX - 3.5, top - 2.5);
+          ctx.lineTo(badgeX + 3.5, top - 2.5);
+          ctx.lineTo(badgeX + 3.5, top + 2);
+          ctx.lineTo(badgeX, top + 6);
+          ctx.lineTo(badgeX - 3.5, top + 2);
+        } else {
+          ctx.moveTo(badgeX, top - 3.5);
+          ctx.lineTo(badgeX + 3.5, top + 1.5);
+          ctx.lineTo(badgeX, top + 6.5);
+          ctx.lineTo(badgeX - 3.5, top + 1.5);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        badgeX -= 9;
+      }
+      // The guard that just turned a hit away, shown round it in its own colour
+      const block = blocks[e.id];
+      if (block) {
+        ctx.globalAlpha = block.life / BLOCK;
+        ctx.strokeStyle = GUARD[block.kind].color;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(e.x, e.y - 4, size * 0.56, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+      // Stunned: stars going round its head
+      if (isStunned) {
+        ctx.fillStyle = "#fff36b";
+        for (let i = 0; i < 3; i++) {
+          const a = now / 160 + (i * Math.PI * 2) / 3;
+          const sx = e.x + Math.cos(a) * size * 0.32;
+          const sy = top - 5 + Math.sin(a) * 3;
+          ctx.beginPath();
+          ctx.moveTo(sx, sy - 3.2);
+          ctx.lineTo(sx + 1.1, sy - 1.1);
+          ctx.lineTo(sx + 3.2, sy);
+          ctx.lineTo(sx + 1.1, sy + 1.1);
+          ctx.lineTo(sx, sy + 3.2);
+          ctx.lineTo(sx - 1.1, sy + 1.1);
+          ctx.lineTo(sx - 3.2, sy);
+          ctx.lineTo(sx - 1.1, sy - 1.1);
+          ctx.fill();
+        }
+      }
+      // Poisoned: bubbles coming off it
+      if (e.poisonUntil > game.time) {
+        ctx.fillStyle = "#8dff8a";
+        for (let i = 0; i < 3; i++) {
+          const rise = (now / 700 + i / 3 + e.id * 0.37) % 1;
+          ctx.globalAlpha = 1 - rise;
+          ctx.beginPath();
+          ctx.arc(e.x + (i - 1) * size * 0.24, e.y - size * 0.1 - rise * size * 0.6, 1 + 2 * (1 - rise), 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
       }
     }
 
@@ -721,6 +844,8 @@
     texts = [];
     bumps = {};
     hits = {};
+    blocks = {};
+    told = {};
     shake = 0;
     drag = null;
     info = null;
@@ -1117,7 +1242,7 @@
       <div class="flex-1 overflow-y-auto overscroll-contain px-4 pb-6 space-y-5">
         <section>
           <h3 class="mt-3 text-sm font-black" style="color: {TIER_COLOR.mythic}">신화 조합식</h3>
-          <p class="text-[11px] text-gray-400">전설 1 + 영웅 1 + 희귀 1이 판 위에 동시에 있으면 만들 수 있어요. 한 번 얻어 본 유닛만 이름이 보여요.</p>
+          <p class="text-[11px] text-gray-400">아래 세 유닛이 판 위에 동시에 있으면 만들 수 있어요. 무엇이 나오는지는 만들어 봐야 알아요.</p>
           <div class="mt-2 space-y-2">
             {#each Object.entries(RECIPES) as [key, parts]}
               {@const isKnown = seen.crafted.includes(key)}
@@ -1140,16 +1265,12 @@
                 </div>
                 <div class="mt-2 grid grid-cols-3 gap-1.5">
                   {#each parts as part}
-                    {@const isSeen = seen.units.includes(part)}
                     {@const isHere = game?.units.some((u) => u.key === part)}
                     <div class="flex items-center gap-1 p-1.5 rounded-xl bg-black/40 border {isHere ? 'border-emerald-400' : 'border-white/10'}">
-                      {#if isSeen}
-                        <img src="{IMG}/{part}.webp" alt="" class="w-7 h-7 shrink-0" />
-                      {:else}
-                        <span class="w-7 h-7 shrink-0 flex items-center justify-center font-black text-gray-500">?</span>
-                      {/if}
+                      <img src="{IMG}/{part}.webp" alt="" class="w-7 h-7 shrink-0" />
                       <span class="min-w-0 text-[10px] font-bold leading-tight break-keep" style="color: {TIER_COLOR[UNITS[part].tier]}">
-                        {isSeen ? UNITS[part].name : `${TIER[UNITS[part].tier].label} ???`}{isHere ? " ✓" : ""}
+                        <span class="block text-[9px] opacity-70">{TIER[UNITS[part].tier].label}</span>
+                        {UNITS[part].name}{isHere ? " ✓" : ""}
                       </span>
                     </div>
                   {/each}
@@ -1374,8 +1495,8 @@
         <ul class="mt-4 space-y-2 text-sm text-gray-200 bg-white/5 border border-white/10 rounded-2xl p-4 break-keep">
           <li>🔮 골드로 유닛을 <b>소환</b>해요. 어떤 등급이 나올지는 운이에요.</li>
           <li>✋ 유닛을 끌어서 옮기고, <b>같은 유닛 위에 놓으면 조합</b>을 시도해요. 윗등급일수록 실패할 수 있어요.</li>
-          <li>👑 <b>신화</b>는 뽑기로 안 나와요. 도감의 조합식을 찾아내세요.</li>
-          <li>⚔️ 물리는 중갑에, 마법은 마법저항에 막혀요. 둘 다 키우세요.</li>
+          <li>👑 <b>신화</b>는 뽑기로 안 나와요. 📖 도감에 적힌 세 유닛을 판에 모으면 조합할 수 있어요.</li>
+          <li>⚔️ 물리는 중갑에, 마법은 마법저항에 막혀요. 적 머리 위 <b>회색 방패</b>가 중갑, <b>보라 보석</b>이 마법저항이에요.</li>
           <li>👾 적은 길을 계속 돌아요. <b>{RULES.enemyLimit}마리</b>가 쌓이거나, 보스를 <b>{RULES.bossSeconds}초</b> 안에 못 잡으면 끝이에요.</li>
           <li>👆 유닛을 누르면 사거리와 능력이 보여요.</li>
         </ul>

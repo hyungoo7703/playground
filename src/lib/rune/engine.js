@@ -238,9 +238,9 @@ function attack(state, unit, events) {
 
   for (const target of inReach.slice(0, def.multi ?? 1)) {
     const struck = def.splash ? state.enemies.filter((e) => !e.dead && near(e, target, def.splash)) : [target];
-    // For whoever shows it: `ids` are the enemies it lands on, `dealt` what the one aimed at takes,
+    // For whoever shows it: `ids` are the enemies it lands on, `dealt` what the one aimed at takes of `amount`,
     // `first` marks the first of the shots a unit looses at once
-    const shot = { type: "attack", key: unit.key, slot: unit.slot, x: target.x, y: target.y, splash: def.splash, crit: isCrit, ids: struck.map((e) => e.id), dealt: 0, first: target === inReach[0] };
+    const shot = { type: "attack", key: unit.key, slot: unit.slot, x: target.x, y: target.y, splash: def.splash, crit: isCrit, ids: struck.map((e) => e.id), amount, dealt: 0, first: target === inReach[0] };
     events.push(shot);
     for (const e of struck) {
       const dealt = hurt(state, e, amount, def, events);
@@ -256,7 +256,7 @@ function attack(state, unit, events) {
       if (!next) break;
       power *= CHAIN_FADE;
       jumped.push(next.id);
-      events.push({ type: "chain", x: last.x, y: last.y, x2: next.x, y2: next.y, id: next.id });
+      events.push({ type: "chain", key: unit.key, x: last.x, y: last.y, x2: next.x, y2: next.y, id: next.id });
       hurt(state, next, power, def, events);
       last = next;
     }

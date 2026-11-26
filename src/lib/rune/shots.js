@@ -59,6 +59,7 @@ export function makeShot(e, from) {
   const fly = speed ? Math.hypot(e.x - start.x, e.y - start.y) / speed : 0;
   return {
     type: "shot",
+    key: e.key,
     kind,
     color,
     rank: TIERS.indexOf(UNITS[e.key].tier), // 0 common .. 4 mythic
@@ -75,6 +76,7 @@ export function makeShot(e, from) {
     crit: e.crit,
     ids: e.ids,
     dealt: e.dealt,
+    isCut: e.dealt < e.amount * 0.99, // armor or ward took some of it
     first: e.first,
     fly,
     seconds: fly + after,
