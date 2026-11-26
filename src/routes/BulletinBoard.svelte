@@ -234,9 +234,11 @@
         <span class="text-indigo-200 font-bold text-xs tracking-widest uppercase">
           Family Board
         </span>
-        <span class="text-xs bg-white/20 px-2.5 py-0.5 rounded-full font-bold">
-          총 {posts.length}개의 이야기
-        </span>
+        {#if !isLoading && !hasFailed}
+          <span class="text-xs bg-white/20 px-2.5 py-0.5 rounded-full font-bold">
+            총 {posts.length}개의 이야기
+          </span>
+        {/if}
       </div>
       <h1 class="text-3xl font-black tracking-tight leading-tight">
         우리 가족 게시판 📝
@@ -317,13 +319,13 @@
                 <p class="text-xs font-black text-gray-900 dark:text-white leading-tight">
                   {post.author}
                 </p>
-                <p class="text-[10px] text-gray-500 dark:text-gray-400 font-medium">
+                <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">
                   {post.date}
                 </p>
               </div>
             </div>
 
-            <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-300">
+            <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-300">
               {CATEGORY_EMOJIS[post.category] || "💬"} {post.category}
             </span>
           </div>
@@ -351,7 +353,7 @@
           {/if}
 
           <!-- Footer Counts -->
-          <div class="pt-2 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center text-[11px] text-gray-500 dark:text-gray-400 font-bold">
+          <div class="pt-2 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 font-bold">
             <span class="flex items-center gap-1">
               👁️ 조회 {post.view_count || 0}
             </span>
@@ -600,7 +602,7 @@
                       <span class="text-xs font-black text-gray-800 dark:text-gray-200">
                         {comment.author}
                       </span>
-                      <span class="text-[10px] text-gray-500 dark:text-gray-400">
+                      <span class="text-xs text-gray-500 dark:text-gray-400">
                         {comment.date}
                       </span>
                     </div>

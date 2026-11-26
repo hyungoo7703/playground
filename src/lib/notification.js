@@ -158,7 +158,7 @@ export async function showLocalNotification(title, options = {}) {
 
 // 테스트 알림 발송 함수
 export async function sendTestNotification() {
-  return showLocalNotification("가족 놀이터 🔔", {
+  return showLocalNotification("가족의 공간 🔔", {
     body: "푸시 알림이 정상적으로 작동하고 있습니다! 환영합니다 ✨",
     tag: "test-notification",
   });

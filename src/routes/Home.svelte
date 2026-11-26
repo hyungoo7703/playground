@@ -21,6 +21,11 @@
 
   let monthlyEvents = [];
   let isLoading = true;
+  let hasEvents = false; // this month's events are known, from a saved copy or the server
+  // The requests have come back, well or badly: what is still unknown after that could not be loaded
+  let isDone = false;
+  let isStockDone = false;
+  let showPast = false;
   $: userName = $currentUser || "가족";
   const makeTodayLabel = () =>
     new Date().toLocaleDateString("ko-KR", {
@@ -39,6 +44,11 @@
     todayLabel = makeTodayLabel();
     load();
   }
+
+  // What is still to come goes first; what has passed waits behind a tap
+  $: upcomingEvents = monthlyEvents.filter((e) => e.date.slice(0, 10) >= loadedDay);
+  $: pastEvents = monthlyEvents.filter((e) => e.date.slice(0, 10) < loadedDay).reverse();
+  $: shownEvents = showPast ? [...upcomingEvents, ...pastEvents] : upcomingEvents;
 
   // AI Knowledge custom notes (Admin only management)
   let aiKnowledgeList = [];
@@ -65,6 +75,8 @@
   onMount(load);
 
   async function load() {
+    isDone = false;
+    isStockDone = false;
     // 1. D-Day Check
 
 
@@ -134,7 +146,7 @@
         writeCache("stocks", res.stocks || []);
         applyStocks(res.stocks || []);
       }
-    }).catch(() => {});
+    }).catch(() => {}).finally(() => (isStockDone = true));
 
     // 3. 일정+출석+장부를 한 번의 왕복으로 갱신
     try {
@@ -145,6 +157,7 @@
         writeCache("ledger", res.ledger || []);
         applyEvents(res.events || []);
         applyAttendance(res.attendance || []);
+        attendanceLoaded = true;
         applyLedger(res.ledger || []);
       } else {
         // GAS에 bootstrap 액션이 아직 없으면 개별 호출로 폴백
@@ -159,13 +172,14 @@
         if (attRes.success) {
           writeCache("attendance", attRes.attendance || []);
           applyAttendance(attRes.attendance || []);
+          attendanceLoaded = true;
         }
       }
     } catch (e) {
       console.error("데이터 로드 실패:", e);
     } finally {
       isLoading = false;
-      attendanceLoaded = true;
+      isDone = true;
     }
   }
 
@@ -182,6 +196,7 @@
   }
 
   function applyEvents(events) {
+    hasEvents = true;
 
     const today = new Date();
     const currentYear = today.getFullYear();
@@ -337,7 +352,7 @@
       <div
         class="relative z-10 flex flex-col items-center justify-center bg-white/20 backdrop-blur-md rounded-2xl w-16 h-16 shadow-inner border border-white/30"
       >
-        <span class="text-[10px] font-bold text-white/90">D-Day</span>
+        <span class="text-xs font-bold text-white/90">D-Day</span>
         <span class="text-2xl font-black leading-none"
           >{dDayDiff === 0 ? "DAY" : dDayDiff}</span
         >
@@ -372,7 +387,9 @@
           <h3 class="font-black text-lg text-gray-500 dark:text-gray-300">
             출석체크 📅
           </h3>
-          <p class="text-xs text-gray-500 dark:text-gray-400">확인 중...</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400">
+            {isDone ? "출석 여부를 확인하지 못했어요. 눌러서 확인하기" : "확인 중..."}
+          </p>
         {:else if todayCheckedIn}
           <h3 class="font-black text-lg">오늘 출석 완료! ✅</h3>
           <p class="text-xs opacity-80">
@@ -387,7 +404,7 @@
       </div>
       <div class="relative z-10 bg-white/20 p-2 rounded-xl backdrop-blur-md">
         <span class="text-2xl"
-          >{!attendanceLoaded ? "⏳" : todayCheckedIn ? "🏅" : "📅"}</span
+          >{!attendanceLoaded ? (isDone ? "📡" : "⏳") : todayCheckedIn ? "🏅" : "📅"}</span
         >
       </div>
       <div
@@ -435,7 +452,9 @@
               : "아직 주식 내역이 없습니다. 시작해보세요! 🚀"}
           </p>
         {:else}
-          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 animate-pulse">주식 현황 확인 중...</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 {isStockDone ? '' : 'animate-pulse'}">
+            {isStockDone ? "주식 현황을 불러오지 못했습니다." : "주식 현황 확인 중..."}
+          </p>
         {/if}
       </div>
       <span class="text-2xl p-2 bg-white dark:bg-gray-800 rounded-2xl shadow-sm">📈</span>
@@ -465,17 +484,32 @@
         <div class="animate-pulse flex flex-col gap-3">
           <div class="h-16 bg-gray-50 dark:bg-gray-700/30 rounded-2xl"></div>
         </div>
+      {:else if isDone && !hasEvents}
+        <div class="text-center py-6">
+          <p class="text-sm font-bold text-gray-700 dark:text-gray-200">📡 일정을 불러오지 못했습니다.</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">연결을 확인하고 다시 시도해주세요.</p>
+          <button
+            type="button"
+            on:click={load}
+            class="mt-3 px-5 py-3 rounded-2xl text-sm font-black text-white bg-indigo-600 active:scale-95 transition-all"
+          >
+            다시 시도
+          </button>
+        </div>
       {:else if monthlyEvents.length > 0}
+        {#if upcomingEvents.length === 0}
+          <p class="text-center text-sm text-gray-500 dark:text-gray-400 py-2">이번 달 남은 일정이 없습니다. ☕</p>
+        {/if}
         <ul class="space-y-3 list-none p-0 m-0">
-          {#each monthlyEvents as event (event.id)}
+          {#each shownEvents as event (event.id)}
             {@const [mainTitle, ...subTitles] = event.title.split("(")}
             <li
-              class="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-700/30 rounded-2xl"
+              class="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-700/30 rounded-2xl {event.date.slice(0, 10) < loadedDay ? 'opacity-50' : ''}"
             >
               <div
                 class="flex flex-col items-center justify-center min-w-[3rem] h-12 bg-white dark:bg-gray-800 rounded-xl shadow-sm"
               >
-                <span class="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase"
+                <span class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase"
                   >{new Date().toLocaleString("en-US", {
                     month: "short",
                   })}</span
@@ -486,7 +520,7 @@
               </div>
               <div class="flex-1 overflow-hidden">
                 <p
-                  class="text-[10px] font-bold text-indigo-400 truncate uppercase"
+                  class="text-xs font-bold text-indigo-400 truncate uppercase"
                 >
                   {event.category}
                 </p>
@@ -497,7 +531,7 @@
                 </p>
                 {#if subTitles.length > 0}
                   <p
-                    class="text-[11px] font-medium text-gray-500 dark:text-gray-400 truncate mt-0.5"
+                    class="text-xs font-medium text-gray-500 dark:text-gray-400 truncate mt-0.5"
                   >
                     {subTitles.map((s) => s.replace(")", "").trim()).join(" ")}
                   </p>
@@ -506,6 +540,15 @@
             </li>
           {/each}
         </ul>
+        {#if pastEvents.length > 0}
+          <button
+            type="button"
+            on:click={() => (showPast = !showPast)}
+            class="w-full py-3 text-xs font-bold text-gray-500 dark:text-gray-400 active:scale-95 transition-all"
+          >
+            {showPast ? "지난 일정 접기 ▲" : `지난 일정 ${pastEvents.length}개 보기 ▼`}
+          </button>
+        {/if}
       {:else}
         <div class="text-center py-8">
           <p class="text-sm text-gray-500 dark:text-gray-400">예정된 일정이 없습니다. ☕</p>
@@ -535,13 +578,15 @@
               : " · 모두 정산 완료 ✨"}
           </p>
         {:else}
-          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 animate-pulse">확인 중...</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 {isDone ? '' : 'animate-pulse'}">
+            {isDone ? "장부를 불러오지 못했습니다." : "확인 중..."}
+          </p>
         {/if}
       </div>
       <span class="text-2xl">💰</span>
     </button>
     <p
-      class="text-center text-[11px] text-gray-500 dark:text-gray-400 font-bold mt-3"
+      class="text-center text-xs text-gray-500 dark:text-gray-400 font-bold mt-3"
     >
       장부 · 일정 · 게시판은 아래 탭에서 언제든지 👇
     </p>
@@ -557,11 +602,11 @@
             AI 집사용 가족 메모 (관리자 전용)
           </h3>
         </div>
-        <span class="text-[10px] bg-indigo-100 dark:bg-indigo-900/80 text-indigo-700 dark:text-indigo-300 font-bold px-2 py-0.5 rounded-full">
+        <span class="text-xs bg-indigo-100 dark:bg-indigo-900/80 text-indigo-700 dark:text-indigo-300 font-bold px-2 py-0.5 rounded-full">
           {aiKnowledgeList.length}개 저장됨
         </span>
       </div>
-      <p class="text-[11px] text-gray-500 dark:text-gray-400 mb-3 leading-relaxed">
+      <p class="text-xs text-gray-500 dark:text-gray-400 mb-3 leading-relaxed">
         가족 취향(엄마 매운거 X), TMI, 집 규칙을 적어두면 AI가 답변할 때 기억하고 맞춤 대답해줘요!
       </p>
 
@@ -576,7 +621,7 @@
               <button
                 type="button"
                 on:click={() => handleDeleteKnowledge(item)}
-                class="w-8 h-8 -my-2 -mr-2.5 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-500 transition-colors rounded-full"
+                class="w-10 h-10 -my-3 -mr-3 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-500 transition-colors rounded-full"
                 aria-label="메모 삭제"
               >
                 ✕
@@ -620,7 +665,7 @@
     </div>
     <div class="text-left">
       <span class="block text-xs font-black leading-tight">AI 집사</span>
-      <span class="block text-[9px] text-indigo-200 font-bold leading-tight">실시간 비서</span>
+      <span class="block text-[11px] text-indigo-200 font-bold leading-tight">실시간 비서</span>
     </div>
     <span class="relative flex h-2 w-2 ml-0.5">
       <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>

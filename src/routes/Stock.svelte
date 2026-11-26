@@ -290,9 +290,11 @@
         <span class="text-emerald-200 font-bold text-xs tracking-widest uppercase">
           Family Portfolio
         </span>
-        <span class="text-xs bg-white/20 px-2.5 py-0.5 rounded-full font-bold">
-          총 {summaryByStock.length}개 종목
-        </span>
+        {#if !isLoading && !hasFailed}
+          <span class="text-xs bg-white/20 px-2.5 py-0.5 rounded-full font-bold">
+            총 {summaryByStock.length}개 종목
+          </span>
+        {/if}
       </div>
       <h1 class="text-3xl font-black tracking-tight leading-tight">
         우리 가족 주식 📈
@@ -302,7 +304,7 @@
           총 매입 원금{hasUnconvertedUsd ? " (달러 종목 제외)" : ""}
         </span>
         <span class="text-2xl font-black text-amber-300">
-          {Math.round(totalPortfolioValue).toLocaleString()}<span class="text-sm text-white font-bold">원</span>
+          {isLoading || hasFailed ? "-" : Math.round(totalPortfolioValue).toLocaleString()}<span class="text-sm text-white font-bold">원</span>
         </span>
       </div>
     </div>
@@ -395,7 +397,7 @@
 
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label for="p-stock-price" class="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1 ml-1">
+            <label for="p-stock-price" class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 ml-1">
               1주당 가격 (단가)
             </label>
             <div class="relative">
@@ -412,7 +414,7 @@
           </div>
 
           <div>
-            <label for="p-stock-qty" class="block text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1 ml-1">
+            <label for="p-stock-qty" class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 ml-1">
               매입 수량
             </label>
             <div class="relative">
@@ -469,7 +471,7 @@
                 {fmtMoney(calculatedTotal, newStock.currency)}
               </span>
               {#if isUSD && usdKrwRate}
-                <span class="text-[11px] font-bold text-emerald-600/70 dark:text-emerald-400/70">
+                <span class="text-xs font-bold text-emerald-600/70 dark:text-emerald-400/70">
                   ≈ {Math.round(calculatedTotal * usdKrwRate).toLocaleString()}원
                 </span>
               {/if}
@@ -495,7 +497,7 @@
               : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold'}"
           >
             <span class="text-base block mb-0.5">👩 엄마 100%</span>
-            <span class="text-[10px] text-gray-500 dark:text-gray-400 font-normal">엄마 혼자 전액 부담</span>
+            <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">엄마 혼자 전액 부담</span>
           </button>
 
           <button
@@ -507,7 +509,7 @@
               : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold'}"
           >
             <span class="text-base block mb-0.5">👦 범수 100%</span>
-            <span class="text-[10px] text-gray-500 dark:text-gray-400 font-normal">범수 혼자 전액 부담</span>
+            <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">범수 혼자 전액 부담</span>
           </button>
 
           <button
@@ -519,7 +521,7 @@
               : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold'}"
           >
             <span class="text-base block mb-0.5">⚖️ 엄마 & 범수 반반</span>
-            <span class="text-[10px] text-gray-500 dark:text-gray-400 font-normal">5:5 정확히 반반</span>
+            <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">5:5 정확히 반반</span>
           </button>
 
           <button
@@ -531,7 +533,7 @@
               : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-bold'}"
           >
             <span class="text-base block mb-0.5">👨‍👩‍👧‍👦 4명 모두 똑같이</span>
-            <span class="text-[10px] text-gray-500 dark:text-gray-400 font-normal">1/N 균등 분할</span>
+            <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">1/N 균등 분할</span>
           </button>
         </div>
 
@@ -557,7 +559,7 @@
                     placeholder="0"
                     class="w-full p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl text-xs font-bold text-right pr-8 outline-none border border-gray-200 dark:border-gray-700"
                   />
-                  <span class="absolute right-2.5 top-2 text-[10px] text-gray-500 dark:text-gray-400">{isUSD ? "$" : "원"}</span>
+                  <span class="absolute right-2.5 top-2 text-xs text-gray-500 dark:text-gray-400">{isUSD ? "$" : "원"}</span>
                 </div>
               </div>
             {/each}
@@ -599,7 +601,7 @@
                 <h3 class="text-xl font-black text-gray-900 dark:text-white flex items-center gap-1.5">
                   {item.name}
                   {#if item.currency === "USD"}
-                    <span class="text-[10px] font-black px-1.5 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-800">USD</span>
+                    <span class="text-xs font-black px-1.5 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-800">USD</span>
                   {/if}
                 </h3>
                 <p class="text-xs font-bold text-gray-500 dark:text-gray-400 mt-0.5">
@@ -614,7 +616,7 @@
                   총 {fmtMoney(item.total_price, item.currency)}
                 </span>
                 {#if item.currency === "USD" && usdKrwRate}
-                  <span class="text-[10px] font-bold text-gray-500 dark:text-gray-400">
+                  <span class="text-xs font-bold text-gray-500 dark:text-gray-400">
                     ≈ {Math.round(item.total_price * usdKrwRate).toLocaleString()}원
                   </span>
                 {/if}
@@ -661,7 +663,7 @@
                       <span class="w-2 h-2 rounded-full {MEMBER_COLORS[stock.owner] || 'bg-gray-400'}"></span>
                       <div>
                         <p class="font-bold text-gray-800 dark:text-gray-200">{stock.owner}</p>
-                        <p class="text-[10px] text-gray-500 dark:text-gray-400">{stock.date}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">{stock.date}</p>
                       </div>
                     </div>
                     <div class="flex items-center gap-3">
@@ -669,7 +671,7 @@
                         <p class="font-bold text-gray-900 dark:text-white">
                           {fmtQty(stock.quantity)}주
                         </p>
-                        <p class="text-[10px] text-gray-500 dark:text-gray-400">
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
                           @{fmtMoney(stock.price, stock.currency || "KRW")}
                         </p>
                       </div>

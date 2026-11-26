@@ -369,7 +369,9 @@
 
   $: unsettledItems = monthItems.filter((i) => !i.is_settled);
   // What the list shows
-  $: filteredItems = showOnlyUnsettled ? unsettledItems : monthItems;
+  // What still needs settling comes first, and within each group the latest
+  const forList = (a, b) => a.is_settled - b.is_settled || new Date(b.date) - new Date(a.date);
+  $: filteredItems = [...(showOnlyUnsettled ? unsettledItems : monthItems)].sort(forList);
   $: unsettledAmount = unsettledItems.reduce(
     (sum, item) => sum + cleanAmount(item.amount),
     0,
@@ -545,7 +547,7 @@
           </p>
           <span class="text-lg font-bold text-indigo-200">원</span>
         </div>
-        <p class="text-[11px] text-indigo-300 font-medium">
+        <p class="text-xs text-indigo-300 font-medium">
           {#if hasFailed}
             불러오지 못해 금액을 알 수 없습니다
           {:else}
@@ -652,10 +654,10 @@
             role={$isAdmin ? undefined : "presentation"}
           >
             <div class="flex items-center gap-2 mb-1">
-              <span class="text-[10px] font-black px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+              <span class="text-xs font-black px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
                 {new Date(item.date).getDate()}일
               </span>
-              <span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400">
+              <span class="text-xs font-bold text-indigo-600 dark:text-indigo-400">
                 {item.type}
               </span>
             </div>
@@ -673,7 +675,7 @@
               <span class="text-gray-400 dark:text-gray-500">→</span>
               <span>{item.receiver}</span>
               {#if $isAdmin}
-                <span class="text-[10px] text-indigo-400 ml-1">✏️ 수정</span>
+                <span class="text-xs text-indigo-400 ml-1">✏️ 수정</span>
               {/if}
             </div>
           </svelte:element>
@@ -858,7 +860,7 @@
           <h2 class="text-lg font-black text-gray-900 dark:text-white flex items-center gap-1.5">
             📌 매월 고정 이체 관리
           </h2>
-          <p class="text-[11px] text-gray-500 dark:text-gray-400">용돈/관리비 등 매달 반복되는 이체 내역</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400">용돈/관리비 등 매달 반복되는 이체 내역</p>
         </div>
         <button
           type="button"
@@ -899,7 +901,7 @@
             <div class="bg-gray-50 dark:bg-gray-900 p-3.5 rounded-2xl flex justify-between items-center gap-2 border border-gray-100 dark:border-gray-700">
               <div class="min-w-0">
                 <div class="flex items-start gap-1.5">
-                  <span class="shrink-0 whitespace-nowrap text-[10px] bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-black px-1.5 py-0.5 rounded">
+                  <span class="shrink-0 whitespace-nowrap text-xs bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-black px-1.5 py-0.5 rounded">
                     매월 {rule.day}일
                   </span>
                   <span class="font-bold text-xs text-gray-900 dark:text-white break-keep">
@@ -907,7 +909,7 @@
                   </span>
                 </div>
                 <p class="text-xs font-black text-indigo-600 dark:text-indigo-400 mt-1">
-                  {formatAmount(rule.amount)}원 <span class="text-[11px] text-gray-500 dark:text-gray-400 font-normal">({rule.giver} → {rule.receiver})</span>
+                  {formatAmount(rule.amount)}원 <span class="text-xs text-gray-500 dark:text-gray-400 font-normal">({rule.giver} → {rule.receiver})</span>
                 </p>
               </div>
               <button
@@ -940,7 +942,7 @@
         <!-- Day & Title -->
         <div class="flex gap-2">
           <div class="flex items-center gap-1 bg-white dark:bg-gray-800 px-2.5 py-2 rounded-xl border border-gray-200 dark:border-gray-700 shrink-0">
-            <span class="text-[10px] text-gray-500 dark:text-gray-400 font-bold">매월</span>
+            <span class="text-xs text-gray-500 dark:text-gray-400 font-bold">매월</span>
             <input
               type="number"
               min="1"
@@ -949,7 +951,7 @@
               aria-label="매월 이체일"
               class="w-7 text-center text-xs font-black bg-transparent text-gray-900 dark:text-white outline-none"
             />
-            <span class="text-[10px] text-gray-500 dark:text-gray-400 font-bold">일</span>
+            <span class="text-xs text-gray-500 dark:text-gray-400 font-bold">일</span>
           </div>
           <input
             type="text"
@@ -1010,7 +1012,7 @@
         <!-- Giver -> Receiver -->
         <div class="grid grid-cols-[1fr_auto_1fr] gap-1.5 items-center">
           <div class="space-y-0.5">
-            <span class="text-[10px] font-bold text-gray-500 dark:text-gray-400 pl-1">보내는 사람</span>
+            <span class="text-xs font-bold text-gray-500 dark:text-gray-400 pl-1">보내는 사람</span>
             <select
               bind:value={newRuleGiver}
               aria-label="보내는 사람"
@@ -1021,7 +1023,7 @@
           </div>
           <span class="text-gray-500 dark:text-gray-400 text-xs font-bold pt-3">➔</span>
           <div class="space-y-0.5">
-            <span class="text-[10px] font-bold text-gray-500 dark:text-gray-400 pl-1">받는 사람</span>
+            <span class="text-xs font-bold text-gray-500 dark:text-gray-400 pl-1">받는 사람</span>
             <select
               bind:value={newRuleReceiver}
               aria-label="받는 사람"
@@ -1059,7 +1061,7 @@
           <h2 class="text-lg font-black text-gray-900 dark:text-white flex items-center gap-1.5">
             📢 이체 독촉 푸쉬 발송
           </h2>
-          <p class="text-[11px] text-gray-500 dark:text-gray-400">
+          <p class="text-xs text-gray-500 dark:text-gray-400">
             미정산 이체 내역이 있는 '주는 사람'에게 푸쉬를 보냅니다.
           </p>
         </div>
@@ -1100,7 +1102,7 @@
                   <p class="text-xs font-black text-gray-900 dark:text-white leading-tight">
                     {debtor.giver} (주는 사람)
                   </p>
-                  <p class="text-[10px] text-gray-500 dark:text-gray-400">
+                  <p class="text-xs text-gray-500 dark:text-gray-400">
                     미정산 이체 {debtor.items.length}건
                   </p>
                 </div>
@@ -1112,7 +1114,7 @@
             </div>
 
             <!-- Unsettled items preview -->
-            <div class="space-y-1 bg-white dark:bg-gray-800 p-2.5 rounded-xl border border-gray-100 dark:border-gray-700 text-[11px]">
+            <div class="space-y-1 bg-white dark:bg-gray-800 p-2.5 rounded-xl border border-gray-100 dark:border-gray-700 text-xs">
               {#each debtor.items as it}
                 <div class="flex justify-between items-center text-gray-600 dark:text-gray-300">
                   <span class="truncate max-w-[170px]">• {it.title} ({new Date(it.date).getDate()}일)</span>

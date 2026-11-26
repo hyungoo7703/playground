@@ -103,7 +103,7 @@ self.addEventListener("push", (event) => {
     data = { body: event.data ? event.data.text() : "" };
   }
 
-  const title = data.title || "가족 놀이터 🔔";
+  const title = data.title || "가족의 공간 🔔";
   const options = {
     body: data.body || "새로운 가족 알림이 도착했습니다.",
     icon: "./icon-192x192.png",

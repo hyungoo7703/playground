@@ -54,7 +54,7 @@
 
   // Admin Update Push State
   let isSendingUpdatePush = false;
-  let updatePushTitle = "가족 놀이터 업데이트 알림 🚀";
+  let updatePushTitle = "가족의 공간 업데이트 알림 🚀";
   let updatePushBody = "새로운 업데이트가 되었어요! 지금 확인해보세요 ✨";
   let updatePushResult = "";
   const ALL_FAMILY = ["아빠", "엄마", "현구", "범수"];
@@ -234,7 +234,7 @@
         targets.map((member) =>
           api.sendPushNotification({
             target_user: member,
-            title: updatePushTitle.trim() || "가족 놀이터 업데이트 알림 🚀",
+            title: updatePushTitle.trim() || "가족의 공간 업데이트 알림 🚀",
             body: updatePushBody.trim() || "새로운 업데이트가 되었어요! 지금 확인해보세요 ✨",
             url: `${window.location.origin}${window.location.pathname}#/`,
           })
@@ -365,7 +365,7 @@
         <button
           type="button"
           on:click={() => (showToken = !showToken)}
-          class="text-[11px] text-indigo-600 dark:text-indigo-400 font-bold px-2 py-1.5 -my-1.5 -mr-2"
+          class="text-xs text-indigo-600 dark:text-indigo-400 font-bold px-2 py-1.5 -my-1.5 -mr-2"
         >
           {showToken ? "숨기기 🙈" : "보기 👁️"}
         </button>
@@ -444,7 +444,7 @@
         <span class="text-sm font-bold text-gray-700 dark:text-gray-300"
           >📍 내 위치 날씨</span
         >
-        <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
           AI에게 날씨를 물으면 현재 위치 기준으로 답해요 (위치는 저장되지 않음)
         </p>
       </div>
@@ -467,7 +467,7 @@
     {#if useGeoWeather && geoStatus}
       <p
         in:fade
-        class="text-[11px] font-bold {geoStatus.startsWith('✅')
+        class="text-xs font-bold {geoStatus.startsWith('✅')
           ? 'text-emerald-600 dark:text-emerald-400'
           : 'text-amber-600 dark:text-amber-400'}"
       >
@@ -549,7 +549,7 @@
         <h3 class="text-base font-black text-indigo-950 dark:text-indigo-200 flex items-center gap-2">
           <span>🚀</span> 가족 업데이트 알림 (관리자 전용)
         </h3>
-        <span class="text-[10px] bg-indigo-200/70 dark:bg-indigo-900/80 text-indigo-800 dark:text-indigo-300 font-bold px-2.5 py-0.5 rounded-full">
+        <span class="text-xs bg-indigo-200/70 dark:bg-indigo-900/80 text-indigo-800 dark:text-indigo-300 font-bold px-2.5 py-0.5 rounded-full">
           나 빼고 전송
         </span>
       </div>
@@ -561,7 +561,7 @@
       <!-- Message input / preview -->
       <div class="space-y-2">
         <div class="space-y-1">
-          <label for="update-push-title" class="block text-[11px] font-bold text-gray-500 dark:text-gray-400">알림 제목</label>
+          <label for="update-push-title" class="block text-xs font-bold text-gray-500 dark:text-gray-400">알림 제목</label>
           <input
             id="update-push-title"
             type="text"
@@ -571,7 +571,7 @@
         </div>
 
         <div class="space-y-1">
-          <label for="update-push-body" class="block text-[11px] font-bold text-gray-500 dark:text-gray-400">알림 내용</label>
+          <label for="update-push-body" class="block text-xs font-bold text-gray-500 dark:text-gray-400">알림 내용</label>
           <input
             id="update-push-body"
             type="text"
@@ -631,7 +631,7 @@
     >
       <span>🗑️</span> 이 기기의 앱 데이터 초기화
     </button>
-    <p class="text-[11px] text-gray-500 dark:text-gray-400 text-center">
+    <p class="text-xs text-gray-500 dark:text-gray-400 text-center">
       이 기기에 저장된 로그인 정보와 설정만 지워집니다. 장부·일정·게시글은 서버에 그대로 남습니다.
     </p>
   </section>

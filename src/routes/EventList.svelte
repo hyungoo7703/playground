@@ -339,9 +339,11 @@
         <span class="text-pink-100 font-bold text-xs tracking-widest uppercase">
           Family Schedule
         </span>
-        <span class="text-xs bg-white/20 px-2.5 py-0.5 rounded-full font-bold">
-          총 {events.length}개 일정
-        </span>
+        {#if !isLoading && !hasFailed}
+          <span class="text-xs bg-white/20 px-2.5 py-0.5 rounded-full font-bold">
+            총 {events.length}개 일정
+          </span>
+        {/if}
       </div>
       <h1 class="text-3xl font-black tracking-tight leading-tight">
         가족 일정 📅
@@ -375,11 +377,11 @@
             <span class="text-base p-1.5 bg-white/20 rounded-xl leading-none">🔔</span>
             <span class="text-xs font-black tracking-wide">가족 전체 일정 푸쉬 알림</span>
           </div>
-          <span class="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-bold shrink-0">나만 가능</span>
+          <span class="text-xs bg-white/20 px-2 py-0.5 rounded-full font-bold shrink-0">나만 가능</span>
         </div>
 
         <div class="bg-black/20 rounded-2xl p-2.5 flex items-center justify-between gap-2">
-          <p class="text-[11px] text-pink-100 font-medium truncate flex-1 min-w-0">
+          <p class="text-xs text-pink-100 font-medium truncate flex-1 min-w-0">
             {#if nearestUpcomingEvent}
               {@const prev = generateEventPushMessage(nearestUpcomingEvent)}
               "{prev.body}"
@@ -387,7 +389,7 @@
               다가오는 일정 알림을 가족에게 보냅니다
             {/if}
           </p>
-          <span class="text-[10px] bg-white text-indigo-700 px-2.5 py-1 rounded-lg font-black shrink-0 shadow-sm">
+          <span class="text-xs bg-white text-indigo-700 px-2.5 py-1 rounded-lg font-black shrink-0 shadow-sm">
             발송 ➔
           </span>
         </div>
@@ -470,13 +472,13 @@
                 ? 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300'
                 : 'bg-gray-100 dark:bg-gray-700 text-gray-400'}"
           >
-            <span class="text-[10px] font-bold uppercase leading-none">
+            <span class="text-xs font-bold uppercase leading-none">
               {dateInfo.month}월
             </span>
             <span class="text-xl font-black leading-tight">
               {dateInfo.day}
             </span>
-            <span class="text-[9px] font-bold leading-none opacity-80">
+            <span class="text-[11px] font-bold leading-none opacity-80">
               {dateInfo.weekday}요일
             </span>
           </div>
@@ -485,11 +487,11 @@
           <div class="flex-1 min-w-0">
             <!-- Next to three admin buttons the two badges do not fit on one line: they wrap whole -->
             <div class="flex flex-wrap items-center gap-1 mb-1">
-              <span class="whitespace-nowrap text-[10px] font-bold px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+              <span class="whitespace-nowrap text-xs font-bold px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
                 {CATEGORY_EMOJIS[event.category] || "📅"} {event.category}
               </span>
               <span
-                class="whitespace-nowrap text-[10px] font-black px-2 py-0.5 rounded-full {dDayInfo.isToday
+                class="whitespace-nowrap text-xs font-black px-2 py-0.5 rounded-full {dDayInfo.isToday
                   ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/60 dark:text-rose-200 animate-pulse'
                   : dDayInfo.isFuture
                     ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
@@ -504,7 +506,7 @@
             </h3>
 
             {#if subTitles.length > 0}
-              <p class="text-[11px] text-gray-500 dark:text-gray-400 truncate mt-0.5">
+              <p class="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
                 {subTitles.map((s) => s.replace(")", "").trim()).join(" ")}
               </p>
             {/if}
@@ -706,7 +708,7 @@
           <h2 class="text-lg font-black text-gray-900 dark:text-white flex items-center gap-1.5">
             🔔 가족 전체 일정 푸쉬 알림
           </h2>
-          <p class="text-[11px] text-gray-500 dark:text-gray-400">
+          <p class="text-xs text-gray-500 dark:text-gray-400">
             시점에 맞춘 일정 알림 메시지가 가족 모두에게 전송됩니다.
           </p>
         </div>
@@ -740,11 +742,11 @@
                   <span class="text-xs font-black text-gray-900 dark:text-white">
                     {ev.title}
                   </span>
-                  <span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-white dark:bg-gray-800 px-2 py-0.5 rounded-md">
+                  <span class="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-white dark:bg-gray-800 px-2 py-0.5 rounded-md">
                     {ev.date}
                   </span>
                 </div>
-                <p class="text-[11px] text-gray-500 dark:text-gray-300 mt-1 font-medium">
+                <p class="text-xs text-gray-500 dark:text-gray-300 mt-1 font-medium">
                   "{msg.body}"
                 </p>
               </button>
@@ -755,7 +757,7 @@
         <!-- Live Preview Box -->
         {#if selectedPushEvent}
           <div class="p-4 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/40 dark:to-purple-950/40 rounded-2xl border border-indigo-100 dark:border-indigo-800 space-y-2">
-            <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 block">
+            <span class="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 block">
               📱 푸쉬 알림 미리보기
             </span>
             <div class="bg-white dark:bg-gray-800 p-3 rounded-xl shadow-sm border border-indigo-50 dark:border-indigo-900/50 space-y-1">
@@ -766,7 +768,7 @@
                 {currentPushPreview.body}
               </p>
             </div>
-            <p class="text-[10px] text-gray-500 dark:text-gray-400 text-center font-bold">
+            <p class="text-xs text-gray-500 dark:text-gray-400 text-center font-bold">
               👨‍👩‍👧‍👦 발송 대상: 아빠, 엄마, 현구, 범수 (전체 기기)
             </p>
           </div>

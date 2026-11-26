@@ -5,6 +5,7 @@
   import { api } from "../lib/api.js";
   import { toast, confirmDialog } from "../lib/feedback.js";
   import { readCache, writeCache } from "../lib/cache.js";
+  import LoadError from "../lib/components/LoadError.svelte";
 
   // --- 상태 관리 변수 ---
   let foodList = []; // 구글 시트에서 가져온 메뉴 리스트
@@ -25,6 +26,9 @@
   let isAdding = false; // 메뉴 추가 통신 중 상태
   // 관리자 체크는 $isAdmin 사용
 
+  // Loading failed and there is no saved copy to show instead
+  let hasFailed = false;
+
   /** * 1. 메뉴 리스트 가져오기 (Read) */
   async function fetchMenu() {
     // 캐시 먼저 그리고, 뒤에서 갱신 (SWR)
@@ -42,8 +46,10 @@
         foodList = data.data.map((item) => item.value);
         writeCache("roulette_menu", foodList);
       }
+      hasFailed = !data.success && !cached;
     } catch (e) {
       console.error("데이터 로드 실패:", e);
+      hasFailed = !cached;
     } finally {
       isLoading = false;
     }
@@ -288,9 +294,12 @@
         </div>
       {/if}
 
-      <div class="pt-4 px-2">
+      {#if hasFailed}
+        <LoadError message="메뉴를 불러오지 못했습니다." on:retry={fetchMenu} />
+      {/if}
+      <div class="pt-4 px-2" class:hidden={hasFailed}>
         <h4
-          class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4 text-center"
+          class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-4 text-center"
         >
           선택 가능한 후보 ({foodList.length})
         </h4>
@@ -303,7 +312,7 @@
               {#if $isAdmin}
                 <button
                   on:click={() => deleteMenuItem(food)}
-                  class="w-7 h-7 -my-1.5 -mr-2 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors"
+                  class="w-10 h-10 -my-3 -mr-3 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors"
                   aria-label="{food} 삭제"
                 >
                   ✕
@@ -317,7 +326,7 @@
       <!-- Who Pay Candidates -->
       <div class="pt-4 px-2" transition:fade>
         <h4
-          class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4 text-center"
+          class="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-4 text-center"
         >
           결제 후보자
         </h4>
@@ -337,7 +346,7 @@
           <div
             class="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800 opacity-30 hover:opacity-100 transition-opacity"
           >
-            <p class="text-[10px] text-center text-slate-400 dark:text-slate-500 mb-2">
+            <p class="text-xs text-center text-slate-400 dark:text-slate-500 mb-2">
               🤫 관리자 권한: 타겟 설정 (쉿!)
             </p>
             <div class="flex justify-center gap-2">

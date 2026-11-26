@@ -567,7 +567,7 @@
                 </div>
             </div>
             <div
-                class="mt-1.5 flex justify-between text-[10px] font-bold text-amber-100/90 w-full"
+                class="mt-1.5 flex justify-between text-xs font-bold text-amber-100/90 w-full"
             >
                 <span>{isThisMonth ? "이번 달" : monthName} 달성률</span>
                 <span>{currentMonthAttendanceCount} / {daysInMonth}일</span>
@@ -661,7 +661,7 @@
                     <span class="text-3xl animate-pulse">📅</span>
                     <div class="text-left">
                         <p class="font-black text-lg">출석여부 파악중...</p>
-                        <p class="text-[11px] opacity-80 font-bold">
+                        <p class="text-xs opacity-80 font-bold">
                             잠시만 기다려주세요
                         </p>
                     </div>
@@ -694,7 +694,7 @@
                     ></div>
                     <div class="text-left">
                         <p class="font-black text-lg">출석 중...</p>
-                        <p class="text-[11px] opacity-80 font-bold">
+                        <p class="text-xs opacity-80 font-bold">
                             잠시만 기다려주세요
                         </p>
                     </div>
@@ -706,7 +706,7 @@
                     <span class="text-4xl animate-bounce">👋</span>
                     <div class="text-left">
                         <p class="font-black text-xl">출석하기!</p>
-                        <p class="text-[11px] font-bold opacity-80">
+                        <p class="text-xs font-bold opacity-80">
                             이곳을 터치하여 출석을 완료하세요
                         </p>
                     </div>
@@ -770,7 +770,7 @@
         <div class="grid grid-cols-7 gap-1 mb-2">
             {#each WEEKDAYS as day, i}
                 <div
-                    class="text-center text-[11px] font-extrabold py-1
+                    class="text-center text-xs font-extrabold py-1
             {i === 0
                         ? 'text-rose-400'
                         : i === 6
@@ -813,7 +813,7 @@
                             : ''}"
                     >
                         <span
-                            class="text-[11px] font-bold leading-none {textColor} {hasStamp
+                            class="text-xs font-bold leading-none {textColor} {hasStamp
                                 ? 'opacity-90'
                                 : ''}"
                         >
@@ -853,16 +853,16 @@
                             <div
                                 class="absolute -bottom-1 -right-1 bg-white dark:bg-gray-800 rounded-full p-[2px] shadow-sm"
                             >
-                                <span class="text-[10px] leading-none block"
+                                <span class="text-xs leading-none block"
                                     >✨</span
                                 >
                             </div>
                         </div>
                         <span
-                            class="text-[11px] font-bold text-gray-700 dark:text-gray-300"
+                            class="text-xs font-bold text-gray-700 dark:text-gray-300"
                             >{item.user_name}</span
                         >
-                        <span class="text-[10px] text-gray-500 dark:text-gray-400 font-bold"
+                        <span class="text-xs text-gray-500 dark:text-gray-400 font-bold"
                             >{item.timestamp?.split(" ")[1]?.substring(0, 5) ||
                                 "오늘"}</span
                         >
@@ -905,7 +905,7 @@
                             class="text-sm font-bold text-gray-500 dark:text-gray-400">원</span
                         >
                     </p>
-                    <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-1">
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
                         총 적립 {totalEarned.toLocaleString()}원 · 사용 {totalUsed.toLocaleString()}원
                     </p>
                 {/if}
@@ -917,7 +917,7 @@
                     showUseRewardModal = true;
                 }}
                 disabled={rewardBalance <= 0 || isLoading || !ledgerKnown}
-                class="px-5 py-3 bg-gradient-to-r from-rose-500 to-pink-500 text-white font-bold rounded-2xl shadow-lg active:scale-95 transition-all disabled:opacity-40"
+                class="shrink-0 whitespace-nowrap px-5 py-3 bg-gradient-to-r from-rose-500 to-pink-500 text-white font-bold rounded-2xl shadow-lg active:scale-95 transition-all disabled:opacity-40"
             >
                 보상 사용 🎁
             </button>
@@ -938,7 +938,7 @@
                                     class="text-sm font-bold text-gray-800 dark:text-gray-200"
                                     >{u.desc}</span
                                 >
-                                <span class="text-[10px] text-gray-500 dark:text-gray-400 ml-2"
+                                <span class="text-xs text-gray-500 dark:text-gray-400 ml-2"
                                     >{u.date}</span
                                 >
                             </div>
