@@ -201,7 +201,11 @@ function kill(state, enemy, events) {
   else gold += boardWide(state, "bounty");
   events.push({ type: boss ? "bossDead" : enemy.type === "thief" ? "thiefCaught" : "kill", kind: enemy.type, x: enemy.x, y: enemy.y });
   gainGold(state, gold, enemy.x, enemy.y, events);
-  if (boss) state.bossDeadline = 0;
+  if (boss) {
+    state.bossDeadline = 0;
+    // However long the fight took, the next wave leaves the same pause as after any other
+    state.waveTime = Math.min(state.waveTime, RULES.waveSeconds - RULES.breather);
+  }
 }
 
 const near = (a, b, reach) => Math.hypot(a.x - b.x, a.y - b.y) <= reach;

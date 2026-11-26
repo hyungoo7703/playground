@@ -63,6 +63,7 @@
     treasure: ["pwlpl-power-up-game-sound-effect-359227.mp3", 0.6, 0, 1.6],
   };
   const MUSIC = {
+    title: "openmindaudio-cinematic-action-epic-trailer-iron-vanguard-part-1-short-preview-488562.mp3",
     field: "freesound_community-see_you_next_season-23336.mp3",
     boss: "openmindaudio-cinematic-action-epic-trailer-iron-vanguard-part-1-short-preview-488562.mp3",
   };
@@ -123,8 +124,28 @@
   const INTRO_KEY = "rune_intro_seen";
   // Marks the history entry a run sits on, so the back button pauses before it leaves
   const runEntry = Math.random().toString(36).slice(2);
+  // Which window holds the run: the last one to start it or pick it up. Any other window still
+  // showing it has an older copy, and playing that on would be a way to take an outcome back.
+  const ownerKey = `rune_owner_${$currentUser}`;
+  const isMine = () => localStorage.getItem(ownerKey) === runEntry;
 
-  let screen = "loading"; // loading | start | playing | over
+  // Shown one at a time under the loading bar
+  const TIPS = [
+    "같은 유닛 두 개를 겹치면 윗등급에 도전해요.",
+    "신화는 뽑기로 나오지 않아요. 도감의 조합식을 찾아보세요.",
+    "중갑은 마법으로, 마법저항은 물리로 뚫으세요.",
+    "유닛을 누르면 사거리가 보여요. 가장자리는 길에 가까워요.",
+    "행운을 올리면 희귀 이상이 더 자주 나와요.",
+    "보스는 60초 안에 잡아야 해요. 화력을 아껴 두지 마세요.",
+  ];
+  const tip = TIPS[Math.floor(Math.random() * TIPS.length)];
+  const IMAGE_FILES = [...Object.keys(UNITS), ...Object.keys(ENEMIES), ...Object.keys(BOSSES), "background", "circle"];
+  const EFFECT_FILES = Object.values(SOUNDS).map(([file]) => file);
+  const TOTAL = IMAGE_FILES.length + EFFECT_FILES.length;
+
+  let screen = "loading"; // loading | ready | start | playing | over
+  let loadedCount = 0; // images and sound effects in, of TOTAL
+  let hasFailedToLoad = false;
   let hud = { wave: 1, gold: 0, count: 0, price: 0, isFull: false, levels: {}, prices: {}, ready: [], boss: null, odds: {} };
   let hudSign = "";
   let isMuted = false;
@@ -147,6 +168,8 @@
 
   $: ranking = (records || []).filter((r) => r.wave > 0).sort((a, b) => b.wave - a.wave);
   $: danger = hud.count >= RULES.enemyLimit * RULES.dangerAt;
+  // Everything is in: wait for the tap that also lets the sound start
+  $: if (screen === "loading" && loadedCount >= TOTAL) screen = "ready";
 
   let wrap;
   let canvas;
@@ -280,12 +303,10 @@
         } else arrive(e, "merge");
       } else if (e.type === "wave") {
         say(`WAVE ${e.wave}`, FIELD.w / 2, VIEW.y + 46, "#ffffff", 22);
-        for (const { type } of game.queue) remember("enemies", type);
       } else if (e.type === "bossWarn") {
         play("horn");
         say("보스 접근!", FIELD.w / 2, VIEW.y + 72, "#ff7a7a", 20);
       } else if (e.type === "bossArrive") {
-        remember("enemies", e.kind);
         play("roar");
         sound.playMusic(MUSIC.boss);
         flash = { color: "#ff3355", life: 0.6 };
@@ -296,7 +317,6 @@
         flash = { color: "#ffd866", life: 0.6 };
       } else if (e.type === "bossSummon") play("bossSummon");
       else if (e.type === "thief") {
-        remember("enemies", "thief");
         say("보물 고블린 등장!", FIELD.w / 2, VIEW.y + 72, "#ffd866", 16);
         play("rare");
       } else if (e.type === "thiefCaught") {
@@ -317,6 +337,8 @@
   // What the buttons and gauges show. Rebuilt only when one of them would read differently.
   function sync() {
     const boss = game.enemies.find((e) => BOSSES[e.type]);
+    // An enemy goes into the book once it is on the road
+    for (const e of game.enemies) remember("enemies", e.type);
     const next = {
       wave: game.wave,
       gold: Math.floor(game.gold),
@@ -354,7 +376,8 @@
     const dt = Math.min((now - lastTime) / 1000, 0.05);
     lastTime = now;
     if (isPaused) return;
-    if (screen === "playing" && !reveal) {
+    // Nothing moves while a legendary is arriving or the book is open
+    if (screen === "playing" && !reveal && !showBook) {
       handle(update(game, dt * speed));
       if (game.enemies.length >= RULES.enemyLimit * RULES.dangerAt && game.phase === "playing") play("alarm");
       sync();
@@ -604,31 +627,38 @@
     const to = slotAt(x, y);
     if (to == null || to === slot) return;
     info = null;
-    handle(moveUnit(game, slot, to));
+    act(() => moveUnit(game, slot, to));
+  }
+
+  // Every move the player makes is saved at once: no pull or merge can be undone by going back
+  // to an older save
+  function act(move) {
+    if (!isMine()) return dropRun();
+    handle(move());
     sync();
+    saveRun();
   }
 
   function doSummon() {
-    handle(summon(game));
-    sync();
+    act(() => summon(game));
   }
 
   function doUpgrade(key) {
-    if (!upgrade(game, key)) return;
-    play(key === "luck" ? "luck" : "anvil");
-    sync();
+    act(() => {
+      if (upgrade(game, key)) play(key === "luck" ? "luck" : "anvil");
+      return [];
+    });
   }
 
   function doCraft(key) {
     showBook = false;
-    handle(craft(game, key));
-    sync();
+    act(() => craft(game, key));
   }
 
   function doSell() {
-    handle(sell(game, info.slot));
+    const { slot } = info;
     info = null;
-    sync();
+    act(() => sell(game, slot));
   }
 
   function closeReveal() {
@@ -639,7 +669,7 @@
 
   // Keeps the run for later while it is still going, and forgets it once it has ended
   function saveRun() {
-    if (!game) return;
+    if (!game || !isMine()) return;
     if (game.phase === "playing") localStorage.setItem(saveKey, saveGame(game));
     else localStorage.removeItem(saveKey);
     savedWave = game.phase === "playing" ? game.wave : 0;
@@ -659,7 +689,7 @@
     isPaused = false;
     hudSign = "";
     screen = "playing";
-    for (const { type } of game.queue) remember("enemies", type);
+    localStorage.setItem(ownerKey, runEntry);
     sync();
     sound.resume();
     sound.playMusic(game.bossDeadline ? MUSIC.boss : MUSIC.field);
@@ -685,6 +715,7 @@
   }
 
   function setPaused(value) {
+    if (!value && !isMine()) return dropRun();
     isPaused = value;
     drag = null;
     if (value) {
@@ -708,11 +739,43 @@
   function backToTitle() {
     saveRun();
     sendRecord();
-    sound.stopMusic();
-    if (isPaused) setPaused(false);
+    leaveRun();
+  }
+
+  // Browsers only let sound start from a tap: this one opens the title and its music
+  function enter() {
+    if (screen !== "ready") return;
+    sound.resume();
+    sound.playMusic(MUSIC.title);
+    screen = "start";
+  }
+
+  function leaveRun() {
+    clearTimeout(revealTimer);
+    sound.playMusic(MUSIC.title);
+    // A run dropped while this window is in the background stays quiet until it is looked at again
+    if (!document.hidden) sound.resume();
+    isPaused = false;
+    showBook = false;
+    reveal = null;
+    drag = null;
+    info = null;
     game = null;
     screen = "start";
     draw();
+  }
+
+  // Another window has picked this run up: the copy here is out of date and is not saved over it
+  function dropRun() {
+    toast("다른 창에서 이 판을 이어서 하고 있어요. 이 창의 판은 닫았습니다.", "info");
+    leaveRun();
+    savedWave = loadGame(localStorage.getItem(saveKey))?.wave ?? 0;
+    if (history.state?.rune === runEntry) history.back();
+  }
+
+  function onStorage(e) {
+    if (e.key === ownerKey && game && screen === "playing") dropRun();
+    else if (e.key === saveKey && !game) savedWave = loadGame(e.newValue)?.wave ?? 0;
   }
 
   // The server keeps each member's furthest wave; a backend from before this game does not know the action
@@ -754,24 +817,29 @@
       lastTime = performance.now();
       raf = requestAnimationFrame(frame);
       if (!isPaused) sound.resume();
+      if (game && screen === "playing" && !isMine()) dropRun();
     }
   }
 
   onMount(async () => {
     ctx = canvas.getContext("2d");
-    sound = createSound(SND, Object.values(SOUNDS).map(([file]) => file));
+    sound = createSound(SND, EFFECT_FILES, () => loadedCount++);
     loadRecords();
     try {
-      const files = [...Object.keys(UNITS), ...Object.keys(ENEMIES), ...Object.keys(BOSSES), "background", "circle"];
-      const loaded = await Promise.all(files.map(loadImage));
-      images = Object.fromEntries(files.map((file, i) => [file, loaded[i]]));
+      const loaded = await Promise.all(
+        IMAGE_FILES.map(async (file) => {
+          const image = await loadImage(file);
+          loadedCount++;
+          return image;
+        }),
+      );
+      images = Object.fromEntries(IMAGE_FILES.map((file, i) => [file, loaded[i]]));
     } catch {
-      return toast("게임 이미지를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.", "error");
+      return (hasFailedToLoad = true);
     }
     // The board gets what the HUD and the buttons leave, which changes from screen to screen
     observer = new ResizeObserver(resize);
     observer.observe(wrap);
-    screen = "start";
     lastTime = performance.now();
     raf = requestAnimationFrame(frame);
   });
@@ -794,7 +862,7 @@
   };
 </script>
 
-<svelte:window on:popstate={onBack} />
+<svelte:window on:popstate={onBack} on:storage={onStorage} />
 <svelte:document on:visibilitychange={onVisibility} />
 
 <div class="absolute inset-0 flex flex-col bg-[#0b120e] text-white select-none overflow-hidden" role="application" aria-label="룬 가디언">
@@ -881,26 +949,6 @@
   <!-- Controls -->
   {#if screen === "playing"}
     <div class="relative z-10 px-3 pt-2 pb-[max(env(safe-area-inset-bottom),10px)] space-y-2 bg-black/40">
-      {#if info}
-        <div class="flex items-center gap-2 p-2 rounded-2xl bg-white/10 border" style="border-color: {TIER_COLOR[UNITS[info.key].tier]}">
-          <img src="{IMG}/{info.key}.webp" alt="" class="w-11 h-11 shrink-0" />
-          <div class="flex-1 min-w-0">
-            <p class="text-sm font-black truncate">
-              <span style="color: {TIER_COLOR[UNITS[info.key].tier]}">{TIER[UNITS[info.key].tier].label}</span>
-              {UNITS[info.key].name}
-            </p>
-            <p class="text-[11px] text-gray-300">{stats(info.key)}</p>
-            <p class="text-[11px] text-amber-100 break-keep">{UNIT_TEXT[info.key]}</p>
-          </div>
-          <button
-            type="button"
-            on:click={doSell}
-            class="shrink-0 px-3 py-2 rounded-xl text-xs font-black text-amber-200 bg-black/40 border border-amber-300/40 active:scale-95 transition-all"
-          >
-            판매 +{TIER[UNITS[info.key].tier].sell}
-          </button>
-        </div>
-      {/if}
       <div class="flex gap-2">
         <button
           type="button"
@@ -949,6 +997,30 @@
           <span style="color: {TIER_COLOR[tier]}">{TIER[tier].label} {percent(hud.odds[tier] ?? 0)}</span>{" "}
         {/each}
       </p>
+      {#if info}
+        <!-- Over the foot of the board, so that looking at a unit does not resize it -->
+        <div
+          class="absolute bottom-full inset-x-3 mb-1 flex items-center gap-2 p-2 rounded-2xl bg-[#14181a]/95 border shadow-lg"
+          style="border-color: {TIER_COLOR[UNITS[info.key].tier]}"
+        >
+          <img src="{IMG}/{info.key}.webp" alt="" class="w-11 h-11 shrink-0" />
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-black truncate">
+              <span style="color: {TIER_COLOR[UNITS[info.key].tier]}">{TIER[UNITS[info.key].tier].label}</span>
+              {UNITS[info.key].name}
+            </p>
+            <p class="text-[11px] text-gray-300">{stats(info.key)}</p>
+            <p class="text-[11px] text-amber-100 break-keep">{UNIT_TEXT[info.key]}</p>
+          </div>
+          <button
+            type="button"
+            on:click={doSell}
+            class="shrink-0 px-3 py-2 rounded-xl text-xs font-black text-amber-200 bg-black/40 border border-amber-300/40 active:scale-95 transition-all"
+          >
+            판매 +{TIER[UNITS[info.key].tier].sell}
+          </button>
+        </div>
+      {/if}
     </div>
   {/if}
 
@@ -989,7 +1061,10 @@
   {#if showBook}
     <div class="absolute inset-0 z-30 flex flex-col bg-[#0b0a14]">
       <div class="flex items-center justify-between px-4 pt-4">
-        <h2 class="text-xl font-black text-amber-200">📖 도감</h2>
+        <h2 class="text-xl font-black text-amber-200">
+          📖 도감
+          {#if game}<span class="ml-1 text-xs font-bold text-gray-400">보는 동안 게임은 멈춰요</span>{/if}
+        </h2>
         <button type="button" on:click={() => (showBook = false)} class="px-4 py-2 rounded-xl font-bold bg-white/10 active:scale-95 transition-all">
           닫기
         </button>
@@ -1145,26 +1220,59 @@
     </div>
   {/if}
 
-  <!-- Title screen: key art with the title in its dark upper third and the buttons at the bottom -->
-  {#if screen === "start" || screen === "loading"}
-    <div class="absolute inset-0 z-10 flex justify-center bg-[#0b0a14]">
+  <!-- Title screen: key art with the title in its dark upper third. First the loading bar,
+       then one tap to come in, then the buttons. -->
+  {#if screen === "loading" || screen === "ready" || screen === "start"}
+    <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+    <div class="absolute inset-0 z-10 flex justify-center bg-[#0b0a14]" on:click={enter}>
       <div class="relative h-full aspect-[9/16] max-w-full overflow-hidden">
-        <img src="{IMG}/title.webp" alt="" class="absolute inset-0 w-full h-full object-cover object-bottom" />
-        <div class="absolute inset-x-0 top-[9%] px-5 text-center">
+        <img
+          src="{IMG}/title.webp"
+          alt=""
+          class="absolute inset-0 w-full h-full object-cover object-bottom transition-all duration-700 {screen === 'start' ? '' : 'brightness-50 scale-105'}"
+        />
+        <div class="absolute inset-x-0 top-[9%] px-5 text-center" style="animation: rune-rise 0.9s ease-out">
           <p class="text-[11px] font-black tracking-[0.4em] text-amber-200">RANDOM DEFENSE</p>
-          <h1 class="mt-2 text-5xl font-black text-amber-100 drop-shadow-[0_0_22px_rgba(255,178,62,0.9)]">룬 가디언</h1>
+          <h1 class="mt-2 text-5xl font-black text-amber-100" style="animation: rune-glow 2.6s ease-in-out infinite">룬 가디언</h1>
           <p class="mt-3 text-sm text-gray-200">뽑고, 합치고, 끝까지 버텨라</p>
-          {#if localBest}
+          {#if screen === "start" && localBest}
             <p class="mt-3 inline-block px-3 py-1.5 rounded-full text-xs font-bold text-amber-200 bg-black/50 border border-amber-300/40">
               내 최고 기록 {localBest}웨이브
             </p>
           {/if}
         </div>
         <div class="absolute inset-x-0 bottom-0 px-5 pt-10 pb-[max(env(safe-area-inset-bottom),16px)] bg-gradient-to-t from-black/90 to-transparent">
-          <div class="max-w-xs mx-auto space-y-2">
-            {#if screen === "loading"}
-              <p class="py-4 text-center text-gray-300 animate-pulse">불러오는 중...</p>
-            {:else}
+          {#if hasFailedToLoad}
+            <div class="max-w-xs mx-auto pb-6 text-center">
+              <p class="text-sm text-rose-200">게임을 불러오지 못했습니다. 연결을 확인해 주세요.</p>
+              <button
+                type="button"
+                on:click={() => location.reload()}
+                class="mt-3 w-full py-3 rounded-2xl font-black text-gray-900 bg-amber-300 active:scale-95 transition-all"
+              >
+                다시 시도
+              </button>
+            </div>
+          {:else if screen === "loading"}
+            <div class="max-w-xs mx-auto pb-6" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.round((loadedCount / TOTAL) * 100)}>
+              <p class="text-center text-xs text-gray-200 break-keep">💡 {tip}</p>
+              <div class="mt-3 h-3.5 rounded-full bg-black/70 border border-amber-200/40 overflow-hidden">
+                <div
+                  class="h-full rounded-full bg-gradient-to-r from-amber-500 via-amber-300 to-yellow-100 shadow-[0_0_12px_rgba(255,178,62,0.9)] transition-[width] duration-200"
+                  style="width: {(loadedCount / TOTAL) * 100}%"
+                ></div>
+              </div>
+              <div class="mt-1.5 flex justify-between text-[11px] font-bold text-amber-100">
+                <span>{loadedCount < IMAGE_FILES.length ? "그림을" : "소리를"} 불러오는 중…</span>
+                <span>{Math.round((loadedCount / TOTAL) * 100)}%</span>
+              </div>
+            </div>
+          {:else if screen === "ready"}
+            <div class="max-w-xs mx-auto pb-8 text-center">
+              <p class="text-xl font-black text-amber-100 animate-pulse drop-shadow-[0_0_12px_rgba(255,178,62,0.9)]">화면을 눌러 시작</p>
+            </div>
+          {:else}
+          <div class="max-w-xs mx-auto space-y-2" style="animation: rune-rise 0.5s ease-out">
               {#if savedWave}
                 <button
                   type="button"
@@ -1194,8 +1302,9 @@
                   🏆 랭킹
                 </button>
               </div>
-            {/if}
           </div>
+          {/if}
+          <p class="mt-1 text-center text-[9px] text-gray-400">그림: AI 생성(Google Gemini) · 소리: Pixabay</p>
         </div>
       </div>
     </div>
@@ -1237,6 +1346,25 @@
   @keyframes -global-rune-spin {
     to {
       transform: rotate(360deg);
+    }
+  }
+  @keyframes -global-rune-rise {
+    from {
+      transform: translateY(14px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  @keyframes -global-rune-glow {
+    0%,
+    100% {
+      text-shadow: 0 0 18px rgba(255, 178, 62, 0.7);
+    }
+    50% {
+      text-shadow: 0 0 34px rgba(255, 178, 62, 1), 0 0 60px rgba(255, 120, 40, 0.6);
     }
   }
   @keyframes -global-rune-pop {

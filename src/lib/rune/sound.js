@@ -4,8 +4,11 @@
 const MUSIC_VOLUME = 0.3;
 const SILENCE = 0.002;
 
-/** `files` are effect names under `base`, loaded up front; music is loaded when first asked for. */
-export function createSound(base, files) {
+/**
+ * `files` are effect names under `base`, loaded up front; music is loaded when first asked for.
+ * `onLoad` is called as each effect is done loading, whether it loaded or not.
+ */
+export function createSound(base, files, onLoad = () => {}) {
   const ctx = new (window.AudioContext || window.webkitAudioContext)();
   const master = ctx.createGain();
   master.connect(ctx.destination);
@@ -23,7 +26,7 @@ export function createSound(base, files) {
       .catch(() => {});
     return loading[file];
   }
-  files.forEach(load);
+  files.forEach((file) => load(file).then(onLoad));
 
   // mp3 encoders pad both ends with silence; looping over it would be heard as a gap
   function loopBounds(buffer) {
