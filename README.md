@@ -26,39 +26,39 @@
 `public/sound`의 모든 효과음과 음악은 [Pixabay](https://pixabay.com/)에서 받은 것이며 [Pixabay Content License](https://pixabay.com/service/license-summary/)를 따릅니다.
 
 *   이 라이선스는 출처 표시 없이 무료로 쓰는 것을 허용합니다. 아래 표는 의무가 아니라 제작자에 대한 예의와 추적을 위해 적은 것입니다.
-*   파일은 받은 그대로이며 이름도 바꾸지 않았습니다. 게임 안에서는 일부를 앞부분만 잘라 재생합니다.
+*   파일 이름은 받은 그대로입니다. 게임이 앞부분만 쓰는 17개는 쓰는 길이에 맞춰 뒷부분을 잘라냈습니다(다시 인코딩하지 않고 잘라내기만 했습니다). 나머지 13개는 받은 그대로입니다. 어느 파일을 얼마나 잘랐는지는 아래 표에 있습니다.
 *   **이 음원들은 이 앱 안에서 쓰기 위해 포함된 것입니다.** Pixabay Content License는 음원을 그 자체로(Standalone) 재배포하거나 판매하는 것을 금지하므로, 이 저장소에서 음원 파일만 따로 떼어 재배포·판매할 수 없습니다. 쓰려면 Pixabay에서 직접 받아 주세요.
 *   각 음원의 권리는 Pixabay와 해당 제작자에게 있으며, 이 저장소의 코드에 적용되는 조건과는 별개입니다.
 
-| 파일 | Pixabay 제작자 | Pixabay ID |
-|---|---|---|
-| `54427377-sword-slash-476148.mp3` | 54427377 | 476148 |
-| `alexis_gaming_cam-alarme-342932.mp3` | alexis_gaming_cam | 342932 |
-| `breakzstudios-epic-cinematic-reveal-logo-201065.mp3` | breakzstudios | 201065 |
-| `calango_fx_official-game-over-401236.mp3` | calango_fx_official | 401236 |
-| `daviddumaisaudio-magical-spell-cast-190272.mp3` | daviddumaisaudio | 190272 |
-| `djartmusic-many-arrows-flying-by-306037.mp3` | djartmusic | 306037 |
-| `dragon-studio-angel-choir-463220.mp3` | dragon-studio | 463220 |
-| `dragon-studio-deep-sea-monster-roar-329857.mp3` | dragon-studio | 329857 |
-| `dragon-studio-epic-dragon-roar-364481.mp3` | dragon-studio | 364481 |
-| `dragon-studio-epic-spell-impact-478364.mp3` | dragon-studio | 478364 |
-| `dragon-studio-heavenly-choir-515273.mp3` | dragon-studio | 515273 |
-| `dragon-studio-ice-spell-impact-448563.mp3` | dragon-studio | 448563 |
-| `dragon-studio-lightning-spell-386163.mp3` | dragon-studio | 386163 |
-| `emand_edroff-fairy-dust-magical-chime-576279.mp3` | emand_edroff | 576279 |
-| `freesound_community-anvil-hit-1-103967.mp3` | freesound_community | 103967 |
-| `freesound_community-anvil-hit-2-14845.mp3` | freesound_community | 14845 |
-| `freesound_community-bow_release-85040.mp3` | freesound_community | 85040 |
-| `freesound_community-fizzle-101872.mp3` | freesound_community | 101872 |
-| `freesound_community-missile-45075.mp3` | freesound_community | 45075 |
-| `freesound_community-see_you_next_season-23336.mp3` | freesound_community | 23336 |
-| `kave_msri-war-horn-sfx-319881.mp3` | kave_msri | 319881 |
-| `koiroylers-fireball-impact-351961.mp3` | koiroylers | 351961 |
-| `koiroylers-small-riser-351977.mp3` | koiroylers | 351977 |
-| `openmindaudio-cinematic-action-epic-trailer-iron-vanguard-part-1-short-preview-488562.mp3` | openmindaudio | 488562 |
-| `pwlpl-power-up-game-sound-effect-359227.mp3` | pwlpl | 359227 |
-| `rescopicsound-elemental-magic-spell-impact-outgoing-228342.mp3` | rescopicsound | 228342 |
-| `shidenbeatsmusic-sound-effect-twinklesparkle-115095.mp3` | shidenbeatsmusic | 115095 |
-| `universfield-magic-spell-278824.mp3` | universfield | 278824 |
-| `universfield-magic-teleport-whoosh-352764.mp3` | universfield | 352764 |
-| `universfield-victory-fanfare-152480.mp3` | universfield | 152480 |
+| 파일 | Pixabay 제작자 | Pixabay ID | 가공 |
+|---|---|---|---|
+| `54427377-sword-slash-476148.mp3` | 54427377 | 476148 | 뒷부분 잘라냄 (4.6초 → 1.0초) |
+| `alexis_gaming_cam-alarme-342932.mp3` | alexis_gaming_cam | 342932 | 받은 그대로 |
+| `breakzstudios-epic-cinematic-reveal-logo-201065.mp3` | breakzstudios | 201065 | 뒷부분 잘라냄 (12.1초 → 6.5초) |
+| `calango_fx_official-game-over-401236.mp3` | calango_fx_official | 401236 | 받은 그대로 |
+| `daviddumaisaudio-magical-spell-cast-190272.mp3` | daviddumaisaudio | 190272 | 받은 그대로 |
+| `djartmusic-many-arrows-flying-by-306037.mp3` | djartmusic | 306037 | 뒷부분 잘라냄 (6.0초 → 1.5초) |
+| `dragon-studio-angel-choir-463220.mp3` | dragon-studio | 463220 | 뒷부분 잘라냄 (18.3초 → 4.5초) |
+| `dragon-studio-deep-sea-monster-roar-329857.mp3` | dragon-studio | 329857 | 뒷부분 잘라냄 (6.5초 → 2.5초) |
+| `dragon-studio-epic-dragon-roar-364481.mp3` | dragon-studio | 364481 | 받은 그대로 |
+| `dragon-studio-epic-spell-impact-478364.mp3` | dragon-studio | 478364 | 뒷부분 잘라냄 (2.1초 → 1.1초) |
+| `dragon-studio-heavenly-choir-515273.mp3` | dragon-studio | 515273 | 뒷부분 잘라냄 (18.3초 → 7.5초) |
+| `dragon-studio-ice-spell-impact-448563.mp3` | dragon-studio | 448563 | 뒷부분 잘라냄 (4.7초 → 1.4초) |
+| `dragon-studio-lightning-spell-386163.mp3` | dragon-studio | 386163 | 받은 그대로 |
+| `emand_edroff-fairy-dust-magical-chime-576279.mp3` | emand_edroff | 576279 | 뒷부분 잘라냄 (13.2초 → 3.5초) |
+| `freesound_community-anvil-hit-1-103967.mp3` | freesound_community | 103967 | 받은 그대로 |
+| `freesound_community-anvil-hit-2-14845.mp3` | freesound_community | 14845 | 받은 그대로 |
+| `freesound_community-bow_release-85040.mp3` | freesound_community | 85040 | 받은 그대로 |
+| `freesound_community-fizzle-101872.mp3` | freesound_community | 101872 | 뒷부분 잘라냄 (3.8초 → 2.0초) |
+| `freesound_community-missile-45075.mp3` | freesound_community | 45075 | 뒷부분 잘라냄 (4.6초 → 2.0초) |
+| `freesound_community-see_you_next_season-23336.mp3` | freesound_community | 23336 | 받은 그대로 |
+| `kave_msri-war-horn-sfx-319881.mp3` | kave_msri | 319881 | 뒷부분 잘라냄 (15.5초 → 3.5초) |
+| `koiroylers-fireball-impact-351961.mp3` | koiroylers | 351961 | 뒷부분 잘라냄 (3.1초 → 1.4초) |
+| `koiroylers-small-riser-351977.mp3` | koiroylers | 351977 | 받은 그대로 |
+| `openmindaudio-cinematic-action-epic-trailer-iron-vanguard-part-1-short-preview-488562.mp3` | openmindaudio | 488562 | 받은 그대로 |
+| `pwlpl-power-up-game-sound-effect-359227.mp3` | pwlpl | 359227 | 뒷부분 잘라냄 (8.1초 → 2.1초) |
+| `rescopicsound-elemental-magic-spell-impact-outgoing-228342.mp3` | rescopicsound | 228342 | 뒷부분 잘라냄 (3.2초 → 1.2초) |
+| `shidenbeatsmusic-sound-effect-twinklesparkle-115095.mp3` | shidenbeatsmusic | 115095 | 받은 그대로 |
+| `universfield-magic-spell-278824.mp3` | universfield | 278824 | 뒷부분 잘라냄 (5.9초 → 2.0초) |
+| `universfield-magic-teleport-whoosh-352764.mp3` | universfield | 352764 | 뒷부분 잘라냄 (3.1초 → 1.7초) |
+| `universfield-victory-fanfare-152480.mp3` | universfield | 152480 | 받은 그대로 |
