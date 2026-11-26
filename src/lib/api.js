@@ -129,6 +129,10 @@ export const api = {
     sendPushNotification: (data) => fetchFromGAS('sendPushNotification', data),
     // Members may call this one: the server sends a fixed message to admins only
     notifyReward: (data) => fetchFromGAS('notifyReward', data),
+
+    // Rune Guardian: one best wave per family member
+    getRuneRecords: () => fetchFromGAS('getRuneRecords'),
+    saveRuneRecord: (wave) => fetchFromGAS('saveRuneRecord', { wave }),
 };
 
 

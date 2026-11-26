@@ -15,6 +15,10 @@
       ],
     },
     {
+      title: "게임",
+      items: [{ path: "/rune-guardian", label: "룬 가디언", image: "images/rune/icon.webp" }],
+    },
+    {
       title: "도구",
       items: [{ path: "/stock", label: "주식 모으기", emoji: "📊" }],
     },
@@ -46,7 +50,12 @@
               on:click={() => go(item.path)}
               class="flex flex-col items-center justify-center gap-2 py-5 px-2 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 active:scale-95 transition-all"
             >
-              <span class="text-3xl leading-none">{item.emoji}</span>
+              {#if item.image}
+                <!-- Negative margin keeps the card as tall as the ones with an emoji -->
+                <img src="{base}/{item.image}" alt="" class="w-12 h-12 -my-2" />
+              {:else}
+                <span class="text-3xl leading-none">{item.emoji}</span>
+              {/if}
               <span
                 class="text-xs font-bold text-gray-700 dark:text-gray-200 text-center leading-tight break-keep"
                 >{item.label}</span

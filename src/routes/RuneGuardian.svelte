@@ -1,0 +1,1252 @@
+<script>
+  import { onMount, onDestroy } from "svelte";
+  import { base, currentUser } from "../lib/store.js";
+  import { api } from "../lib/api.js";
+  import { toast } from "../lib/feedback.js";
+  import GameExitButton from "../lib/components/GameExitButton.svelte";
+  import Ranking from "../lib/rune/Ranking.svelte";
+  import { createSound } from "../lib/rune/sound.js";
+  import {
+    createGame,
+    saveGame,
+    loadGame,
+    update,
+    summon,
+    summonPrice,
+    summonOdds,
+    moveUnit,
+    craft,
+    sell,
+    upgrade,
+    upgradePrice,
+    readyRecipes,
+    slotCenter,
+  } from "../lib/rune/engine.js";
+  import { FIELD, TRACK, GRID, RULES, TIERS, TIER, MERGE, UPGRADES, UNITS, RECIPES, ENEMIES, BOSSES } from "../lib/rune/config.js";
+
+  const IMG = `${base}/images/rune`;
+  const SND = `${base}/sound`;
+  // The slice of the field the canvas shows: the road, the slots inside it and room for whoever walks it
+  const VIEW = { y: 58, h: 458 };
+  const SLOTS = GRID.cols * GRID.rows;
+  const TIER_COLOR = { common: "#c3cad6", rare: "#4aa8ff", epic: "#b77bff", legendary: "#ffb23e", mythic: "#ff5f8a" };
+
+  // name: [file, volume, least ms between two plays, seconds to cut a long file at]
+  const SOUNDS = {
+    summon: ["universfield-magic-teleport-whoosh-352764.mp3", 0.45, 80, 1.2],
+    rare: ["shidenbeatsmusic-sound-effect-twinklesparkle-115095.mp3", 0.6, 0, 0],
+    epic: ["emand_edroff-fairy-dust-magical-chime-576279.mp3", 0.7, 0, 3],
+    riser: ["koiroylers-small-riser-351977.mp3", 0.8, 0, 0],
+    legendary: ["breakzstudios-epic-cinematic-reveal-logo-201065.mp3", 0.9, 0, 6],
+    mythic: ["dragon-studio-heavenly-choir-515273.mp3", 0.9, 0, 7],
+    jackpot: ["dragon-studio-angel-choir-463220.mp3", 0.8, 0, 4],
+    merge: ["daviddumaisaudio-magical-spell-cast-190272.mp3", 0.5, 80, 0],
+    fail: ["freesound_community-fizzle-101872.mp3", 0.6, 0, 1.5],
+    sword: ["54427377-sword-slash-476148.mp3", 0.1, 240, 0.5],
+    bow: ["freesound_community-bow_release-85040.mp3", 0.12, 220, 0],
+    volley: ["djartmusic-many-arrows-flying-by-306037.mp3", 0.1, 700, 1],
+    magic: ["dragon-studio-epic-spell-impact-478364.mp3", 0.08, 280, 0.6],
+    nature: ["rescopicsound-elemental-magic-spell-impact-outgoing-228342.mp3", 0.08, 420, 0.7],
+    fire: ["koiroylers-fireball-impact-351961.mp3", 0.1, 380, 0.9],
+    ice: ["dragon-studio-ice-spell-impact-448563.mp3", 0.1, 420, 0.9],
+    lightning: ["dragon-studio-lightning-spell-386163.mp3", 0.1, 320, 0],
+    meteor: ["freesound_community-missile-45075.mp3", 0.12, 900, 1.5],
+    horn: ["kave_msri-war-horn-sfx-319881.mp3", 0.6, 0, 3],
+    roar: ["dragon-studio-epic-dragon-roar-364481.mp3", 0.7, 0, 0],
+    bossSummon: ["dragon-studio-deep-sea-monster-roar-329857.mp3", 0.35, 0, 2],
+    fanfare: ["universfield-victory-fanfare-152480.mp3", 0.7, 0, 0],
+    alarm: ["alexis_gaming_cam-alarme-342932.mp3", 0.3, 3200, 0],
+    over: ["calango_fx_official-game-over-401236.mp3", 0.7, 0, 0],
+    anvil: ["freesound_community-anvil-hit-1-103967.mp3", 0.5, 0, 0],
+    luck: ["freesound_community-anvil-hit-2-14845.mp3", 0.5, 0, 0],
+    timeStop: ["universfield-magic-spell-278824.mp3", 0.4, 0, 1.5],
+    treasure: ["pwlpl-power-up-game-sound-effect-359227.mp3", 0.6, 0, 1.6],
+  };
+  const MUSIC = {
+    field: "freesound_community-see_you_next_season-23336.mp3",
+    boss: "openmindaudio-cinematic-action-epic-trailer-iron-vanguard-part-1-short-preview-488562.mp3",
+  };
+
+  // How each unit's attack sounds and what colour it flies in
+  const VOICE = {
+    swordsman: "sword", rogue: "sword", knight: "sword", paladin: "sword", valkyrie: "sword",
+    archer: "bow", sniper: "bow", ranger: "volley",
+    apprentice: "magic", chronomancer: "magic", seraph: "magic", archmage: "meteor",
+    pyromancer: "fire", dragonknight: "fire", elderdragon: "fire",
+    cryomancer: "ice", stormcaller: "lightning",
+    druid: "nature", alchemist: "nature", worldtree: "nature",
+  };
+  const SHOT_COLOR = {
+    sword: "#fff1c9", bow: "#e9dcae", volley: "#e9dcae", magic: "#c3b0ff", meteor: "#ff8a66",
+    fire: "#ff9a3d", ice: "#8fe3ff", lightning: "#fff36b", nature: "#8dff8a",
+  };
+  const UNIT_TEXT = {
+    swordsman: "가까운 적을 빠르게 벤다",
+    archer: "멀리서 한 명씩 쏜다",
+    apprentice: "마법탄을 쏜다",
+    rogue: "아주 빠른 공격, 15% 확률로 3배 치명타",
+    knight: "묵직한 일격, 15% 확률로 기절",
+    ranger: "한 번에 3명을 쏜다",
+    pyromancer: "주변까지 태우는 폭발",
+    cryomancer: "맞은 적을 30% 느리게",
+    paladin: "둘레 8칸 아군의 공격력 +25%",
+    sniper: "어디든 닿는 저격. 방어 무시, 가장 튼튼한 적부터",
+    stormcaller: "5명까지 튀는 번개",
+    druid: "맹독: 초당 최대 체력의 4% (보스는 0.6%)",
+    dragonknight: "넓게 휩쓰는 화염창",
+    archmage: "적이 가장 몰린 곳에 운석",
+    valkyrie: "아군 전체 공격 속도 +15%",
+    alchemist: "적을 잡을 때마다 골드 +1",
+    elderdragon: "거대한 화염 숨결",
+    chronomancer: "모든 적 35% 감속, 12초마다 2초간 시간 정지",
+    seraph: "아군 전체 공격력 +40%, 방어 무시",
+    worldtree: "한 번에 6명 공격, 웨이브마다 골드 +50",
+  };
+  const ENEMY_TEXT = {
+    slime: "평범하다",
+    goblin: "빠르다",
+    bat: "약하지만 떼로 온다",
+    orc: "중갑: 물리 피해 60% 감소",
+    wraith: "마법저항: 마법 피해 60% 감소",
+    shaman: "주변 적을 계속 회복시킨다",
+    golem: "아주 튼튼하고, 물리·마법 모두 30% 감소",
+    thief: "한 바퀴 반을 돌면 도망간다. 잡으면 큰 골드",
+    ogre: "물리 30% 감소. 체력이 절반 아래로 가면 폭주",
+    lich: "마법 50% 감소. 6초마다 아군 3명을 얼린다",
+    hydra: "초당 최대 체력의 1.2%를 재생",
+    demon: "물리·마법 40% 감소. 박쥐 떼를 부른다",
+  };
+
+  const saveKey = `rune_save_${$currentUser}`;
+  const bestKey = `rune_best_${$currentUser}`;
+  const seenKey = `rune_seen_${$currentUser}`;
+  const INTRO_KEY = "rune_intro_seen";
+  // Marks the history entry a run sits on, so the back button pauses before it leaves
+  const runEntry = Math.random().toString(36).slice(2);
+
+  let screen = "loading"; // loading | start | playing | over
+  let hud = { wave: 1, gold: 0, count: 0, price: 0, isFull: false, levels: {}, prices: {}, ready: [], boss: null, odds: {} };
+  let hudSign = "";
+  let isMuted = false;
+  let isPaused = false;
+  let speed = 1;
+  let showRules = false;
+  let startsAfterRules = false;
+  let showBook = false;
+  let showRanking = false;
+  let reveal = null; // the full-screen arrival of a legendary or a mythic: { key, tier, isShown, title }
+  let banner = null; // a line across the top for an epic: { text, color }
+  let info = null; // the unit tapped: { slot, key }
+  let records = null; // null while loading, false when the server cannot say, else best waves per member
+  let localBest = Number(localStorage.getItem(bestKey)) || 0;
+  let savedWave = loadGame(localStorage.getItem(saveKey))?.wave ?? 0;
+  // What this player has come across so far, on any run: it fills in the book
+  let seen = { units: [], enemies: [], crafted: [], ...JSON.parse(localStorage.getItem(seenKey) || "{}") };
+  let hasSentRun = false;
+  let hasResent = false;
+
+  $: ranking = (records || []).filter((r) => r.wave > 0).sort((a, b) => b.wave - a.wave);
+  $: danger = hud.count >= RULES.enemyLimit * RULES.dangerAt;
+
+  let wrap;
+  let canvas;
+  let ctx;
+  let game = null;
+  let raf = 0;
+  let lastTime = 0;
+  let scale = 1;
+  let dpr = 1;
+  let originX = 0;
+  let originY = 0;
+  let images = {};
+  let sound;
+  let revealTimer;
+  let bannerTimer;
+  let observer;
+
+  let drag = null; // { slot, key, x, y, hasMoved }
+  let particles = [];
+  let effects = []; // short-lived shots, rings and arcs
+  let texts = []; // words floating up from where something happened
+  let bumps = {}; // slot -> seconds left of the little hop a unit makes when it attacks
+  let flash = null; // { color, life }
+  const lastPlayed = {};
+
+  function play(name) {
+    const [file, volume, gap, seconds] = SOUNDS[name];
+    const now = performance.now();
+    if (gap && now - (lastPlayed[name] ?? 0) < gap) return;
+    lastPlayed[name] = now;
+    sound.play(file, volume, seconds);
+  }
+
+  function loadImage(file) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = `${IMG}/${file}.webp`;
+    });
+  }
+
+  function resize() {
+    if (!wrap || !canvas) return;
+    const { width, height } = wrap.getBoundingClientRect();
+    dpr = Math.min(window.devicePixelRatio || 1, 3);
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+    scale = Math.min(width / FIELD.w, height / VIEW.h);
+    originX = (width - FIELD.w * scale) / 2;
+    originY = (height - VIEW.h * scale) / 2;
+    draw();
+  }
+
+  function remember(kind, key) {
+    if (seen[kind].includes(key)) return;
+    seen[kind] = [...seen[kind], key];
+    localStorage.setItem(seenKey, JSON.stringify(seen));
+  }
+
+  function burst(x, y, color, count, power = 110) {
+    for (let i = 0; i < count && particles.length < 260; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const v = power * (0.3 + Math.random() * 0.7);
+      particles.push({ x, y, vx: Math.cos(angle) * v, vy: Math.sin(angle) * v, life: 0.3 + Math.random() * 0.35, color });
+    }
+  }
+
+  function addEffect(effect, seconds) {
+    if (effects.length < 140) effects.push({ ...effect, life: seconds, span: seconds });
+  }
+
+  function say(text, x, y, color = "#ffffff", size = 14) {
+    texts.push({ text, x, y, color, size, life: 1.2 });
+  }
+
+  // A new unit on the board: the rarer, the louder
+  function arrive(e, how) {
+    const { x, y } = slotCenter(e.slot);
+    const color = TIER_COLOR[e.tier];
+    const name = UNITS[e.key].name;
+    remember("units", e.key);
+    if (e.tier === "mythic") remember("crafted", e.key);
+    addEffect({ type: "ring", x, y, color, radius: 38 }, 0.45);
+    burst(x, y, color, e.tier === "common" ? 6 : 16);
+    info = null;
+    if (e.tier === "legendary" || e.tier === "mythic") {
+      const title = how === "craft" ? "신화 강림" : how === "merge" ? "승급 대성공!" : "전설 소환!";
+      reveal = { key: e.key, tier: e.tier, isShown: false, title };
+      play("riser");
+      clearTimeout(revealTimer);
+      revealTimer = setTimeout(() => {
+        reveal = { ...reveal, isShown: true };
+        play(e.tier);
+        navigator.vibrate?.([40, 60, 120]);
+      }, 1700);
+    } else if (e.tier === "epic") {
+      play(e.jackpot ? "jackpot" : "epic");
+      flash = { color, life: 0.5 };
+      banner = { text: `${e.jackpot ? "두 단계 승급! " : ""}영웅 · ${name}`, color };
+      clearTimeout(bannerTimer);
+      bannerTimer = setTimeout(() => (banner = null), 1800);
+    } else if (e.tier === "rare") {
+      play(how === "summon" ? "rare" : "merge");
+    } else {
+      play("summon");
+    }
+  }
+
+  function handle(events) {
+    for (const e of events) {
+      if (e.type === "attack") {
+        const from = slotCenter(e.slot);
+        const voice = VOICE[e.key];
+        bumps[e.slot] = 0.12;
+        addEffect({ type: "shot", x: from.x, y: from.y - 6, x2: e.x, y2: e.y, color: SHOT_COLOR[voice], splash: e.splash, crit: e.crit }, e.splash ? 0.22 : 0.13);
+        play(voice);
+      } else if (e.type === "chain") addEffect({ ...e, color: "#fff36b" }, 0.14);
+      else if (e.type === "kill") burst(e.x, e.y, "#d9f7c4", 5, 70);
+      else if (e.type === "gold") {
+        if (e.amount >= 5) say(`+${Math.floor(e.amount)}`, e.x, e.y - 10, "#ffd866");
+      } else if (e.type === "summon") arrive(e, "summon");
+      else if (e.type === "craft") arrive(e, "craft");
+      else if (e.type === "merge") {
+        if (e.failed) {
+          const { x, y } = slotCenter(e.slot);
+          say("실패…", x, y - 22, "#ff9d9d", 16);
+          play("fail");
+          remember("units", e.key);
+          info = null;
+        } else arrive(e, "merge");
+      } else if (e.type === "wave") {
+        say(`WAVE ${e.wave}`, FIELD.w / 2, VIEW.y + 46, "#ffffff", 22);
+        for (const { type } of game.queue) remember("enemies", type);
+      } else if (e.type === "bossWarn") {
+        play("horn");
+        say("보스 접근!", FIELD.w / 2, VIEW.y + 72, "#ff7a7a", 20);
+      } else if (e.type === "bossArrive") {
+        remember("enemies", e.kind);
+        play("roar");
+        sound.playMusic(MUSIC.boss);
+        flash = { color: "#ff3355", life: 0.6 };
+      } else if (e.type === "bossDead") {
+        play("fanfare");
+        sound.playMusic(MUSIC.field);
+        burst(e.x, e.y, "#ffd866", 60, 240);
+        flash = { color: "#ffd866", life: 0.6 };
+      } else if (e.type === "bossSummon") play("bossSummon");
+      else if (e.type === "thief") {
+        remember("enemies", "thief");
+        say("보물 고블린 등장!", FIELD.w / 2, VIEW.y + 72, "#ffd866", 16);
+        play("rare");
+      } else if (e.type === "thiefCaught") {
+        play("treasure");
+        burst(e.x, e.y, "#ffd866", 30, 180);
+      } else if (e.type === "thiefGone") say("도망갔다…", e.x, e.y - 12, "#c9c9c9");
+      else if (e.type === "freeze") {
+        const { x, y } = slotCenter(e.slot);
+        addEffect({ type: "ring", x, y, color: "#8fe3ff", radius: 30 }, 0.4);
+        play("ice");
+      } else if (e.type === "timeStop") {
+        say("시간 정지", FIELD.w / 2, VIEW.y + VIEW.h / 2, "#bfe9ff", 20);
+        play("timeStop");
+      } else if (e.type === "sell") play("merge");
+    }
+  }
+
+  // What the buttons and gauges show. Rebuilt only when one of them would read differently.
+  function sync() {
+    const boss = game.enemies.find((e) => BOSSES[e.type]);
+    const next = {
+      wave: game.wave,
+      gold: Math.floor(game.gold),
+      count: game.enemies.length,
+      price: summonPrice(game),
+      isFull: game.units.length >= SLOTS,
+      levels: game.levels,
+      prices: Object.fromEntries(Object.keys(UPGRADES).map((key) => [key, upgradePrice(game, key)])),
+      ready: readyRecipes(game),
+      boss: boss && { name: BOSSES[boss.type].name, hp: Math.ceil((100 * boss.hp) / boss.maxHp), left: Math.max(0, Math.ceil(game.bossDeadline - game.time)) },
+      odds: summonOdds(game),
+    };
+    const sign = JSON.stringify(next);
+    if (sign !== hudSign) {
+      hudSign = sign;
+      hud = { ...next, levels: { ...game.levels } };
+    }
+    if (game.wave > localBest) {
+      localBest = game.wave;
+      localStorage.setItem(bestKey, String(localBest));
+    }
+    if (game.phase === "over" && screen === "playing") {
+      screen = "over";
+      sound.stopMusic();
+      play("over");
+      drag = null;
+      info = null;
+      saveRun();
+      sendRecord();
+    }
+  }
+
+  function frame(now) {
+    raf = requestAnimationFrame(frame);
+    const dt = Math.min((now - lastTime) / 1000, 0.05);
+    lastTime = now;
+    if (isPaused) return;
+    if (screen === "playing" && !reveal) {
+      handle(update(game, dt * speed));
+      if (game.enemies.length >= RULES.enemyLimit * RULES.dangerAt && game.phase === "playing") play("alarm");
+      sync();
+    }
+    for (const p of particles) {
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.life -= dt;
+    }
+    particles = particles.filter((p) => p.life > 0);
+    for (const fx of effects) fx.life -= dt;
+    effects = effects.filter((fx) => fx.life > 0);
+    for (const t of texts) t.life -= dt;
+    texts = texts.filter((t) => t.life > 0);
+    for (const slot in bumps) if ((bumps[slot] -= dt) <= 0) delete bumps[slot];
+    if (flash && (flash.life -= dt) <= 0) flash = null;
+    draw();
+  }
+
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function drawUnit(key, x, y, size, alpha = 1) {
+    const color = TIER_COLOR[UNITS[key].tier];
+    ctx.globalAlpha = alpha * 0.55;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.ellipse(x, y + size * 0.4, size * 0.4, size * 0.13, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(images[key], x - size / 2, y - size / 2 - 3, size, size);
+    ctx.globalAlpha = 1;
+  }
+
+  function draw() {
+    if (!ctx) return;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = "#0b120e";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const k = scale * dpr;
+    ctx.setTransform(k, 0, 0, k, originX * dpr, originY * dpr - VIEW.y * k);
+    if (images.background) ctx.drawImage(images.background, 0, 0, FIELD.w, FIELD.w * (images.background.height / images.background.width));
+
+    // The road
+    const sideX = TRACK.right - TRACK.left;
+    const sideY = TRACK.bottom - TRACK.top;
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "rgba(0,0,0,0.5)";
+    ctx.lineWidth = TRACK.width + 6;
+    ctx.strokeRect(TRACK.left, TRACK.top, sideX, sideY);
+    ctx.strokeStyle = "#4a4355";
+    ctx.lineWidth = TRACK.width;
+    ctx.strokeRect(TRACK.left, TRACK.top, sideX, sideY);
+    ctx.strokeStyle = "rgba(255,255,255,0.09)";
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([6, 8]);
+    ctx.strokeRect(TRACK.left, TRACK.top, sideX, sideY);
+    ctx.setLineDash([]);
+    // Where they come in
+    if (images.circle) {
+      ctx.globalAlpha = 0.85;
+      ctx.drawImage(images.circle, TRACK.left - 21, TRACK.top - 21, 42, 42);
+      ctx.globalAlpha = 1;
+    }
+
+    // Slots
+    const over = drag?.hasMoved ? slotAt(drag.x, drag.y) : null;
+    for (let slot = 0; slot < SLOTS; slot++) {
+      const c = slotCenter(slot);
+      roundRect(c.x - c.w / 2 + 2, c.y - c.h / 2 + 2, c.w - 4, c.h - 4, 9);
+      ctx.fillStyle = slot === over ? "rgba(255,255,255,0.18)" : "rgba(8,12,10,0.42)";
+      ctx.fill();
+      ctx.strokeStyle = slot === info?.slot ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.08)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+    if (!game) return;
+
+    // The reach of the unit being looked at or carried
+    const shown = drag?.hasMoved ? { key: drag.key, slot: over ?? drag.slot } : info;
+    if (shown) {
+      const c = slotCenter(shown.slot);
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, UNITS[shown.key].range, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(255,255,255,0.06)";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,0.35)";
+      ctx.setLineDash([5, 5]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Enemies, the lower ones in front
+    for (const e of [...game.enemies].sort((a, b) => a.y - b.y)) {
+      const def = ENEMIES[e.type] ?? BOSSES[e.type];
+      const size = def.size * 2.3;
+      const img = images[e.type];
+      ctx.save();
+      ctx.translate(e.x, e.y);
+      // Drawn facing left: turned round on the two sides where they walk right or down
+      if (e.side < 2) ctx.scale(-1, 1);
+      ctx.drawImage(img, -size / 2, -size / 2 - 4, size, size);
+      ctx.restore();
+      if (e.hp < e.maxHp) {
+        const w = size * 0.7;
+        ctx.fillStyle = "rgba(0,0,0,0.6)";
+        ctx.fillRect(e.x - w / 2, e.y - size / 2 - 8, w, 3.5);
+        ctx.fillStyle = e.poisonUntil > game.time ? "#8dff8a" : BOSSES[e.type] ? "#ff5a6e" : "#ffd24a";
+        ctx.fillRect(e.x - w / 2, e.y - size / 2 - 8, w * Math.max(0, e.hp / e.maxHp), 3.5);
+      }
+    }
+
+    // Units
+    for (const unit of game.units) {
+      const c = slotCenter(unit.slot);
+      const isCarried = drag?.hasMoved && drag.slot === unit.slot;
+      const size = 46 * (1 + (bumps[unit.slot] ? 0.1 : 0));
+      drawUnit(unit.key, c.x, c.y, size, isCarried ? 0.3 : 1);
+      if (unit.stunUntil > game.time) {
+        roundRect(c.x - c.w / 2 + 2, c.y - c.h / 2 + 2, c.w - 4, c.h - 4, 9);
+        ctx.fillStyle = "rgba(143,227,255,0.45)";
+        ctx.fill();
+      }
+    }
+
+    for (const fx of effects) {
+      const t = fx.life / fx.span;
+      ctx.globalAlpha = t;
+      ctx.strokeStyle = fx.color;
+      ctx.fillStyle = fx.color;
+      if (fx.type === "shot") {
+        ctx.lineWidth = fx.crit ? 3.5 : 1.8;
+        ctx.beginPath();
+        ctx.moveTo(fx.x, fx.y);
+        ctx.lineTo(fx.x2, fx.y2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(fx.x2, fx.y2, fx.crit ? 6 : 3.5, 0, Math.PI * 2);
+        ctx.fill();
+        if (fx.splash) {
+          ctx.globalAlpha = t * 0.35;
+          ctx.beginPath();
+          ctx.arc(fx.x2, fx.y2, fx.splash * (1.05 - t * 0.35), 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (fx.type === "chain") {
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(fx.x, fx.y);
+        ctx.lineTo((fx.x + fx.x2) / 2 + (Math.random() - 0.5) * 14, (fx.y + fx.y2) / 2 + (Math.random() - 0.5) * 14);
+        ctx.lineTo(fx.x2, fx.y2);
+        ctx.stroke();
+      } else if (fx.type === "ring") {
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(fx.x, fx.y, fx.radius * (1 - t * 0.7), 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
+    for (const p of particles) {
+      ctx.globalAlpha = Math.min(1, p.life * 3);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x - 1.5, p.y - 1.5, 3, 3);
+    }
+    ctx.globalAlpha = 1;
+    ctx.textAlign = "center";
+    for (const t of texts) {
+      ctx.globalAlpha = Math.min(1, t.life * 2);
+      ctx.font = `900 ${t.size}px system-ui, sans-serif`;
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "rgba(0,0,0,0.7)";
+      ctx.strokeText(t.text, t.x, t.y - (1.2 - t.life) * 22);
+      ctx.fillStyle = t.color;
+      ctx.fillText(t.text, t.x, t.y - (1.2 - t.life) * 22);
+    }
+    ctx.globalAlpha = 1;
+
+    // The unit in hand, and what dropping it here would try for
+    if (drag?.hasMoved) {
+      drawUnit(drag.key, drag.x, drag.y - 14, 56, 0.9);
+      const under = over != null && over !== drag.slot && game.units.find((u) => u.slot === over);
+      const odds = MERGE.odds[UNITS[drag.key].tier];
+      if (under?.key === drag.key && odds) {
+        const next = TIERS[TIERS.indexOf(UNITS[drag.key].tier) + 1];
+        ctx.font = "900 13px system-ui, sans-serif";
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "rgba(0,0,0,0.8)";
+        const label = `${TIER[next].label} 승급 ${Math.round(odds * 100)}%`;
+        ctx.strokeText(label, drag.x, drag.y - 50);
+        ctx.fillStyle = TIER_COLOR[next];
+        ctx.fillText(label, drag.x, drag.y - 50);
+      }
+    }
+
+    if (flash) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalAlpha = flash.life * 0.5;
+      ctx.fillStyle = flash.color;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function fieldPoint(e) {
+    const rect = wrap.getBoundingClientRect();
+    return { x: (e.clientX - rect.left - originX) / scale, y: (e.clientY - rect.top - originY) / scale + VIEW.y };
+  }
+
+  function slotAt(x, y) {
+    for (let slot = 0; slot < SLOTS; slot++) {
+      const c = slotCenter(slot);
+      if (Math.abs(x - c.x) <= c.w / 2 && Math.abs(y - c.y) <= c.h / 2) return slot;
+    }
+    return null;
+  }
+
+  function onPointerDown(e) {
+    if (screen !== "playing" || isPaused || reveal) return;
+    const point = fieldPoint(e);
+    const slot = slotAt(point.x, point.y);
+    const unit = slot != null && game.units.find((u) => u.slot === slot);
+    if (!unit) return (info = null);
+    e.currentTarget.setPointerCapture(e.pointerId);
+    drag = { slot, key: unit.key, ...point, startX: point.x, startY: point.y, hasMoved: false };
+  }
+
+  function onPointerMove(e) {
+    if (!drag) return;
+    const point = fieldPoint(e);
+    const hasMoved = drag.hasMoved || Math.hypot(point.x - drag.startX, point.y - drag.startY) > 8;
+    drag = { ...drag, ...point, hasMoved };
+  }
+
+  function onPointerUp() {
+    if (!drag) return;
+    const { slot, key, x, y, hasMoved } = drag;
+    drag = null;
+    if (!hasMoved) return (info = info?.slot === slot ? null : { slot, key });
+    const to = slotAt(x, y);
+    if (to == null || to === slot) return;
+    info = null;
+    handle(moveUnit(game, slot, to));
+    sync();
+  }
+
+  function doSummon() {
+    handle(summon(game));
+    sync();
+  }
+
+  function doUpgrade(key) {
+    if (!upgrade(game, key)) return;
+    play(key === "luck" ? "luck" : "anvil");
+    sync();
+  }
+
+  function doCraft(key) {
+    showBook = false;
+    handle(craft(game, key));
+    sync();
+  }
+
+  function doSell() {
+    handle(sell(game, info.slot));
+    info = null;
+    sync();
+  }
+
+  function closeReveal() {
+    if (!reveal?.isShown) return;
+    reveal = null;
+    lastTime = performance.now();
+  }
+
+  // Keeps the run for later while it is still going, and forgets it once it has ended
+  function saveRun() {
+    if (!game) return;
+    if (game.phase === "playing") localStorage.setItem(saveKey, saveGame(game));
+    else localStorage.removeItem(saveKey);
+    savedWave = game.phase === "playing" ? game.wave : 0;
+  }
+
+  function startGame(saved = null) {
+    game = saved ?? createGame();
+    hasSentRun = false;
+    particles = [];
+    effects = [];
+    texts = [];
+    bumps = {};
+    drag = null;
+    info = null;
+    reveal = null;
+    banner = null;
+    isPaused = false;
+    hudSign = "";
+    screen = "playing";
+    for (const { type } of game.queue) remember("enemies", type);
+    sync();
+    sound.resume();
+    sound.playMusic(game.bossDeadline ? MUSIC.boss : MUSIC.field);
+    if (history.state?.rune !== runEntry) history.pushState({ ...history.state, rune: runEntry }, "");
+    // A run picked up again waits for the player
+    if (saved) setPaused(true);
+    draw();
+  }
+
+  // The first run starts from the rules
+  function startFresh() {
+    if (localStorage.getItem(INTRO_KEY)) return startGame();
+    startsAfterRules = true;
+    showRules = true;
+  }
+
+  function closeRules() {
+    showRules = false;
+    if (!startsAfterRules) return;
+    startsAfterRules = false;
+    localStorage.setItem(INTRO_KEY, "1");
+    startGame();
+  }
+
+  function setPaused(value) {
+    isPaused = value;
+    drag = null;
+    if (value) {
+      saveRun();
+      return sound.suspend();
+    }
+    lastTime = performance.now();
+    sound.resume();
+  }
+
+  // The back button, or a button standing in for it: a run in full swing pauses,
+  // one that is paused or over goes back to the title
+  function onBack() {
+    if (!game || history.state?.rune === runEntry) return;
+    if (showBook) showBook = false;
+    else if (isPaused || screen === "over") return backToTitle();
+    else setPaused(true);
+    history.pushState({ ...history.state, rune: runEntry }, "");
+  }
+
+  function backToTitle() {
+    saveRun();
+    sendRecord();
+    sound.stopMusic();
+    if (isPaused) setPaused(false);
+    game = null;
+    screen = "start";
+    draw();
+  }
+
+  // The server keeps each member's furthest wave; a backend from before this game does not know the action
+  async function loadRecords() {
+    const res = await api.getRuneRecords();
+    records = res.success ? res.records : false;
+    // A best the server never got (closed tab, failed save) goes up now, once
+    const mine = (records || []).find((r) => r.user_name === $currentUser)?.wave ?? 0;
+    if (records && localBest > mine && !hasResent) {
+      hasResent = true;
+      await api.saveRuneRecord(localBest);
+      loadRecords();
+    }
+  }
+
+  // A run is over, by defeat or by leaving: its wave goes to the ranking
+  async function sendRecord() {
+    if (!game || hasSentRun) return;
+    hasSentRun = true;
+    await api.saveRuneRecord(game.wave);
+    loadRecords();
+  }
+
+  function toggleMute() {
+    isMuted = !isMuted;
+    sound.setMuted(isMuted);
+  }
+
+  function onVisibility() {
+    if (document.hidden) {
+      cancelAnimationFrame(raf);
+      raf = 0;
+      // Coming back to a run in full swing would cost it dearly
+      if (screen === "playing") isPaused = true;
+      saveRun();
+      sound.suspend();
+      drag = null;
+    } else if (!raf) {
+      lastTime = performance.now();
+      raf = requestAnimationFrame(frame);
+      if (!isPaused) sound.resume();
+    }
+  }
+
+  onMount(async () => {
+    ctx = canvas.getContext("2d");
+    sound = createSound(SND, Object.values(SOUNDS).map(([file]) => file));
+    loadRecords();
+    try {
+      const files = [...Object.keys(UNITS), ...Object.keys(ENEMIES), ...Object.keys(BOSSES), "background", "circle"];
+      const loaded = await Promise.all(files.map(loadImage));
+      images = Object.fromEntries(files.map((file, i) => [file, loaded[i]]));
+    } catch {
+      return toast("게임 이미지를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.", "error");
+    }
+    // The board gets what the HUD and the buttons leave, which changes from screen to screen
+    observer = new ResizeObserver(resize);
+    observer.observe(wrap);
+    screen = "start";
+    lastTime = performance.now();
+    raf = requestAnimationFrame(frame);
+  });
+
+  onDestroy(() => {
+    // Leaving mid-run
+    saveRun();
+    if (screen === "playing") sendRecord();
+    clearTimeout(revealTimer);
+    clearTimeout(bannerTimer);
+    cancelAnimationFrame(raf);
+    observer?.disconnect();
+    sound?.close();
+  });
+
+  const percent = (value) => `${+(value * 100).toFixed(1)}%`;
+  const stats = (key) => {
+    const unit = UNITS[key];
+    return `${unit.type === "phys" ? "물리" : "마법"} ${unit.damage} · ${unit.every}초마다 · 사거리 ${unit.range >= 300 ? "전체" : unit.range}`;
+  };
+</script>
+
+<svelte:window on:popstate={onBack} />
+<svelte:document on:visibilitychange={onVisibility} />
+
+<div class="absolute inset-0 flex flex-col bg-[#0b120e] text-white select-none overflow-hidden" role="application" aria-label="룬 가디언">
+  <!-- HUD -->
+  <div class="relative z-20 flex items-center gap-2 px-3 pt-3 pb-2">
+    {#if screen === "playing"}
+      <div class="flex-1 min-w-0">
+        <p class="text-[11px] font-black tracking-widest text-amber-200">WAVE {hud.wave}</p>
+        <div class="mt-1 flex items-center gap-1.5" aria-label="길 위의 적 {hud.count}마리, 한도 {RULES.enemyLimit}마리">
+          <div class="h-2.5 flex-1 max-w-[150px] rounded-full bg-white/15 overflow-hidden">
+            <div
+              class="h-full rounded-full transition-all {danger ? 'bg-rose-500 animate-pulse' : 'bg-emerald-400'}"
+              style="width: {Math.min(100, (hud.count / RULES.enemyLimit) * 100)}%"
+            ></div>
+          </div>
+          <span class="text-[11px] font-black {danger ? 'text-rose-300' : 'text-gray-300'}">👾 {hud.count}/{RULES.enemyLimit}</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-1 text-sm font-black text-amber-300">
+        <img src="{IMG}/gold.webp" alt="골드" class="w-5 h-5" />
+        {hud.gold}
+      </div>
+      <button
+        type="button"
+        on:click={() => (speed = speed === 1 ? 2 : 1)}
+        aria-label="게임 속도 {speed}배"
+        class="w-10 h-10 shrink-0 rounded-full text-xs font-black bg-white/10 border border-white/15 active:scale-90 transition-all {speed === 2 ? 'text-amber-300' : ''}"
+      >
+        ×{speed}
+      </button>
+      <button
+        type="button"
+        on:click={() => setPaused(true)}
+        aria-label="일시정지"
+        class="w-10 h-10 shrink-0 flex items-center justify-center rounded-full bg-white/10 border border-white/15 active:scale-90 transition-all"
+      >
+        ⏸
+      </button>
+    {:else}
+      <GameExitButton />
+      <div class="flex-1"></div>
+    {/if}
+    <button
+      type="button"
+      on:click={toggleMute}
+      aria-label={isMuted ? "소리 켜기" : "소리 끄기"}
+      class="w-10 h-10 shrink-0 flex items-center justify-center rounded-full bg-white/10 border border-white/15 active:scale-90 transition-all"
+    >
+      {isMuted ? "🔇" : "🔊"}
+    </button>
+  </div>
+
+  <!-- The board -->
+  <div
+    bind:this={wrap}
+    class="relative flex-1 min-h-0 touch-none"
+    on:pointerdown={onPointerDown}
+    on:pointermove={onPointerMove}
+    on:pointerup={onPointerUp}
+    on:pointercancel={() => (drag = null)}
+  >
+    <canvas bind:this={canvas} class="absolute inset-0 w-full h-full"></canvas>
+    {#if screen === "playing" && hud.boss}
+      <div class="absolute top-1 inset-x-3 pointer-events-none">
+        <div class="flex justify-between text-[11px] font-black text-rose-200">
+          <span>👑 {hud.boss.name}</span>
+          <span class={hud.boss.left <= 15 ? "text-rose-400 animate-pulse" : ""}>⏱ {hud.boss.left}초</span>
+        </div>
+        <div class="mt-0.5 h-2 rounded-full bg-black/60 overflow-hidden border border-rose-300/40">
+          <div class="h-full bg-rose-500" style="width: {hud.boss.hp}%"></div>
+        </div>
+      </div>
+    {/if}
+    {#if banner}
+      <p
+        class="absolute top-10 inset-x-0 text-center text-xl font-black pointer-events-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)] animate-bounce"
+        style="color: {banner.color}"
+      >
+        {banner.text}
+      </p>
+    {/if}
+  </div>
+
+  <!-- Controls -->
+  {#if screen === "playing"}
+    <div class="relative z-10 px-3 pt-2 pb-[max(env(safe-area-inset-bottom),10px)] space-y-2 bg-black/40">
+      {#if info}
+        <div class="flex items-center gap-2 p-2 rounded-2xl bg-white/10 border" style="border-color: {TIER_COLOR[UNITS[info.key].tier]}">
+          <img src="{IMG}/{info.key}.webp" alt="" class="w-11 h-11 shrink-0" />
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-black truncate">
+              <span style="color: {TIER_COLOR[UNITS[info.key].tier]}">{TIER[UNITS[info.key].tier].label}</span>
+              {UNITS[info.key].name}
+            </p>
+            <p class="text-[11px] text-gray-300">{stats(info.key)}</p>
+            <p class="text-[11px] text-amber-100 break-keep">{UNIT_TEXT[info.key]}</p>
+          </div>
+          <button
+            type="button"
+            on:click={doSell}
+            class="shrink-0 px-3 py-2 rounded-xl text-xs font-black text-amber-200 bg-black/40 border border-amber-300/40 active:scale-95 transition-all"
+          >
+            판매 +{TIER[UNITS[info.key].tier].sell}
+          </button>
+        </div>
+      {/if}
+      <div class="flex gap-2">
+        <button
+          type="button"
+          on:click={doSummon}
+          disabled={hud.gold < hud.price || hud.isFull}
+          class="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-black text-lg text-white bg-gradient-to-r from-violet-600 to-fuchsia-600 shadow-[0_0_20px_rgba(168,85,247,0.5)] active:scale-95 transition-all disabled:opacity-40 disabled:shadow-none"
+        >
+          <img src="{IMG}/crystal.webp" alt="" class="w-7 h-7" />
+          {hud.isFull ? "자리 없음" : "소환"}
+          <span class="flex items-center gap-0.5 text-sm text-amber-200">
+            <img src="{IMG}/gold.webp" alt="" class="w-4 h-4" />{hud.price}
+          </span>
+        </button>
+        <button
+          type="button"
+          on:click={() => (showBook = true)}
+          class="shrink-0 px-4 rounded-2xl text-sm font-black border active:scale-95 transition-all {hud.ready.length
+            ? 'text-gray-900 bg-amber-300 border-amber-200 animate-pulse'
+            : 'text-amber-100 bg-white/10 border-white/15'}"
+        >
+          📖 {hud.ready.length ? "조합 가능!" : "도감"}
+        </button>
+      </div>
+      <div class="grid grid-cols-3 gap-2">
+        {#each [["phys", "⚔️"], ["magic", "🔮"], ["luck", "🍀"]] as [key, emoji]}
+          <button
+            type="button"
+            on:click={() => doUpgrade(key)}
+            disabled={hud.prices[key] == null || hud.gold < hud.prices[key]}
+            class="py-2 rounded-xl text-[11px] font-bold bg-white/10 border border-white/15 active:scale-95 transition-all disabled:opacity-40"
+          >
+            <span class="block text-xs font-black">{emoji} {UPGRADES[key].label} <span class="text-amber-200">Lv{hud.levels[key]}</span></span>
+            {#if hud.prices[key] == null}
+              <span class="text-gray-300">최대</span>
+            {:else}
+              <span class="inline-flex items-center gap-0.5 text-amber-200">
+                <img src="{IMG}/gold.webp" alt="" class="w-3 h-3" />{hud.prices[key]}
+              </span>
+            {/if}
+          </button>
+        {/each}
+      </div>
+      <p class="text-center text-[10px] text-gray-400">
+        소환 확률 ·
+        {#each ["rare", "epic", "legendary"] as tier}
+          <span style="color: {TIER_COLOR[tier]}">{TIER[tier].label} {percent(hud.odds[tier] ?? 0)}</span>{" "}
+        {/each}
+      </p>
+    </div>
+  {/if}
+
+  <!-- A legendary or a mythic arrives -->
+  {#if reveal}
+    <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+    <div class="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/85" on:click={closeReveal}>
+      <div class="relative w-64 h-64 flex items-center justify-center">
+        <img
+          src="{IMG}/circle.webp"
+          alt=""
+          class="absolute inset-0 w-full h-full {reveal.isShown ? 'opacity-60' : 'opacity-90'}"
+          style="animation: rune-spin {reveal.isShown ? 14 : 1.1}s linear infinite; filter: drop-shadow(0 0 26px {TIER_COLOR[reveal.tier]});"
+        />
+        {#if reveal.isShown}
+          <img
+            src="{IMG}/{reveal.key}.webp"
+            alt=""
+            class="relative w-52 h-52"
+            style="animation: rune-pop 0.5s cubic-bezier(0.2, 1.6, 0.4, 1); filter: drop-shadow(0 0 22px {TIER_COLOR[reveal.tier]});"
+          />
+        {/if}
+      </div>
+      {#if reveal.isShown}
+        <p class="mt-6 text-sm font-black tracking-[0.3em]" style="color: {TIER_COLOR[reveal.tier]}">{reveal.title}</p>
+        <h2 class="mt-1 text-4xl font-black" style="color: {TIER_COLOR[reveal.tier]}; text-shadow: 0 0 22px {TIER_COLOR[reveal.tier]}">
+          {UNITS[reveal.key].name}
+        </h2>
+        <p class="mt-3 px-8 text-center text-sm text-gray-200 break-keep">{UNIT_TEXT[reveal.key]}</p>
+        <p class="mt-8 text-xs text-gray-400 animate-pulse">화면을 눌러 계속</p>
+      {:else}
+        <p class="mt-6 text-lg font-black text-gray-200 animate-pulse">무언가 온다…</p>
+      {/if}
+    </div>
+  {/if}
+
+  <!-- The book: recipes, odds, and what has been met so far -->
+  {#if showBook}
+    <div class="absolute inset-0 z-30 flex flex-col bg-[#0b0a14]">
+      <div class="flex items-center justify-between px-4 pt-4">
+        <h2 class="text-xl font-black text-amber-200">📖 도감</h2>
+        <button type="button" on:click={() => (showBook = false)} class="px-4 py-2 rounded-xl font-bold bg-white/10 active:scale-95 transition-all">
+          닫기
+        </button>
+      </div>
+      <div class="flex-1 overflow-y-auto overscroll-contain px-4 pb-6 space-y-5">
+        <section>
+          <h3 class="mt-3 text-sm font-black" style="color: {TIER_COLOR.mythic}">신화 조합식</h3>
+          <p class="text-[11px] text-gray-400">전설 1 + 영웅 1 + 희귀 1이 판 위에 동시에 있으면 만들 수 있어요. 한 번 얻어 본 유닛만 이름이 보여요.</p>
+          <div class="mt-2 space-y-2">
+            {#each Object.entries(RECIPES) as [key, parts]}
+              {@const isKnown = seen.crafted.includes(key)}
+              <div class="p-2.5 rounded-2xl bg-white/5 border border-white/10">
+                <div class="flex items-center gap-2">
+                  <img src="{IMG}/{key}.webp" alt="" class="w-12 h-12 shrink-0" style={isKnown ? "" : "filter: brightness(0) drop-shadow(0 0 3px #ff5f8a)"} />
+                  <div class="flex-1 min-w-0">
+                    <p class="font-black" style="color: {TIER_COLOR.mythic}">{isKnown ? UNITS[key].name : "???"}</p>
+                    {#if isKnown}<p class="text-[11px] text-gray-300 break-keep">{UNIT_TEXT[key]}</p>{/if}
+                  </div>
+                  {#if game && hud.ready.includes(key)}
+                    <button
+                      type="button"
+                      on:click={() => doCraft(key)}
+                      class="shrink-0 px-3 py-2 rounded-xl text-sm font-black text-gray-900 bg-amber-300 animate-pulse active:scale-95 transition-all"
+                    >
+                      조합하기
+                    </button>
+                  {/if}
+                </div>
+                <div class="mt-2 grid grid-cols-3 gap-1.5">
+                  {#each parts as part}
+                    {@const isSeen = seen.units.includes(part)}
+                    {@const isHere = game?.units.some((u) => u.key === part)}
+                    <div class="flex items-center gap-1 p-1.5 rounded-xl bg-black/40 border {isHere ? 'border-emerald-400' : 'border-white/10'}">
+                      {#if isSeen}
+                        <img src="{IMG}/{part}.webp" alt="" class="w-7 h-7 shrink-0" />
+                      {:else}
+                        <span class="w-7 h-7 shrink-0 flex items-center justify-center font-black text-gray-500">?</span>
+                      {/if}
+                      <span class="min-w-0 text-[10px] font-bold leading-tight break-keep" style="color: {TIER_COLOR[UNITS[part].tier]}">
+                        {isSeen ? UNITS[part].name : `${TIER[UNITS[part].tier].label} ???`}{isHere ? " ✓" : ""}
+                      </span>
+                    </div>
+                  {/each}
+                </div>
+              </div>
+            {/each}
+          </div>
+        </section>
+        <section>
+          <h3 class="text-sm font-black text-amber-200">확률</h3>
+          <ul class="mt-1 text-xs text-gray-200 space-y-1 bg-white/5 border border-white/10 rounded-2xl p-3">
+            <li>
+              소환:
+              {#each Object.entries(hud.odds) as [tier, odds]}
+                <span style="color: {TIER_COLOR[tier]}">{TIER[tier].label} {percent(odds)}</span>{" "}
+              {/each}
+            </li>
+            <li>일반 2개 → 희귀 {percent(MERGE.odds.common)} ({percent(MERGE.jackpot)} 확률로 영웅)</li>
+            <li>희귀 2개 → 영웅 {percent(MERGE.odds.rare)} · 실패하면 다른 희귀 1개</li>
+            <li>영웅 2개 → 전설 {percent(MERGE.odds.epic)} · 실패하면 희귀 1개</li>
+            <li>소환 값은 {RULES.summonCost[1]}번 뽑을 때마다 1골드씩 올라요.</li>
+          </ul>
+        </section>
+        <section>
+          <h3 class="text-sm font-black text-amber-200">만나 본 적</h3>
+          <div class="mt-1 space-y-1.5">
+            {#each [...Object.keys(ENEMIES), ...Object.keys(BOSSES)].filter((key) => seen.enemies.includes(key)) as key}
+              <div class="flex items-center gap-2 p-2 rounded-xl bg-white/5 border border-white/10">
+                <img src="{IMG}/{key}.webp" alt="" class="w-9 h-9 shrink-0" />
+                <p class="text-xs">
+                  <span class="font-black">{(ENEMIES[key] ?? BOSSES[key]).name}</span>
+                  <span class="text-gray-300"> · {ENEMY_TEXT[key]}</span>
+                </p>
+              </div>
+            {:else}
+              <p class="text-xs text-gray-400">아직 없어요.</p>
+            {/each}
+          </div>
+        </section>
+        <section>
+          <h3 class="text-sm font-black text-amber-200">얻어 본 유닛 {seen.units.length}/{Object.keys(UNITS).length}</h3>
+          <div class="mt-1 space-y-1.5">
+            {#each Object.keys(UNITS).filter((key) => seen.units.includes(key)) as key}
+              <div class="flex items-center gap-2 p-2 rounded-xl bg-white/5 border border-white/10">
+                <img src="{IMG}/{key}.webp" alt="" class="w-9 h-9 shrink-0" />
+                <div class="min-w-0 text-xs">
+                  <p class="font-black" style="color: {TIER_COLOR[UNITS[key].tier]}">{TIER[UNITS[key].tier].label} · {UNITS[key].name}</p>
+                  <p class="text-gray-300 break-keep">{stats(key)} · {UNIT_TEXT[key]}</p>
+                </div>
+              </div>
+            {/each}
+          </div>
+        </section>
+      </div>
+    </div>
+  {/if}
+
+  {#if screen === "playing" && isPaused}
+    <div class="absolute inset-0 z-30 flex items-center justify-center p-5 bg-black/75">
+      <div class="w-full max-w-xs text-center">
+        <h2 class="text-3xl font-black text-amber-200">일시정지</h2>
+        <p class="mt-2 text-sm text-gray-300">{hud.wave}웨이브 진행 중</p>
+        <button
+          type="button"
+          on:click={() => setPaused(false)}
+          class="mt-6 w-full py-4 rounded-2xl font-black text-lg text-gray-900 bg-amber-300 active:scale-95 transition-all"
+        >
+          계속하기
+        </button>
+        <button
+          type="button"
+          on:click={() => (showRules = true)}
+          class="mt-3 w-full py-3 rounded-2xl font-bold text-gray-200 bg-white/10 active:scale-95 transition-all"
+        >
+          게임 방법
+        </button>
+        <button
+          type="button"
+          on:click={() => history.back()}
+          class="mt-3 w-full py-3 rounded-2xl font-bold text-gray-200 bg-white/10 active:scale-95 transition-all"
+        >
+          저장하고 처음 화면으로
+        </button>
+        <p class="mt-3 text-xs text-gray-400">나갔다 와도 여기서부터 이어할 수 있어요</p>
+      </div>
+    </div>
+  {/if}
+
+  {#if screen === "over"}
+    <div class="absolute inset-0 z-30 flex items-center justify-center p-5 bg-black/80">
+      <div class="w-full max-w-xs text-center">
+        <h2 class="text-4xl font-black text-rose-400">GAME OVER</h2>
+        <p class="mt-3 text-gray-300">
+          <strong class="text-white">{hud.wave}웨이브</strong>에서
+          {game?.lostTo === "boss" ? "보스를 제한 시간 안에 잡지 못했습니다." : "길이 적으로 가득 찼습니다."}
+        </p>
+        <div class="mt-4"><Ranking {ranking} {records} {localBest} me={$currentUser} /></div>
+        <button
+          type="button"
+          on:click={() => startGame()}
+          class="mt-6 w-full py-4 rounded-2xl font-black text-lg text-gray-900 bg-amber-300 active:scale-95 transition-all"
+        >
+          다시 도전
+        </button>
+        <button
+          type="button"
+          on:click={() => history.back()}
+          class="mt-3 w-full py-3 rounded-2xl font-bold text-gray-200 bg-white/10 active:scale-95 transition-all"
+        >
+          처음 화면으로
+        </button>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Title screen: key art with the title in its dark upper third and the buttons at the bottom -->
+  {#if screen === "start" || screen === "loading"}
+    <div class="absolute inset-0 z-10 flex justify-center bg-[#0b0a14]">
+      <div class="relative h-full aspect-[9/16] max-w-full overflow-hidden">
+        <img src="{IMG}/title.webp" alt="" class="absolute inset-0 w-full h-full object-cover object-bottom" />
+        <div class="absolute inset-x-0 top-[9%] px-5 text-center">
+          <p class="text-[11px] font-black tracking-[0.4em] text-amber-200">RANDOM DEFENSE</p>
+          <h1 class="mt-2 text-5xl font-black text-amber-100 drop-shadow-[0_0_22px_rgba(255,178,62,0.9)]">룬 가디언</h1>
+          <p class="mt-3 text-sm text-gray-200">뽑고, 합치고, 끝까지 버텨라</p>
+          {#if localBest}
+            <p class="mt-3 inline-block px-3 py-1.5 rounded-full text-xs font-bold text-amber-200 bg-black/50 border border-amber-300/40">
+              내 최고 기록 {localBest}웨이브
+            </p>
+          {/if}
+        </div>
+        <div class="absolute inset-x-0 bottom-0 px-5 pt-10 pb-[max(env(safe-area-inset-bottom),16px)] bg-gradient-to-t from-black/90 to-transparent">
+          <div class="max-w-xs mx-auto space-y-2">
+            {#if screen === "loading"}
+              <p class="py-4 text-center text-gray-300 animate-pulse">불러오는 중...</p>
+            {:else}
+              {#if savedWave}
+                <button
+                  type="button"
+                  on:click={() => startGame(loadGame(localStorage.getItem(saveKey)))}
+                  class="w-full py-4 rounded-2xl font-black text-lg text-gray-900 bg-amber-300 active:scale-95 transition-all shadow-[0_0_24px_rgba(255,178,62,0.6)]"
+                >
+                  ▶ 이어하기 <span class="text-sm font-bold opacity-70">· {savedWave}웨이브</span>
+                </button>
+              {/if}
+              <button
+                type="button"
+                on:click={startFresh}
+                class="w-full rounded-2xl font-black active:scale-95 transition-all {savedWave
+                  ? 'py-3 text-gray-200 bg-black/60 border border-white/20'
+                  : 'py-4 text-lg text-gray-900 bg-amber-300 shadow-[0_0_24px_rgba(255,178,62,0.6)]'}"
+              >
+                {savedWave ? "새로 시작" : "게임 시작"}
+              </button>
+              <div class="flex">
+                <button type="button" on:click={() => (showRules = true)} class="flex-1 py-2 text-sm font-bold text-gray-200 active:scale-95 transition-all">
+                  게임 방법
+                </button>
+                <button type="button" on:click={() => (showBook = true)} class="flex-1 py-2 text-sm font-bold text-gray-200 active:scale-95 transition-all">
+                  📖 도감
+                </button>
+                <button type="button" on:click={() => (showRanking = true)} class="flex-1 py-2 text-sm font-bold text-amber-200 active:scale-95 transition-all">
+                  🏆 랭킹
+                </button>
+              </div>
+            {/if}
+          </div>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  {#if showRanking}
+    <div class="absolute inset-0 z-30 flex items-center justify-center p-5 bg-black/85">
+      <div class="w-full max-w-xs text-center">
+        <h2 class="text-xl font-black text-amber-200">🏆 가족 랭킹</h2>
+        <div class="mt-4"><Ranking {ranking} {records} {localBest} me={$currentUser} /></div>
+        <button type="button" on:click={() => (showRanking = false)} class="mt-4 w-full py-3 rounded-2xl font-bold bg-white/10 active:scale-95 transition-all">
+          닫기
+        </button>
+      </div>
+    </div>
+  {/if}
+
+  {#if showRules}
+    <div class="absolute inset-0 z-40 flex items-center justify-center p-5 bg-black/90">
+      <div class="w-full max-w-xs">
+        <h2 class="text-xl font-black text-amber-200 text-center">게임 방법</h2>
+        <ul class="mt-4 space-y-2 text-sm text-gray-200 bg-white/5 border border-white/10 rounded-2xl p-4 break-keep">
+          <li>🔮 골드로 유닛을 <b>소환</b>해요. 어떤 등급이 나올지는 운이에요.</li>
+          <li>✋ 유닛을 끌어서 옮기고, <b>같은 유닛 위에 놓으면 조합</b>을 시도해요. 윗등급일수록 실패할 수 있어요.</li>
+          <li>👑 <b>신화</b>는 뽑기로 안 나와요. 도감의 조합식을 찾아내세요.</li>
+          <li>⚔️ 물리는 중갑에, 마법은 마법저항에 막혀요. 둘 다 키우세요.</li>
+          <li>👾 적은 길을 계속 돌아요. <b>{RULES.enemyLimit}마리</b>가 쌓이거나, 보스를 <b>{RULES.bossSeconds}초</b> 안에 못 잡으면 끝이에요.</li>
+          <li>👆 유닛을 누르면 사거리와 능력이 보여요.</li>
+        </ul>
+        <button type="button" on:click={closeRules} class="mt-4 w-full py-3 rounded-2xl font-black text-gray-900 bg-amber-300 active:scale-95 transition-all">
+          {startsAfterRules ? "시작하기" : "닫기"}
+        </button>
+      </div>
+    </div>
+  {/if}
+</div>
+
+<style>
+  @keyframes -global-rune-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  @keyframes -global-rune-pop {
+    from {
+      transform: scale(0.2);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+</style>
