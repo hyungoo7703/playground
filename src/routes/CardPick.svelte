@@ -195,7 +195,7 @@
         shuffleCards();
     }
 
-    // Members may only arrive through a reward (attendance 100 days, Neon Guardian clear).
+    // Members may only arrive through a reward (attendance 100 days).
     // Those links pass navigation state naming the reward; typing the address leaves none.
     const rewardSource = history.state?.reward;
 
