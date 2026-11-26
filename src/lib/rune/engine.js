@@ -174,12 +174,13 @@ function gainGold(state, amount, x, y, events) {
   events.push({ type: "gold", amount, x, y });
 }
 
-// Damage to one enemy, after its armor or ward
+// Damage to one enemy. Returns what got through its armor or ward.
 function hurt(state, enemy, amount, unit, events) {
-  if (enemy.dead) return;
+  if (enemy.dead) return 0;
   const def = ENEMIES[enemy.type] ?? BOSSES[enemy.type];
   const guard = unit.pierce ? 0 : ((unit.type === "phys" ? def.armor : def.ward) ?? 0);
-  enemy.hp -= amount * (1 - guard);
+  const dealt = amount * (1 - guard);
+  enemy.hp -= dealt;
   if (unit.slow && !enemy.dead) {
     enemy.slow = 1 - unit.slow[0] * (BOSSES[enemy.type] ? BOSS.slowed : 1);
     enemy.slowUntil = state.time + unit.slow[1];
@@ -190,6 +191,7 @@ function hurt(state, enemy, amount, unit, events) {
     enemy.poisonUntil = state.time + unit.poison[1];
   }
   if (enemy.hp <= 0) kill(state, enemy, events);
+  return dealt;
 }
 
 function kill(state, enemy, events) {
@@ -235,9 +237,15 @@ function attack(state, unit, events) {
   const amount = def.damage * (1 + UPGRADES[def.type].bonus * state.levels[def.type]) * (1 + boardWide(state, "power")) * (1 + blessing) * (isCrit ? def.crit[1] : 1);
 
   for (const target of inReach.slice(0, def.multi ?? 1)) {
-    events.push({ type: "attack", key: unit.key, slot: unit.slot, x: target.x, y: target.y, splash: def.splash, crit: isCrit });
     const struck = def.splash ? state.enemies.filter((e) => !e.dead && near(e, target, def.splash)) : [target];
-    for (const e of struck) hurt(state, e, amount, def, events);
+    // For whoever shows it: `ids` are the enemies it lands on, `dealt` what the one aimed at takes,
+    // `first` marks the first of the shots a unit looses at once
+    const shot = { type: "attack", key: unit.key, slot: unit.slot, x: target.x, y: target.y, splash: def.splash, crit: isCrit, ids: struck.map((e) => e.id), dealt: 0, first: target === inReach[0] };
+    events.push(shot);
+    for (const e of struck) {
+      const dealt = hurt(state, e, amount, def, events);
+      if (e === target) shot.dealt = dealt;
+    }
 
     let last = target;
     const jumped = [target.id];
@@ -248,7 +256,7 @@ function attack(state, unit, events) {
       if (!next) break;
       power *= CHAIN_FADE;
       jumped.push(next.id);
-      events.push({ type: "chain", x: last.x, y: last.y, x2: next.x, y2: next.y });
+      events.push({ type: "chain", x: last.x, y: last.y, x2: next.x, y2: next.y, id: next.id });
       hurt(state, next, power, def, events);
       last = next;
     }

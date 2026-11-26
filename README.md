@@ -26,7 +26,7 @@
 `public/sound`의 모든 효과음과 음악은 [Pixabay](https://pixabay.com/)에서 받은 것이며 [Pixabay Content License](https://pixabay.com/service/license-summary/)를 따릅니다.
 
 *   이 라이선스는 출처 표시 없이 무료로 쓰는 것을 허용합니다. 아래 표는 의무가 아니라 제작자에 대한 예의와 추적을 위해 적은 것입니다.
-*   파일 이름은 받은 그대로입니다. 게임이 앞부분만 쓰는 17개는 쓰는 길이에 맞춰 뒷부분을 잘라냈습니다(다시 인코딩하지 않고 잘라내기만 했습니다). 나머지 13개는 받은 그대로입니다. 어느 파일을 얼마나 잘랐는지는 아래 표에 있습니다.
+*   파일 이름은 받은 그대로입니다. 게임이 앞부분만 쓰는 17개는 쓰는 길이에 맞춰 뒷부분을 잘라냈습니다(다시 인코딩하지 않고 잘라내기만 했습니다). 나머지 12개는 받은 그대로입니다. 어느 파일을 얼마나 잘랐는지는 아래 표에 있습니다.
 *   **이 음원들은 이 앱 안에서 쓰기 위해 포함된 것입니다.** Pixabay Content License는 음원을 그 자체로(Standalone) 재배포하거나 판매하는 것을 금지하므로, 이 저장소에서 음원 파일만 따로 떼어 재배포·판매할 수 없습니다. 쓰려면 Pixabay에서 직접 받아 주세요.
 *   각 음원의 권리는 Pixabay와 해당 제작자에게 있으며, 이 저장소의 코드에 적용되는 조건과는 별개입니다.
 
@@ -51,7 +51,6 @@
 | `freesound_community-bow_release-85040.mp3` | freesound_community | 85040 | 받은 그대로 |
 | `freesound_community-fizzle-101872.mp3` | freesound_community | 101872 | 뒷부분 잘라냄 (3.8초 → 2.0초) |
 | `freesound_community-missile-45075.mp3` | freesound_community | 45075 | 뒷부분 잘라냄 (4.6초 → 2.0초) |
-| `freesound_community-see_you_next_season-23336.mp3` | freesound_community | 23336 | 받은 그대로 |
 | `kave_msri-war-horn-sfx-319881.mp3` | kave_msri | 319881 | 뒷부분 잘라냄 (15.5초 → 3.5초) |
 | `koiroylers-fireball-impact-351961.mp3` | koiroylers | 351961 | 뒷부분 잘라냄 (3.1초 → 1.4초) |
 | `koiroylers-small-riser-351977.mp3` | koiroylers | 351977 | 받은 그대로 |

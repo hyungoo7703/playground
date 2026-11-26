@@ -63,11 +63,9 @@
     timeStop: ["universfield-magic-spell-278824.mp3", 0.4, 0, 1.5],
     treasure: ["pwlpl-power-up-game-sound-effect-359227.mp3", 0.6, 0, 1.6],
   };
-  const MUSIC = {
-    title: "openmindaudio-cinematic-action-epic-trailer-iron-vanguard-part-1-short-preview-488562.mp3",
-    field: "freesound_community-see_you_next_season-23336.mp3",
-    boss: "openmindaudio-cinematic-action-epic-trailer-iron-vanguard-part-1-short-preview-488562.mp3",
-  };
+  const MUSIC = "openmindaudio-cinematic-action-epic-trailer-iron-vanguard-part-1-short-preview-488562.mp3";
+  // How much louder an attack is for each tier above common
+  const LOUDER = [1, 1.1, 1.3, 1.7, 2.2];
 
   // How each unit's attack sounds
   const VOICE = {
@@ -189,15 +187,17 @@
   let effects = []; // short-lived shots, rings, arcs and the fading shapes of the fallen
   let texts = []; // words floating up from where something happened
   let bumps = {}; // slot -> seconds left of the little hop a unit makes when it attacks
+  let hits = {}; // enemy id -> seconds left of its flinch at being hit
+  let shake = 0; // field px the picture is jolted by, dying away
   let flash = null; // { color, life }
   const lastPlayed = {};
 
-  function play(name) {
+  function play(name, louder = 1) {
     const [file, volume, gap, seconds] = SOUNDS[name];
     const now = performance.now();
     if (gap && now - (lastPlayed[name] ?? 0) < gap) return;
     lastPlayed[name] = now;
-    sound.play(file, volume, seconds);
+    sound.play(file, volume * louder, seconds);
   }
 
   function loadImage(file) {
@@ -228,7 +228,7 @@
   }
 
   function burst(x, y, color, count, power = 110) {
-    for (let i = 0; i < count && particles.length < 260; i++) {
+    for (let i = 0; i < count && particles.length < 320; i++) {
       const angle = Math.random() * Math.PI * 2;
       const v = power * (0.3 + Math.random() * 0.7);
       particles.push({ x, y, vx: Math.cos(angle) * v, vy: Math.sin(angle) * v, life: 0.3 + Math.random() * 0.35, color });
@@ -239,8 +239,8 @@
     if (effects.length < 140) effects.push({ ...effect, life: seconds, span: seconds });
   }
 
-  function say(text, x, y, color = "#ffffff", size = 14) {
-    texts.push({ text, x, y, color, size, life: 1.2 });
+  function say(text, x, y, color = "#ffffff", size = 14, seconds = 1.2) {
+    if (texts.length < 60) texts.push({ text, x, y, color, size, life: seconds, span: seconds });
   }
 
   // A new unit on the board: the rarer, the louder
@@ -283,8 +283,11 @@
         bumps[e.slot] = 0.12;
         addEffect(shot, shot.seconds);
         if (e.crit) say("치명타!", e.x, e.y - 16, "#fff36b", 11);
-        play(VOICE[e.key]);
-      } else if (e.type === "chain") addEffect({ ...e, color: "#fff36b" }, 0.16);
+        play(VOICE[e.key], LOUDER[shot.rank]);
+      } else if (e.type === "chain") {
+        addEffect({ ...e, color: "#fff36b" }, 0.16);
+        hits[e.id] = 0.16;
+      }
       else if (e.type === "kill") {
         // It stays a moment, so that what killed it has something to land on
         addEffect({ ...e, type: "ghost" }, 0.22);
@@ -308,11 +311,11 @@
         say("보스 접근!", FIELD.w / 2, VIEW.y + 72, "#ff7a7a", 20);
       } else if (e.type === "bossArrive") {
         play("roar");
-        sound.playMusic(MUSIC.boss);
         flash = { color: "#ff3355", life: 0.6 };
+        shake = 4;
       } else if (e.type === "bossDead") {
         play("fanfare");
-        sound.playMusic(MUSIC.field);
+        shake = 5;
         addEffect({ ...e, type: "ghost" }, 0.7);
         burst(e.x, e.y, "#ffd866", 60, 240);
         flash = { color: "#ffd866", life: 0.6 };
@@ -331,6 +334,10 @@
       } else if (e.type === "timeStop") {
         say("시간 정지", FIELD.w / 2, VIEW.y + VIEW.h / 2, "#bfe9ff", 20);
         play("timeStop");
+        // It goes out from the sage over the whole field
+        addEffect({ type: "ring", ...slotCenter(game.units.find((u) => u.key === "chronomancer").slot), color: "#bfe9ff", radius: 440 }, 0.8);
+        flash = { color: "#9fe8ff", life: 0.45 };
+        shake = 2;
       } else if (e.type === "sell") play("merge");
     }
   }
@@ -392,14 +399,20 @@
     for (const fx of effects) {
       fx.life -= dt;
       if (fx.type === "shot" && !fx.hasLanded && fx.span - fx.life >= fx.fly) {
+        // The better the unit, the harder it lands
         fx.hasLanded = true;
-        burst(fx.x2, fx.y2, fx.color, fx.splash ? 10 : fx.crit ? 8 : 3, fx.splash ? 130 : 70);
+        burst(fx.x2, fx.y2, fx.color, 3 + fx.rank * 3 + (fx.splash ? 8 : 0) + (fx.crit ? 5 : 0), 70 + fx.rank * 30);
+        for (const id of fx.ids) hits[id] = 0.1 + fx.rank * 0.03;
+        shake = Math.max(shake, fx.shake);
+        if (fx.rank >= 3 && fx.dealt) say(String(Math.round(fx.dealt)), fx.x2 + (fx.seed - 0.5) * 22, fx.y2 - 18, TIER_COLOR[TIERS[fx.rank]], 7 + fx.rank * 1.7, 0.7);
       }
     }
     effects = effects.filter((fx) => fx.life > 0);
     for (const t of texts) t.life -= dt;
     texts = texts.filter((t) => t.life > 0);
     for (const slot in bumps) if ((bumps[slot] -= dt) <= 0) delete bumps[slot];
+    for (const id in hits) if ((hits[id] -= dt) <= 0) delete hits[id];
+    shake = Math.max(0, shake - dt * 14);
     if (flash && (flash.life -= dt) <= 0) flash = null;
     draw();
   }
@@ -433,6 +446,7 @@
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     const k = scale * dpr;
     ctx.setTransform(k, 0, 0, k, originX * dpr, originY * dpr - VIEW.y * k);
+    if (shake) ctx.translate((Math.random() - 0.5) * 2 * shake, (Math.random() - 0.5) * 2 * shake);
     if (images.background) ctx.drawImage(images.background, 0, 0, FIELD.w, FIELD.w * (images.background.height / images.background.width));
 
     // The road
@@ -493,7 +507,17 @@
       ctx.translate(e.x, e.y);
       // Drawn facing left: turned round on the two sides where they walk right or down
       if (e.side < 2) ctx.scale(-1, 1);
-      ctx.drawImage(img, -size / 2, -size / 2 - 4, size, size);
+      // Just hit: it swells and whitens for a moment
+      const flinch = hits[e.id] ?? 0;
+      const shown = size * (1 + flinch * 1.2);
+      ctx.drawImage(img, -shown / 2, -shown / 2 - 4, shown, shown);
+      if (flinch) {
+        ctx.globalCompositeOperation = "lighter";
+        ctx.globalAlpha = Math.min(1, flinch * 6);
+        ctx.drawImage(img, -shown / 2, -shown / 2 - 4, shown, shown);
+        ctx.globalCompositeOperation = "source-over";
+        ctx.globalAlpha = 1;
+      }
       ctx.restore();
       if (e.hp < e.maxHp) {
         const w = size * 0.7;
@@ -552,13 +576,16 @@
     ctx.globalAlpha = 1;
     ctx.textAlign = "center";
     for (const t of texts) {
-      ctx.globalAlpha = Math.min(1, t.life * 2);
-      ctx.font = `900 ${t.size}px system-ui, sans-serif`;
+      // It pops in a size too big, then rises and fades
+      const left = t.life / t.span;
+      const y = t.y - (1 - left) * 22;
+      ctx.globalAlpha = Math.min(1, left * 2.4);
+      ctx.font = `900 ${t.size * (1 + Math.max(0, left - 0.8) * 1.5)}px system-ui, sans-serif`;
       ctx.lineWidth = 3;
       ctx.strokeStyle = "rgba(0,0,0,0.7)";
-      ctx.strokeText(t.text, t.x, t.y - (1.2 - t.life) * 22);
+      ctx.strokeText(t.text, t.x, y);
       ctx.fillStyle = t.color;
-      ctx.fillText(t.text, t.x, t.y - (1.2 - t.life) * 22);
+      ctx.fillText(t.text, t.x, y);
     }
     ctx.globalAlpha = 1;
 
@@ -681,6 +708,8 @@
     effects = [];
     texts = [];
     bumps = {};
+    hits = {};
+    shake = 0;
     drag = null;
     info = null;
     reveal = null;
@@ -691,7 +720,7 @@
     localStorage.setItem(ownerKey, runEntry);
     sync();
     sound.resume();
-    sound.playMusic(game.bossDeadline ? MUSIC.boss : MUSIC.field);
+    sound.playMusic(MUSIC);
     if (history.state?.rune !== runEntry) history.pushState({ ...history.state, rune: runEntry }, "");
     // A run picked up again waits for the player
     if (saved) setPaused(true);
@@ -745,13 +774,13 @@
   function enter() {
     if (screen !== "ready") return;
     sound.resume();
-    sound.playMusic(MUSIC.title);
+    sound.playMusic(MUSIC);
     screen = "start";
   }
 
   function leaveRun() {
     clearTimeout(revealTimer);
-    sound.playMusic(MUSIC.title);
+    sound.playMusic(MUSIC);
     // A run dropped while this window is in the background stays quiet until it is looked at again
     if (!document.hidden) sound.resume();
     isPaused = false;

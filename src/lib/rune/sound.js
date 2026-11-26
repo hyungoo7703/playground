@@ -64,8 +64,9 @@ export function createSound(base, files, onLoad = () => {}) {
         source.stop(end);
       }
     },
-    /** Loop `file` from the top, replacing whatever music was playing. */
+    /** Loop `file`, replacing whatever other music was playing. Music already on is left to run. */
     async playMusic(file) {
+      if (wantedMusic === file) return;
       stopMusic();
       wantedMusic = file;
       await load(file);
