@@ -8,8 +8,10 @@
     {
       title: "가족",
       items: [
-        { path: "/attendance", label: "출석체크", emoji: "✅" },
+        { path: "/ledger", label: "가족 장부", emoji: "💰" },
+        { path: "/events", label: "가족 일정", emoji: "📅" },
         { path: "/bulletin-board", label: "가족 게시판", emoji: "📝" },
+        { path: "/attendance", label: "출석체크", emoji: "✅" },
         { path: "/food-spinner", label: "오늘 뭐 먹지?", emoji: "🍽️" },
         { path: "/card-pick", label: "용돈 카드뽑기", emoji: "🎁", adminOnly: true },
       ],
@@ -20,11 +22,10 @@
     },
     {
       title: "도구",
-      items: [{ path: "/stock", label: "주식 모으기", emoji: "📊" }],
-    },
-    {
-      title: "기타",
-      items: [{ path: "/settings", label: "설정", emoji: "⚙️" }],
+      items: [
+        { path: "/stock", label: "주식 모으기", emoji: "📊" },
+        { path: "/settings", label: "설정", emoji: "⚙️" },
+      ],
     },
   ];
 </script>
