@@ -1,5 +1,5 @@
 
-import { GAS_URL, APP_SECRET } from './store.js';
+import { GAS_URL, APP_SECRET, signOut } from './store.js';
 
 // ==========================================
 // 시간 기반 토큰 생성 (TOTP 방식)
@@ -45,7 +45,7 @@ function normalize(result) {
     return result;
 }
 
-async function fetchFromGAS(action, payload = {}) {
+async function post(action, payload) {
     try {
         const response = await fetch(GAS_URL, {
             method: "POST",
@@ -56,15 +56,45 @@ async function fetchFromGAS(action, payload = {}) {
             body: JSON.stringify({
                 action,
                 app_token: generateAppToken(),  // 모든 요청에 토큰 포함
-                access_code: localStorage.getItem("accessCode"), // 서버에서 유효 코드 검증 (login 제외)
                 ...payload
             }),
         });
-        return normalize(await response.json());
+        return await response.json();
     } catch (error) {
         console.error(`API Error (${action}):`, error);
         return { success: false, message: error.message };
     }
+}
+
+// Who is asking. A device keeps the session token the server signed at login, never the
+// access code: only login accepts a code, and login is where wrong guesses are counted.
+// A device that logged in before tokens existed still holds its code and trades it in here.
+let upgrade = null;
+async function credentials() {
+    const session = localStorage.getItem("session");
+    if (session) return { session };
+    const accessCode = localStorage.getItem("accessCode");
+    if (!accessCode) return {};
+
+    const result = await (upgrade ??= post("login", { password: accessCode }));
+    if (result.session) {
+        localStorage.setItem("session", result.session);
+        localStorage.removeItem("accessCode");
+        return { session: result.session };
+    }
+    if (result.reason === "invalid_code") signOut();
+    // Locked out of login or offline: ask again with the next request
+    if (!result.success) upgrade = null;
+    // TODO(backend redeploy): a backend from before tokens still takes the code; drop this once the new one is live
+    return { access_code: accessCode };
+}
+
+async function fetchFromGAS(action, payload = {}) {
+    const who = action === "login" ? {} : await credentials();
+    const result = await post(action, { ...who, ...payload });
+    // The code behind this token was changed or switched off
+    if (who.session && result.reason === "invalid_session") signOut();
+    return normalize(result);
 }
 
 export const api = {

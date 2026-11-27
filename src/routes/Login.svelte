@@ -20,7 +20,9 @@
       const result = await api.login(accessCode);
 
       if (result.success) {
-        localStorage.setItem("accessCode", accessCode);
+        // A backend from before session tokens hands none out; the code is kept only then
+        if (result.session) localStorage.setItem("session", result.session);
+        else localStorage.setItem("accessCode", accessCode);
         localStorage.setItem("currentUser", result.userName);
         localStorage.setItem("role", result.role);
 

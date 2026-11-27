@@ -3,7 +3,14 @@ import { writable, derived } from "svelte/store";
 // Vite's base (vite.config.js) is the single source; strip trailing slash for routing
 export const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 export const deferredPrompt = writable(null);
-export const isLoggedIn = writable(!!localStorage.getItem("accessCode"));
+// "session" is the token the server signs at login; "accessCode" is what devices kept before tokens existed
+export const isLoggedIn = writable(Boolean(localStorage.getItem("session") || localStorage.getItem("accessCode")));
+
+// 로그인 정보만 삭제 (게임 세이브, 다크모드 등은 유지)
+export function signOut() {
+  ["session", "accessCode", "userName", "currentUser", "role", "aiToken"].forEach((key) => localStorage.removeItem(key));
+  location.reload();
+}
 // 현재 사용자 (추후 로그인 시 설정)
 export const currentUser = writable(localStorage.getItem("currentUser"));
 // 사용자 역할 (admin/member) — 값이 없으면 비관리자로 (fail-closed)

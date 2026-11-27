@@ -1,7 +1,7 @@
 <script>
   import { onMount } from "svelte";
   import { fade } from "svelte/transition";
-  import { isDarkMode, deferredPrompt, isAdmin, currentUser } from "../lib/store.js";
+  import { isDarkMode, deferredPrompt, isAdmin, currentUser, signOut } from "../lib/store.js";
   import { api } from "../lib/api.js";
   import { toast, confirmDialog } from "../lib/feedback.js";
   import {
@@ -261,12 +261,7 @@
   }
 
   async function logout() {
-    if (!(await confirmDialog("로그아웃 하시겠습니까?"))) return;
-    // 로그인 정보만 삭제 (게임 세이브, 다크모드 등은 유지)
-    ["accessCode", "userName", "currentUser", "role", "aiToken"].forEach((key) =>
-      localStorage.removeItem(key),
-    );
-    location.reload();
+    if (await confirmDialog("로그아웃 하시겠습니까?")) signOut();
   }
 
   async function resetStorage() {
