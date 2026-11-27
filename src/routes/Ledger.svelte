@@ -497,8 +497,8 @@
   >
     <div class="relative z-10 space-y-4">
       <!-- Tier 1: Month Nav & Nudge Button -->
-      <div class="flex justify-between items-center">
-        <div class="flex items-center gap-2 bg-black/20 rounded-2xl px-3 py-1.5 backdrop-blur-md">
+      <div class="flex flex-wrap justify-between items-center gap-2">
+        <div class="flex items-center gap-1 bg-black/20 rounded-2xl px-3 py-1.5 backdrop-blur-md">
           <button
             type="button"
             on:click={prevMonth}
@@ -509,7 +509,7 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <span class="text-white font-black text-sm tracking-wider">
+          <span class="text-white font-black text-sm tracking-wider whitespace-nowrap">
             {displayYear}.{String(displayMonth).padStart(2, "0")}
           </span>
           <button
@@ -528,7 +528,7 @@
           <button
             type="button"
             on:click={openNudgeModal}
-            class="text-xs bg-white/20 hover:bg-white/30 text-white px-3 py-2.5 rounded-2xl font-bold backdrop-blur-md active:scale-95 transition-all flex items-center gap-1.5 border border-white/20"
+            class="shrink-0 whitespace-nowrap text-xs bg-white/20 hover:bg-white/30 text-white px-3 py-2.5 rounded-2xl font-bold backdrop-blur-md active:scale-95 transition-all flex items-center gap-1.5 border border-white/20"
           >
             <span>📢</span> 독촉하기
           </button>
@@ -904,7 +904,7 @@
                   <span class="shrink-0 whitespace-nowrap text-xs bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-black px-1.5 py-0.5 rounded">
                     매월 {rule.day}일
                   </span>
-                  <span class="font-bold text-xs text-gray-900 dark:text-white break-keep">
+                  <span class="font-bold text-xs text-gray-900 dark:text-white">
                     {rule.title}
                   </span>
                 </div>

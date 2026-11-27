@@ -240,7 +240,7 @@
           </span>
         {/if}
       </div>
-      <h1 class="text-3xl font-black tracking-tight leading-tight">
+      <h1 class="text-2xl sm:text-3xl font-black tracking-tight leading-tight">
         우리 가족 게시판 📝
       </h1>
       <p class="text-xs text-indigo-100/80">

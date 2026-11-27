@@ -899,7 +899,7 @@
                     </p>
                 {:else}
                     <p
-                        class="text-3xl font-black text-gray-900 dark:text-white"
+                        class="text-3xl font-black text-gray-900 dark:text-white whitespace-nowrap"
                     >
                         {rewardBalance.toLocaleString()}<span
                             class="text-sm font-bold text-gray-500 dark:text-gray-400">원</span
@@ -933,16 +933,16 @@
                         <li
                             class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700/30 rounded-xl"
                         >
-                            <div>
+                            <div class="min-w-0">
                                 <span
-                                    class="text-sm font-bold text-gray-800 dark:text-gray-200"
+                                    class="text-sm font-bold text-gray-800 dark:text-gray-200 mr-2"
                                     >{u.desc}</span
                                 >
-                                <span class="text-xs text-gray-500 dark:text-gray-400 ml-2"
+                                <span class="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap"
                                     >{u.date}</span
                                 >
                             </div>
-                            <span class="text-sm font-black text-rose-500"
+                            <span class="shrink-0 whitespace-nowrap ml-2 text-sm font-black text-rose-500"
                                 >-{u.amount.toLocaleString()}원</span
                             >
                         </li>

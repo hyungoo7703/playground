@@ -293,7 +293,7 @@
   }
 </script>
 
-<div class="space-y-6 max-w-md mx-auto break-keep">
+<div class="space-y-6 max-w-md mx-auto">
   <h1 class="text-2xl font-black text-gray-900 dark:text-white">설정</h1>
 
   <!-- 1. 기본 설정 (다크모드) -->

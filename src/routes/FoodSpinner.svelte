@@ -271,13 +271,13 @@
               bind:value={newItem}
               aria-label="새로운 메뉴"
               placeholder="새로운 메뉴 입력"
-              class="flex-1 px-4 py-3 rounded-xl border-none text-sm bg-white dark:bg-slate-900 dark:text-white shadow-sm focus:ring-2 focus:ring-indigo-500"
+              class="flex-1 min-w-0 px-4 py-3 rounded-xl border-none text-sm bg-white dark:bg-slate-900 dark:text-white shadow-sm focus:ring-2 focus:ring-indigo-500"
               on:keydown={(e) => e.key === "Enter" && !e.isComposing && addMenuItem()}
             />
             <button
               on:click={addMenuItem}
               disabled={isAdding || !newItem}
-              class="px-5 bg-indigo-600 text-white rounded-xl font-bold text-sm disabled:bg-slate-400 transition-colors"
+              class="shrink-0 whitespace-nowrap px-5 bg-indigo-600 text-white rounded-xl font-bold text-sm disabled:bg-slate-400 transition-colors"
             >
               {isAdding ? ".." : "추가"}
             </button>

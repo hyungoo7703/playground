@@ -282,7 +282,7 @@
                             >
                                 <span class="text-2xl mb-1">💰</span>
                                 <span
-                                    class="text-xs md:text-sm font-black text-amber-700 dark:text-amber-300 text-center px-1 break-keep"
+                                    class="text-xs md:text-sm font-black text-amber-700 dark:text-amber-300 text-center px-1"
                                 >
                                     {card.amount}
                                 </span>

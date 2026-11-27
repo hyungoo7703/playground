@@ -303,7 +303,7 @@
         <span class="text-xs text-emerald-100 font-medium">
           총 매입 원금{hasUnconvertedUsd ? " (달러 종목 제외)" : ""}
         </span>
-        <span class="text-2xl font-black text-amber-300">
+        <span class="shrink-0 whitespace-nowrap text-2xl font-black text-amber-300">
           {isLoading || hasFailed ? "-" : Math.round(totalPortfolioValue).toLocaleString()}<span class="text-sm text-white font-bold">원</span>
         </span>
       </div>
@@ -596,19 +596,19 @@
         {#each summaryByStock as item}
           <div class="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 space-y-4">
             <!-- Title & Price -->
-            <div class="flex justify-between items-start">
-              <div>
+            <div class="flex justify-between items-start gap-3">
+              <div class="min-w-0">
                 <h3 class="text-xl font-black text-gray-900 dark:text-white flex items-center gap-1.5">
                   {item.name}
                   {#if item.currency === "USD"}
-                    <span class="text-xs font-black px-1.5 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-800">USD</span>
+                    <span class="shrink-0 text-xs font-black px-1.5 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-800">USD</span>
                   {/if}
                 </h3>
                 <p class="text-xs font-bold text-gray-500 dark:text-gray-400 mt-0.5">
                   평단가 약 {fmtMoney(item.total_price / item.quantity, item.currency)}
                 </p>
               </div>
-              <div class="text-right">
+              <div class="shrink-0 whitespace-nowrap text-right">
                 <span class="block text-xl font-black text-emerald-600 dark:text-emerald-400">
                   {fmtQty(item.quantity)}주
                 </span>

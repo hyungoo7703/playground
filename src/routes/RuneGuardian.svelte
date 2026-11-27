@@ -1316,11 +1316,11 @@
             <p class="text-[11px] text-gray-300">{stats(info.key)}</p>
             <!-- `hud` is named so that an upgrade bought with the card open is counted at once -->
             {#if hud && helped(info)}
-              <p class="text-[11px] font-bold break-keep" style="color: {BUFFS.near.color}">{helped(info)}</p>
+              <p class="text-[11px] font-bold" style="color: {BUFFS.near.color}">{helped(info)}</p>
             {/if}
-            <p class="text-[11px] text-amber-100 break-keep">{UNIT_TEXT[info.key]}</p>
+            <p class="text-[11px] text-amber-100">{UNIT_TEXT[info.key]}</p>
             {#if hud && twins(info.key) > 1}
-              <p class="text-[11px] font-bold text-rose-300 break-keep">
+              <p class="text-[11px] font-bold text-rose-300">
                 ⚠ {UNITS[info.key].name} {twins(info.key)}명: 위 효과는 한 번만 적용돼요.
               </p>
             {/if}
@@ -1362,7 +1362,7 @@
         <h2 class="mt-1 text-4xl font-black" style="color: {TIER_COLOR[reveal.tier]}; text-shadow: 0 0 22px {TIER_COLOR[reveal.tier]}">
           {UNITS[reveal.key].name}
         </h2>
-        <p class="mt-3 px-8 text-center text-sm text-gray-200 break-keep">{UNIT_TEXT[reveal.key]}</p>
+        <p class="mt-3 px-8 text-center text-sm text-gray-200">{UNIT_TEXT[reveal.key]}</p>
         <p class="mt-8 text-xs text-gray-400 animate-pulse">화면을 눌러 계속</p>
       {:else}
         <p class="mt-6 text-lg font-black text-gray-200 animate-pulse">무언가 온다…</p>
@@ -1394,7 +1394,7 @@
                   <img src="{IMG}/{key}.webp" alt="" class="w-12 h-12 shrink-0" style={isKnown ? "" : "filter: brightness(0) drop-shadow(0 0 3px #ff5f8a)"} />
                   <div class="flex-1 min-w-0">
                     <p class="font-black" style="color: {TIER_COLOR.mythic}">{isKnown ? UNITS[key].name : "???"}</p>
-                    {#if isKnown}<p class="text-[11px] text-gray-300 break-keep">{UNIT_TEXT[key]}</p>{/if}
+                    {#if isKnown}<p class="text-[11px] text-gray-300">{UNIT_TEXT[key]}</p>{/if}
                   </div>
                   {#if game && hud.ready.includes(key)}
                     <button
@@ -1411,7 +1411,7 @@
                     {@const isHere = game?.units.some((u) => u.key === part)}
                     <div class="flex items-center gap-1 p-1.5 rounded-xl bg-black/40 border {isHere ? 'border-emerald-400' : 'border-white/10'}">
                       <img src="{IMG}/{part}.webp" alt="" class="w-7 h-7 shrink-0" />
-                      <span class="min-w-0 text-[10px] font-bold leading-tight break-keep" style="color: {TIER_COLOR[UNITS[part].tier]}">
+                      <span class="min-w-0 text-[10px] font-bold leading-tight" style="color: {TIER_COLOR[UNITS[part].tier]}">
                         <span class="block text-[9px] opacity-70">{TIER[UNITS[part].tier].label}</span>
                         {UNITS[part].name}{isHere ? " ✓" : ""}
                       </span>
@@ -1461,7 +1461,7 @@
                 <img src="{IMG}/{key}.webp" alt="" class="w-9 h-9 shrink-0" />
                 <div class="min-w-0 text-xs">
                   <p class="font-black" style="color: {TIER_COLOR[UNITS[key].tier]}">{TIER[UNITS[key].tier].label} · {UNITS[key].name}</p>
-                  <p class="text-gray-300 break-keep">{stats(key)} · {UNIT_TEXT[key]}</p>
+                  <p class="text-gray-300">{stats(key)} · {UNIT_TEXT[key]}</p>
                 </div>
               </div>
             {/each}
@@ -1507,11 +1507,11 @@
       <div class="w-full max-w-xs m-auto text-center">
         <p class="text-[11px] font-black tracking-[0.4em] text-amber-200">WAVE {RULES.clearWave}</p>
         <h2 class="mt-1 text-5xl font-black text-amber-200" style="animation: rune-glow 2.6s ease-in-out infinite">CLEAR!</h2>
-        <p class="mt-3 text-gray-200 break-keep">마왕을 쓰러뜨리고 네 보스를 모두 물리쳤습니다.</p>
+        <p class="mt-3 text-gray-200">마왕을 쓰러뜨리고 네 보스를 모두 물리쳤습니다.</p>
         {#if reward === "checking"}
           <p class="mt-6 text-sm text-gray-300 animate-pulse">보상 확인 중...</p>
         {:else if reward === "available"}
-          <p class="mt-4 text-xs text-gray-300 break-keep">카드는 한 번만 뽑을 수 있고, 뽑은 금액은 장부에 기록돼요. 이 판은 저장되니 뽑고 와서 이어할 수 있어요.</p>
+          <p class="mt-4 text-xs text-gray-300">카드는 한 번만 뽑을 수 있고, 뽑은 금액은 장부에 기록돼요. 이 판은 저장되니 뽑고 와서 이어할 수 있어요.</p>
           <button
             type="button"
             on:click={goToReward}
@@ -1589,7 +1589,7 @@
             </p>
           {/if}
           {#if screen === "start"}
-            <p class="mt-2 text-xs font-bold text-gray-100 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] break-keep">
+            <p class="mt-2 text-xs font-bold text-gray-100 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
               🏆 {RULES.clearWave}웨이브 마왕을 쓰러뜨리면 클리어
               {#if reward === "claimed"}
                 <br />🎁 클리어 보상은 이미 받았어요
@@ -1613,7 +1613,7 @@
             </div>
           {:else if screen === "loading"}
             <div class="max-w-xs mx-auto pb-6" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.round((loadedCount / TOTAL) * 100)}>
-              <p class="text-center text-xs text-gray-200 break-keep">💡 {tip}</p>
+              <p class="text-center text-xs text-gray-200">💡 {tip}</p>
               <div class="mt-3 h-3.5 rounded-full bg-black/70 border border-amber-200/40 overflow-hidden">
                 <div
                   class="h-full rounded-full bg-gradient-to-r from-amber-500 via-amber-300 to-yellow-100 shadow-[0_0_12px_rgba(255,178,62,0.9)] transition-[width] duration-200"
@@ -1693,7 +1693,7 @@
     <div class="absolute inset-0 z-40 flex p-5 overflow-y-auto overscroll-contain touch-pan-y bg-black/90">
       <div class="w-full max-w-xs m-auto">
         <h2 class="text-xl font-black text-amber-200 text-center">게임 방법</h2>
-        <ul class="mt-4 space-y-2 text-sm text-gray-200 bg-white/5 border border-white/10 rounded-2xl p-4 break-keep">
+        <ul class="mt-4 space-y-2 text-sm text-gray-200 bg-white/5 border border-white/10 rounded-2xl p-4">
           <li>🔮 골드로 유닛을 <b>소환</b>해요. 어떤 등급이 나올지는 운이에요.</li>
           <li>✋ 유닛을 끌어서 옮기고, <b>같은 유닛 위에 놓으면 조합</b>을 시도해요. 윗등급일수록 실패할 수 있어요.</li>
           <li>👑 <b>신화</b>는 뽑기로 안 나와요. 📖 도감에 적힌 세 유닛을 판에 모으면 조합할 수 있어요.</li>

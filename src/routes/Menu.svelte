@@ -58,7 +58,7 @@
                 <span class="text-3xl leading-none">{item.emoji}</span>
               {/if}
               <span
-                class="text-xs font-bold text-gray-700 dark:text-gray-200 text-center leading-tight break-keep"
+                class="text-xs font-bold text-gray-700 dark:text-gray-200 text-center leading-tight"
                 >{item.label}</span
               >
             </button>

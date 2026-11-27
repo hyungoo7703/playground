@@ -367,7 +367,7 @@
       on:click={() => navigateTo("events")}
       class="w-full p-4 rounded-[2rem] border-2 border-dashed border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 text-sm font-bold active:scale-[0.98] transition-all"
     >
-      🎉 기다려지는 날이 있나요? 일정에서 D-Day를 설정해보세요
+      🎉 기다려지는 날이 있나요?<br />일정에서 D-Day를 설정해보세요
     </button>
   {/if}
 
@@ -595,14 +595,14 @@
   <!-- Admin Only: AI Custom Knowledge Management -->
   {#if $isAdmin}
     <section class="p-5 bg-gradient-to-br from-indigo-50/90 via-purple-50/60 to-pink-50/40 dark:from-gray-800/90 dark:via-indigo-950/40 dark:to-gray-900 rounded-[2rem] border border-indigo-100 dark:border-indigo-900/50 shadow-sm">
-      <div class="flex items-center justify-between mb-2">
+      <div class="flex items-center justify-between gap-2 mb-2">
         <div class="flex items-center gap-2">
           <span class="text-base">🔒</span>
           <h3 class="font-black text-xs sm:text-sm text-indigo-950 dark:text-indigo-200">
-            AI 집사용 가족 메모 (관리자 전용)
+            AI 집사용 가족 메모
           </h3>
         </div>
-        <span class="text-xs bg-indigo-100 dark:bg-indigo-900/80 text-indigo-700 dark:text-indigo-300 font-bold px-2 py-0.5 rounded-full">
+        <span class="shrink-0 whitespace-nowrap text-xs bg-indigo-100 dark:bg-indigo-900/80 text-indigo-700 dark:text-indigo-300 font-bold px-2 py-0.5 rounded-full">
           {aiKnowledgeList.length}개 저장됨
         </span>
       </div>
