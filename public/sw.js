@@ -70,12 +70,21 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
+function isInsideApp(url, scope) {
+  try {
+    return new URL(url, scope).href.startsWith(scope);
+  } catch {
+    return false;
+  }
+}
+
 // 알림 클릭 이벤트 핸들러
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
-  const urlToOpen =
-    (event.notification.data && event.notification.data.url) || "./";
+  // A push can name any address; one outside this app is not followed
+  const asked = (event.notification.data && event.notification.data.url) || "./";
+  const urlToOpen = isInsideApp(asked, self.registration.scope) ? asked : "./";
 
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
