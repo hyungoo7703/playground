@@ -8,7 +8,7 @@
     import { toast } from "../lib/feedback.js";
     import { readCache, writeCache } from "../lib/cache.js";
     import { formatDate } from "../lib/utils.js";
-    import { REWARD_LABELS } from "../lib/rewards.js";
+    import { REWARD_LABELS, hasDrawn } from "../lib/rewards.js";
 
     // --- 상태 관리 ---
     let amounts = []; // 구글 시트에서 가져온 금액 리스트
@@ -154,7 +154,7 @@
     }
 
     async function selectCard(card) {
-        if (shuffling || isSaving) return;
+        if (shuffling || isSaving || isCheckingReward) return;
 
         // 이미 뒤집힌 카드면 무시
         if (card.flipped) return;
@@ -198,6 +198,30 @@
     // Members may only arrive through a reward (attendance 100 days).
     // Those links pass navigation state naming the reward; typing the address leaves none.
     const rewardSource = history.state?.reward;
+    // No card turns until the ledger has said this reward is still unspent
+    let isCheckingReward = Boolean(rewardSource);
+
+    async function checkRewardUnspent() {
+        const res = await api.getLedger();
+        if (!res.success || hasDrawn(res.ledger || [], $currentUser, rewardSource)) {
+            toast(
+                res.success
+                    ? "이 보상은 이미 받았어요. 카드뽑기는 한 번만 할 수 있어요."
+                    : "장부를 확인하지 못했어요. 잠시 후 다시 들어와 주세요.",
+                "info",
+            );
+            return navigate(base || "/", { replace: true });
+        }
+        isCheckingReward = false;
+        // Tell the admin a reward draw has started; the flag keeps a reload from sending it again
+        if (!$isAdmin && !history.state.notified) {
+            history.replaceState({ ...history.state, notified: true }, "");
+            api.notifyReward({
+                source: rewardSource,
+                url: `${window.location.origin}${base}/`,
+            });
+        }
+    }
 
     onMount(() => {
         if (!$isAdmin && !rewardSource) {
@@ -205,14 +229,7 @@
             return navigate(base || "/", { replace: true });
         }
         fetchAmounts();
-        // Tell the admin a reward draw has started; the flag keeps a reload from sending it again
-        if (rewardSource && !$isAdmin && !history.state.notified) {
-            history.replaceState({ ...history.state, notified: true }, "");
-            api.notifyReward({
-                source: rewardSource,
-                url: `${window.location.origin}${base}/`,
-            });
-        }
+        if (rewardSource) checkRewardUnspent();
     });
 </script>
 
@@ -233,7 +250,7 @@
         </p>
     </div>
 
-    {#if isLoading}
+    {#if isLoading || isCheckingReward}
         <div class="text-center py-20">
             <div class="text-4xl animate-bounce">🎴</div>
             <p class="text-gray-500 dark:text-gray-400 mt-4 animate-pulse">카드 준비 중...</p>

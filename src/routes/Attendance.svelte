@@ -2,12 +2,13 @@
     import { onMount, tick } from "svelte";
     import { fade, scale } from "svelte/transition";
     import { navigate } from "svelte-routing";
-    import { base, currentUser } from "../lib/store.js";
+    import { base, currentUser, isAdmin } from "../lib/store.js";
     import { api } from "../lib/api.js";
     import { formatDate, parseDate, kstNow } from "../lib/utils.js";
     import { readCache, writeCache } from "../lib/cache.js";
     import Modal from "../lib/components/Modal.svelte";
     import { toast } from "../lib/feedback.js";
+    import { hasDrawn } from "../lib/rewards.js";
 
     let attendance = [];
     let ledgerItems = [];
@@ -28,11 +29,29 @@
     let useDescription = "";
     let isUseSubmitting = false;
 
-    // 100-day streak celebration
+    // 100-day streak celebration: reaching it is written to the ledger once, and so is the draw it earns
     let show100Modal = false;
-    let cardPickAvailable = false;
-    let cardPickKey = "";
-    $: cardPickKey = `attendance_100day_cardpick_${$currentUser}`;
+    $: hasReached100 = ledgerItems.some(
+        (item) =>
+            item.receiver === $currentUser &&
+            String(item.title ?? "").includes("100일 연속 출석"),
+    );
+    // Until 2026-11-23 a draw left no ledger entry; this flag was the only trace of a spent chance
+    $: isSpentOnThisDevice =
+        localStorage.getItem(`attendance_100day_cardpick_${$currentUser}`) ===
+        "used";
+    // Waits for the server's ledger, so a draw made a moment ago is not offered again from the cache
+    $: cardPickAvailable =
+        ledgerKnown &&
+        !isRevalidating &&
+        hasReached100 &&
+        !isSpentOnThisDevice &&
+        !hasDrawn(ledgerItems, $currentUser, "attendance");
+
+    function goToCardPick() {
+        show100Modal = false;
+        navigate(`${base}/card-pick`, { state: { reward: "attendance" } });
+    }
 
     // Calendar state
     let today = formatDate(kstNow());
@@ -311,35 +330,14 @@
                     );
                 }
 
-                // 100일 연속 출석 축하 모달 (평생 1회)
+                // 100일 연속 출석 (계정당 평생 1회). Without a ledger to check against, wait for the next check-in
                 const newStreak = calcStreak(
                     refreshed.success ? refreshed.attendance || [] : attendance,
                     $currentUser,
                 );
-
-                // Add server-side or ledger validation to prevent multiple claims
-                const hasClaimed100DayReward = ledgerItems.some(
-                    (item) =>
-                        item.receiver === $currentUser &&
-                        item.title &&
-                        item.title.includes("100일 연속 출석"),
-                );
-
-                const celebrated100Key = `attendance_100day_${$currentUser}`;
-
-                if (
-                    newStreak >= 100 &&
-                    !localStorage.getItem(celebrated100Key) &&
-                    !hasClaimed100DayReward
-                ) {
-                    localStorage.setItem(celebrated100Key, "true");
-                    localStorage.setItem(
-                        `attendance_100day_cardpick_${$currentUser}`,
-                        "available",
-                    );
-
-                    // Add automatic ledger record for transparency so it isn't claimed twice on another device
-                    await api.addLedger({
+                if (newStreak >= 100 && ledgerKnown && !hasReached100) {
+                    // The ledger entry is what keeps this from happening again, on this device or another
+                    const recorded = await api.addLedger({
                         date: formatDate(new Date()),
                         day: new Date().getDate(),
                         type: "기타",
@@ -349,15 +347,21 @@
                         receiver: $currentUser,
                         is_settled: true,
                     });
-
-                    const refreshedLedger = await api.getLedger();
-                    if (refreshedLedger.success)
-                        ledgerItems = refreshedLedger.ledger || [];
-
-                    cardPickAvailable = true;
-                    setTimeout(() => {
-                        show100Modal = true;
-                    }, 800);
+                    if (recorded.success) {
+                        if (!$isAdmin)
+                            api.notifyReward({
+                                source: "attendanceReached",
+                                url: `${window.location.origin}${base}/`,
+                            });
+                        const refreshedLedger = await api.getLedger();
+                        if (refreshedLedger.success) {
+                            ledgerItems = refreshedLedger.ledger || [];
+                            writeCache("ledger", ledgerItems);
+                        }
+                        setTimeout(() => {
+                            show100Modal = true;
+                        }, 800);
+                    }
                 }
             } else {
                 toast(result.message || "출석에 실패했습니다.", "error");
@@ -496,12 +500,6 @@
         if (cachedAtt && cachedLedger) isLoading = false;
 
         await revalidate();
-
-        // Check for unused card pick opportunity
-        const cpKey = `attendance_100day_cardpick_${$currentUser}`;
-        if (localStorage.getItem(cpKey) === "available") {
-            cardPickAvailable = true;
-        }
     });
 </script>
 
@@ -615,7 +613,7 @@
                 </p>
                 <p>
                     🏆 100일 연속 출석 시 <strong>용돈카드 뽑기 기회</strong> 제공
-                    (1회)
+                    (계정당 1회)
                 </p>
             </div>
         {/if}
@@ -625,11 +623,7 @@
     {#if cardPickAvailable}
         <section>
             <button
-                on:click={() => {
-                    localStorage.setItem(cardPickKey, "used");
-                    cardPickAvailable = false;
-                    navigate(`${base}/card-pick`, { state: { reward: "attendance" } });
-                }}
+                on:click={goToCardPick}
                 class="w-full flex items-center justify-between p-5 rounded-[2rem] bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-lg active:scale-[0.98] transition-all"
             >
                 <div class="text-left">
@@ -1035,12 +1029,7 @@
 
         <div class="flex flex-col gap-3">
             <button
-                on:click={() => {
-                    show100Modal = false;
-                    localStorage.setItem(cardPickKey, "used");
-                    cardPickAvailable = false;
-                    navigate(`${base}/card-pick`, { state: { reward: "attendance" } });
-                }}
+                on:click={goToCardPick}
                 class="w-full py-4 rounded-2xl font-black text-white text-lg bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 active:scale-95 transition-all shadow-lg"
             >
                 🃏 용돈카드 뽑으러 가기!

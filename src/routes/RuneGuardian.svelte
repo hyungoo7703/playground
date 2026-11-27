@@ -4,7 +4,7 @@
   import { base, currentUser } from "../lib/store.js";
   import { api } from "../lib/api.js";
   import { toast } from "../lib/feedback.js";
-  import { REWARD_LABELS } from "../lib/rewards.js";
+  import { hasDrawn } from "../lib/rewards.js";
   import GameExitButton from "../lib/components/GameExitButton.svelte";
   import Ranking from "../lib/rune/Ranking.svelte";
   import { createSound } from "../lib/rune/sound.js";
@@ -1058,12 +1058,11 @@
     loadRecords();
   }
 
-  // The card pick writes the draw into the ledger under the reward's label; one such entry means it is spent
   async function checkReward() {
     reward = "checking";
     const res = await api.getLedger();
     if (!res.success) return (reward = "error");
-    const isClaimed = (res.ledger || []).some((item) => item.receiver === $currentUser && item.title?.includes(REWARD_LABELS.rune));
+    const isClaimed = hasDrawn(res.ledger || [], $currentUser, "rune");
     reward = isClaimed ? "claimed" : "available";
     if (isClaimed) {
       localStorage.removeItem(pendingKey);
