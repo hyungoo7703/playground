@@ -23,6 +23,7 @@
     upgradePrice,
     readyRecipes,
     slotCenter,
+    strength,
   } from "../lib/rune/engine.js";
   import { makeShot, drawShot, drawBolt } from "../lib/rune/shots.js";
   import { FIELD, TRACK, GRID, RULES, TIERS, TIER, MERGE, UPGRADES, UNITS, RECIPES, ENEMIES, BOSSES } from "../lib/rune/config.js";
@@ -69,6 +70,12 @@
   // How much louder an attack is for each tier above common
   const LOUDER = [1, 1.1, 1.3, 1.7, 2.2];
   const BUMP = 0.16; // seconds a unit's move with its attack lasts
+  // The help one unit gives others, in the order its marks are drawn: who gives it, its colour, what it raises
+  const BUFFS = {
+    near: { giver: "paladin", color: "#ffe27a", what: "공격력" },
+    power: { giver: "seraph", color: "#ff7aa2", what: "공격력" },
+    haste: { giver: "valkyrie", color: "#9fe8ff", what: "공속" },
+  };
   const BLOCK = 0.3; // seconds the guard that turned a hit away shows
   const GUARD = { armor: { color: "#c9d3e3", label: "중갑" }, ward: { color: "#c79bff", label: "마법저항" } };
   // What an enemy is washed over with while something has hold of it
@@ -560,6 +567,27 @@
     }
     if (!game) return;
 
+    // The slots round a paladin, where its blessing reaches. One being carried shows where it would.
+    const color = BUFFS.near.color;
+    for (const unit of game.units) {
+      if (!UNITS[unit.key].near) continue;
+      const at = drag?.hasMoved && drag.slot === unit.slot ? (over ?? unit.slot) : unit.slot;
+      for (let slot = 0; slot < SLOTS; slot++) {
+        const isNext = slot !== at && Math.abs((slot % GRID.cols) - (at % GRID.cols)) <= 1 && Math.abs(Math.floor(slot / GRID.cols) - Math.floor(at / GRID.cols)) <= 1;
+        if (!isNext) continue;
+        const c = slotCenter(slot);
+        roundRect(c.x - c.w / 2 + 2, c.y - c.h / 2 + 2, c.w - 4, c.h - 4, 9);
+        ctx.globalAlpha = 0.1;
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.globalAlpha = 0.55;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+    }
+
     // The reach of the unit being looked at or carried
     const shown = drag?.hasMoved ? { key: drag.key, slot: over ?? drag.slot } : info;
     if (shown) {
@@ -694,6 +722,49 @@
         roundRect(c.x - c.w / 2 + 2, c.y - c.h / 2 + 2, c.w - 4, c.h - 4, 9);
         ctx.fillStyle = "rgba(143,227,255,0.45)";
         ctx.fill();
+      }
+      // A mark in the corner of its slot for each kind of help it is getting
+      const got = strength(game, unit);
+      let markX = c.x - c.w / 2 + 9.5;
+      const markY = c.y - c.h / 2 + 9.5;
+      for (const kind in BUFFS) {
+        if (!got[kind]) continue;
+        ctx.beginPath();
+        ctx.arc(markX, markY, 5.5, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(8,10,12,0.9)";
+        ctx.fill();
+        ctx.strokeStyle = ctx.fillStyle = BUFFS[kind].color;
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+        ctx.beginPath();
+        if (kind === "near") {
+          // An arrow up
+          ctx.moveTo(markX, markY - 3.4);
+          ctx.lineTo(markX + 3.2, markY + 0.4);
+          ctx.lineTo(markX + 1.2, markY + 0.4);
+          ctx.lineTo(markX + 1.2, markY + 3.2);
+          ctx.lineTo(markX - 1.2, markY + 3.2);
+          ctx.lineTo(markX - 1.2, markY + 0.4);
+          ctx.lineTo(markX - 3.2, markY + 0.4);
+          ctx.fill();
+        } else if (kind === "power") {
+          // A four-pointed star
+          for (let i = 0; i < 8; i++) {
+            const r = i % 2 ? 1.3 : 3.8;
+            ctx.lineTo(markX + Math.sin((i * Math.PI) / 4) * r, markY - Math.cos((i * Math.PI) / 4) * r);
+          }
+          ctx.fill();
+        } else {
+          // Two chevrons: faster
+          for (const dx of [-2.6, 0.4]) {
+            ctx.moveTo(markX + dx, markY - 2.8);
+            ctx.lineTo(markX + dx + 2.6, markY);
+            ctx.lineTo(markX + dx, markY + 2.8);
+          }
+          ctx.lineWidth = 1.4;
+          ctx.stroke();
+        }
+        markX += 12;
       }
     }
 
@@ -1063,6 +1134,17 @@
   });
 
   const percent = (value) => `${+(value * 100).toFixed(1)}%`;
+  // What the board adds to a unit in words, and what its attack comes to with all of it
+  function helped(unit) {
+    const got = strength(game, unit);
+    const parts = [];
+    if (got.trained) parts.push(`강화 +${Math.round(got.trained * 100)}%`);
+    for (const kind in BUFFS) {
+      if (got[kind]) parts.push(`${UNITS[BUFFS[kind].giver].name} ${BUFFS[kind].what} +${Math.round(got[kind] * 100)}%`);
+    }
+    return parts.length ? `▲ 지금 공격력 ${Math.round(got.damage)} · ${got.every.toFixed(2)}초마다 (${parts.join(", ")})` : "";
+  }
+
   const stats = (key) => {
     const unit = UNITS[key];
     return `${unit.type === "phys" ? "물리" : "마법"} ${unit.damage} · ${unit.every}초마다 · 사거리 ${unit.range >= 300 ? "전체" : unit.range}`;
@@ -1224,6 +1306,10 @@
               {UNITS[info.key].name}
             </p>
             <p class="text-[11px] text-gray-300">{stats(info.key)}</p>
+            <!-- `hud` is named so that an upgrade bought with the card open is counted at once -->
+            {#if hud && helped(info)}
+              <p class="text-[11px] font-bold break-keep" style="color: {BUFFS.near.color}">{helped(info)}</p>
+            {/if}
             <p class="text-[11px] text-amber-100 break-keep">{UNIT_TEXT[info.key]}</p>
           </div>
           <button
@@ -1597,6 +1683,9 @@
           <li>⚔️ 물리는 중갑에, 마법은 마법저항에 막혀요. 적 머리 위 <b>회색 방패</b>가 중갑, <b>보라 보석</b>이 마법저항이에요.</li>
           <li>👾 적은 길을 계속 돌아요. <b>{RULES.enemyLimit}마리</b>가 쌓이거나, 보스를 <b>{RULES.bossSeconds}초</b> 안에 못 잡으면 끝이에요.</li>
           <li>👆 유닛을 누르면 사거리와 능력이 보여요.</li>
+          <li>
+            ✨ 유닛 칸 왼쪽 위의 동그란 표식은 <b>받고 있는 버프</b>예요: 금색 ↑ 성기사(둘레 8칸), 분홍 ✦ 대천사, 하늘색 » 발키리. 성기사 둘레의 금색 칸에 놓으면 버프를 받아요.
+          </li>
           <li>🏆 <b>{RULES.clearWave}웨이브의 마왕</b>을 쓰러뜨리면 클리어! 첫 클리어에는 용돈 카드뽑기 1회를 드려요. 그 뒤로도 랭킹을 위해 계속할 수 있어요.</li>
         </ul>
         <button type="button" on:click={closeRules} class="mt-4 w-full py-3 rounded-2xl font-black text-gray-900 bg-amber-300 active:scale-95 transition-all">

@@ -92,6 +92,26 @@ const hasUnit = (state, key) => state.units.some((u) => u.key === key);
 // The strongest of a board-wide effect among the units present
 const boardWide = (state, effect) => state.units.reduce((most, u) => Math.max(most, UNITS[u.key][effect] ?? 0), 0);
 
+/**
+ * What one hit of the unit in `slot` comes to before armor and without a crit, and how often it
+ * comes, with what the rest of the board adds: `near` from a paladin in a slot next to it,
+ * `power` and `haste` from the board-wide blessings, `trained` from its own kind's upgrades.
+ */
+export function strength(state, { key, slot }) {
+  const def = UNITS[key];
+  const col = slot % GRID.cols;
+  const row = Math.floor(slot / GRID.cols);
+  const near = state.units.reduce((most, other) => {
+    const reach = UNITS[other.key].near;
+    const isNext = other.slot !== slot && Math.abs((other.slot % GRID.cols) - col) <= 1 && Math.abs(Math.floor(other.slot / GRID.cols) - row) <= 1;
+    return reach && isNext ? Math.max(most, reach) : most;
+  }, 0);
+  const power = boardWide(state, "power");
+  const haste = boardWide(state, "haste");
+  const trained = UPGRADES[def.type].bonus * state.levels[def.type];
+  return { near, power, haste, trained, damage: def.damage * (1 + trained) * (1 + power) * (1 + near), every: def.every / (1 + haste) };
+}
+
 /** The price of the next level of an upgrade, or null when there is none left. */
 export function upgradePrice(state, key) {
   const [first, step, max] = UPGRADES[key].price;
@@ -229,16 +249,8 @@ function attack(state, unit, events) {
     inReach.sort((a, b) => company(b) - company(a));
   } else inReach.sort((a, b) => b.dist - a.dist);
 
-  // Its own level of training, the board-wide blessing, and a paladin in a slot next to it
-  const col = unit.slot % GRID.cols;
-  const row = Math.floor(unit.slot / GRID.cols);
-  const blessing = state.units.reduce((most, other) => {
-    const reach = UNITS[other.key].near;
-    const isNext = other !== unit && Math.abs((other.slot % GRID.cols) - col) <= 1 && Math.abs(Math.floor(other.slot / GRID.cols) - row) <= 1;
-    return reach && isNext ? Math.max(most, reach) : most;
-  }, 0);
   const isCrit = def.crit && state.rand() < def.crit[0];
-  const amount = def.damage * (1 + UPGRADES[def.type].bonus * state.levels[def.type]) * (1 + boardWide(state, "power")) * (1 + blessing) * (isCrit ? def.crit[1] : 1);
+  const amount = strength(state, unit).damage * (isCrit ? def.crit[1] : 1);
 
   for (const target of inReach.slice(0, def.multi ?? 1)) {
     const struck = def.splash ? state.enemies.filter((e) => !e.dead && near(e, target, def.splash)) : [target];
