@@ -188,11 +188,17 @@
     contributions = { 아빠: 0, 엄마: 0, 현구: 0, 범수: 0 };
   }
 
+  let deletingId = null;
+
   async function deleteStock(id) {
+    if (deletingId) return;
     if (!(await confirmDialog("정말 삭제하시겠습니까?", { danger: true }))) return;
+    deletingId = id;
     const res = await api.deleteStock(id);
-    if (res.success) loadStocks();
+    // The row stays dimmed until the list without it has arrived
+    if (res.success) await loadStocks();
     else toast("삭제 실패: " + res.message, "error");
+    deletingId = null;
   }
 
   // USD→KRW 환율 (frankfurter, 무키·무료, 1시간 캐시) — 달러 종목 원화 환산 표시용
@@ -658,7 +664,10 @@
               </summary>
               <div class="space-y-2 mt-3 pt-1">
                 {#each stocks.filter((s) => s.stock_name === item.name && (s.currency || "KRW") === item.currency) as stock}
-                  <div class="flex justify-between items-center text-xs p-3 bg-gray-50 dark:bg-gray-700/40 rounded-2xl">
+                  <div
+                    class="flex justify-between items-center text-xs p-3 bg-gray-50 dark:bg-gray-700/40 rounded-2xl transition-opacity"
+                    class:opacity-40={deletingId === stock.id}
+                  >
                     <div class="flex items-center gap-2">
                       <span class="w-2 h-2 rounded-full {MEMBER_COLORS[stock.owner] || 'bg-gray-400'}"></span>
                       <div>
@@ -679,10 +688,11 @@
                         <button
                           type="button"
                           on:click={() => deleteStock(stock.id)}
+                          disabled={deletingId === stock.id}
                           class="w-10 h-10 -mr-2 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-rose-500 dark:hover:text-rose-500 transition-colors"
                           aria-label="매입 내역 삭제"
                         >
-                          🗑️
+                          {deletingId === stock.id ? "…" : "🗑️"}
                         </button>
                       {/if}
                     </div>

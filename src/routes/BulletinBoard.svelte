@@ -139,9 +139,15 @@
     isSubmitting = false;
   }
 
+  let isDeletingPost = false;
+  let deletingCommentId = null;
+
   async function deletePost(id) {
+    if (isDeletingPost) return;
     if (!(await confirmDialog("정말 삭제하시겠습니까? 관련 댓글도 모두 삭제됩니다.", { danger: true }))) return;
+    isDeletingPost = true;
     const res = await api.deletePost(id);
+    isDeletingPost = false;
     if (res.success) {
       showDetailModal = false;
       loadPosts();
@@ -201,7 +207,9 @@
   }
 
   async function deleteComment(id) {
+    if (deletingCommentId) return;
     if (!(await confirmDialog("댓글을 삭제하시겠습니까?", { danger: true }))) return;
+    deletingCommentId = id;
     const res = await api.deleteComment(id);
     if (res.success) {
       isCommentLoading = true;
@@ -211,6 +219,7 @@
     } else {
       toast("댓글 삭제 실패: " + res.message, "error");
     }
+    deletingCommentId = null;
   }
 
   onMount(() => {
@@ -504,9 +513,10 @@
             <button
               type="button"
               on:click={() => deletePost(currentPost.id)}
-              class="text-xs font-bold text-rose-600 dark:text-rose-400 px-3.5 py-2 rounded-full bg-rose-50 dark:bg-rose-950/40"
+              disabled={isDeletingPost}
+              class="text-xs font-bold text-rose-600 dark:text-rose-400 px-3.5 py-2 rounded-full bg-rose-50 dark:bg-rose-950/40 disabled:opacity-50"
             >
-              삭제
+              {isDeletingPost ? "삭제 중..." : "삭제"}
             </button>
           </div>
         {/if}
@@ -597,7 +607,10 @@
                   <span class="text-base p-1 bg-gray-100 dark:bg-gray-700 rounded-xl leading-none shrink-0">
                     {MEMBER_AVATARS[comment.author] || "👤"}
                   </span>
-                  <div class="flex-1 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-2xl space-y-1 relative group">
+                  <div
+                    class="flex-1 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-2xl space-y-1 relative group transition-opacity"
+                    class:opacity-40={deletingCommentId === comment.id}
+                  >
                     <div class="flex justify-between items-center pr-7">
                       <span class="text-xs font-black text-gray-800 dark:text-gray-200">
                         {comment.author}
@@ -614,10 +627,11 @@
                       <button
                         type="button"
                         on:click={() => deleteComment(comment.id)}
+                        disabled={deletingCommentId === comment.id}
                         class="absolute right-1 top-1 w-8 h-8 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-rose-500 dark:hover:text-rose-500 transition-colors text-xs"
                         aria-label="댓글 삭제"
                       >
-                        ✕
+                        {deletingCommentId === comment.id ? "…" : "✕"}
                       </button>
                     {/if}
                   </div>
@@ -640,9 +654,9 @@
           <button
             type="submit"
             disabled={!commentContent.trim() || isCommentSubmitting}
-            class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white font-black text-xs rounded-2xl transition-all active:scale-95"
+            class="shrink-0 whitespace-nowrap px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white font-black text-xs rounded-2xl transition-all active:scale-95"
           >
-            전송
+            {isCommentSubmitting ? "전송 중" : "전송"}
           </button>
         </form>
       </div>

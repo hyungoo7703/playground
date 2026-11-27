@@ -74,8 +74,12 @@
   }
 
   // --- 관리자 메뉴 삭제 (Delete) ---
+  let deletingItem = null;
+
   async function deleteMenuItem(value) {
+    if (deletingItem) return;
     if (!(await confirmDialog(`'${value}' 메뉴를 정말 삭제하시겠습니까?`, { danger: true }))) return;
+    deletingItem = value;
     try {
       const data = await api.deleteManagement("roulette", value);
       if (data.success) {
@@ -85,6 +89,8 @@
       }
     } catch (e) {
       toast("삭제 중 오류가 발생했습니다.", "error");
+    } finally {
+      deletingItem = null;
     }
   }
 
@@ -306,16 +312,18 @@
         <div class="flex flex-wrap justify-center gap-2">
           {#each foodList as food}
             <span
+              class:opacity-40={deletingItem === food}
               class="flex items-center gap-1 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl text-xs font-bold border border-slate-200/50 dark:border-slate-700"
             >
               {food}
               {#if $isAdmin}
                 <button
                   on:click={() => deleteMenuItem(food)}
+                  disabled={deletingItem === food}
                   class="w-10 h-10 -my-3 -mr-3 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors"
                   aria-label="{food} 삭제"
                 >
-                  ✕
+                  {deletingItem === food ? "…" : "✕"}
                 </button>
               {/if}
             </span>

@@ -6,6 +6,7 @@
   import TabBar from "./TabBar.svelte";
   import Toaster from "./components/Toaster.svelte";
   import ConfirmDialog from "./components/ConfirmDialog.svelte";
+  import Spinner from "./components/Spinner.svelte";
 
   // Tabs and home shortcuts load up front
   import Home from "../routes/Home.svelte";
@@ -28,10 +29,13 @@
   // chunk hashes that no longer exist, so reload once to pick up the new build.
   // The router asks again on every history change, the back button included: it has to
   // get the same promise back, or the page would be torn down and built anew under the user.
+  // True while such a page's code is on its way: the router shows nothing of its own meanwhile
+  let isPageLoading = false;
   const lazy = (load) => {
     let loading;
     return () =>
-      (loading ??= load()
+      (loading ??= ((isPageLoading = true), load())
+        .finally(() => (isPageLoading = false))
         .then((mod) => {
           sessionStorage.removeItem("chunkReload");
           return mod;
@@ -121,6 +125,9 @@
       <Route path="menu" component={Menu} />
       <!-- path 없는 Route = 미등록 주소 폴백 (svelte-routing default route) -->
       <Route component={NotFound} />
+      {#if isPageLoading}
+        <Spinner label="화면을 불러오는 중..." />
+      {/if}
     {/if}
   </main>
 

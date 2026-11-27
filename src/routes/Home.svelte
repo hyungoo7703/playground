@@ -269,28 +269,32 @@
     if (!text || isAddingKnowledge) return;
     isAddingKnowledge = true;
 
-    // Optimistic UI update
-    aiKnowledgeList = [...aiKnowledgeList, text];
+    // Shown at once; taken back, with the text returned to the box, if the server does not keep it
+    const before = aiKnowledgeList;
+    aiKnowledgeList = [...before, text];
     writeCache("ai_knowledge", aiKnowledgeList);
     newKnowledgeText = "";
 
-    try {
-      await api.addManagement("ai_knowledge", text);
-    } catch (e) {
-      console.error("AI 지식 추가 실패:", e);
-    } finally {
-      isAddingKnowledge = false;
+    const res = await api.addManagement("ai_knowledge", text);
+    if (!res.success) {
+      aiKnowledgeList = before;
+      writeCache("ai_knowledge", before);
+      newKnowledgeText = text;
+      toast("메모를 저장하지 못했습니다. 다시 시도해주세요.", "error");
     }
+    isAddingKnowledge = false;
   }
 
   async function handleDeleteKnowledge(itemToDelete) {
-    aiKnowledgeList = aiKnowledgeList.filter((item) => item !== itemToDelete);
+    const before = aiKnowledgeList;
+    aiKnowledgeList = before.filter((item) => item !== itemToDelete);
     writeCache("ai_knowledge", aiKnowledgeList);
 
-    try {
-      await api.deleteManagement("ai_knowledge", itemToDelete);
-    } catch (e) {
-      console.error("AI 지식 삭제 실패:", e);
+    const res = await api.deleteManagement("ai_knowledge", itemToDelete);
+    if (!res.success) {
+      aiKnowledgeList = before;
+      writeCache("ai_knowledge", before);
+      toast("메모를 삭제하지 못했습니다. 다시 시도해주세요.", "error");
     }
   }
 
