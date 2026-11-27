@@ -293,7 +293,7 @@
   }
 </script>
 
-<div class="space-y-6 max-w-md mx-auto">
+<div class="space-y-6 max-w-md mx-auto break-keep">
   <h1 class="text-2xl font-black text-gray-900 dark:text-white">설정</h1>
 
   <!-- 1. 기본 설정 (다크모드) -->
@@ -323,12 +323,12 @@
 
   <!-- 2. AI 연결 설정 (freeplan-ai-system) -->
   <section class="p-6 bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 rounded-3xl space-y-4">
-    <div class="flex items-center justify-between">
+    <div class="flex items-center justify-between gap-2">
       <h3 class="text-lg font-black text-gray-800 dark:text-gray-200 flex items-center gap-2">
         <span>🤖</span> AI 연결 설정
       </h3>
       <span
-        class="text-xs px-2.5 py-1 rounded-full font-bold {isConnected
+        class="shrink-0 whitespace-nowrap text-xs px-2.5 py-1 rounded-full font-bold {isConnected
           ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
           : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'}"
       >
@@ -338,7 +338,7 @@
 
     <p class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
       {#if $isAdmin}
-        Google Gemini 기반의 AI 게이트웨이 서비스와 통신합니다. 서버에서 동기화하거나 직접 입력할 수 있습니다.
+        Gemini 기반 AI 게이트웨이와 통신합니다. 서버에서 동기화하거나 직접 입력할 수 있어요.
       {:else}
         AI 집사를 쓰려면 이 기기에서 아래 버튼을 한 번 눌러 연결해 주세요.
       {/if}
@@ -438,14 +438,14 @@
 
     <!-- 내 위치 날씨 -->
     <div
-      class="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-700"
+      class="flex items-center justify-between gap-3 pt-3 border-t border-gray-100 dark:border-gray-700"
     >
-      <div>
+      <div class="min-w-0">
         <span class="text-sm font-bold text-gray-700 dark:text-gray-300"
           >📍 내 위치 날씨</span
         >
         <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-          AI에게 날씨를 물으면 현재 위치 기준으로 답해요 (위치는 저장되지 않음)
+          AI가 지금 있는 곳의 날씨로 답해요<br />(위치는 저장되지 않음)
         </p>
       </div>
       <button
@@ -478,12 +478,12 @@
 
   <!-- 3. 푸시 알림 설정 (PWA / Web Notifications) -->
   <section class="p-6 bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 rounded-3xl space-y-4">
-    <div class="flex items-center justify-between">
+    <div class="flex items-center justify-between gap-2">
       <h3 class="text-lg font-black text-gray-800 dark:text-gray-200 flex items-center gap-2">
         <span>🔔</span> 푸시 알림 설정
       </h3>
       <span
-        class="text-xs px-2.5 py-1 rounded-full font-bold {notiPermission === 'granted'
+        class="shrink-0 whitespace-nowrap text-xs px-2.5 py-1 rounded-full font-bold {notiPermission === 'granted'
           ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
           : notiPermission === 'denied'
             ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300'
@@ -500,7 +500,7 @@
     </div>
 
     <p class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-      출석체크 리마인더, D-Day 알림 및 가족 소식을 스마트폰과 브라우저 상단 배너로 받아보실 수 있습니다.
+      출석 리마인더, D-Day 알림, 가족 소식을 폰 알림으로 받아볼 수 있어요.
     </p>
 
     {#if notiMessage}
@@ -545,12 +545,12 @@
   <!-- 🔒 관리자 전용: 가족 전체 업데이트 알리기 -->
   {#if $isAdmin}
     <section class="p-6 bg-gradient-to-br from-indigo-50/90 via-purple-50/70 to-pink-50/50 dark:from-gray-800 dark:via-indigo-950/40 dark:to-purple-950/30 shadow-sm border border-indigo-200/80 dark:border-indigo-800/60 rounded-3xl space-y-4">
-      <div class="flex items-center justify-between">
+      <div class="flex items-center justify-between gap-2">
         <h3 class="text-base font-black text-indigo-950 dark:text-indigo-200 flex items-center gap-2">
-          <span>🚀</span> 가족 업데이트 알림 (관리자 전용)
+          <span>🚀</span> 가족 업데이트 알림
         </h3>
-        <span class="text-xs bg-indigo-200/70 dark:bg-indigo-900/80 text-indigo-800 dark:text-indigo-300 font-bold px-2.5 py-0.5 rounded-full">
-          나 빼고 전송
+        <span class="shrink-0 whitespace-nowrap text-xs bg-indigo-200/70 dark:bg-indigo-900/80 text-indigo-800 dark:text-indigo-300 font-bold px-2.5 py-0.5 rounded-full">
+          관리자 전용
         </span>
       </div>
 
@@ -632,7 +632,7 @@
       <span>🗑️</span> 이 기기의 앱 데이터 초기화
     </button>
     <p class="text-xs text-gray-500 dark:text-gray-400 text-center">
-      이 기기에 저장된 로그인 정보와 설정만 지워집니다. 장부·일정·게시글은 서버에 그대로 남습니다.
+      이 기기의 로그인 정보와 설정만 지워집니다.<br />장부·일정·게시글은 서버에 그대로 남습니다.
     </p>
   </section>
 </div>
