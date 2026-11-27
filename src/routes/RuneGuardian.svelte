@@ -99,18 +99,18 @@
     ranger: "한 번에 3명을 쏜다",
     pyromancer: "주변까지 태우는 폭발",
     cryomancer: "맞은 적을 30% 느리게",
-    paladin: "둘레 8칸 아군의 공격력 +25%",
+    paladin: "둘레 8칸 아군의 공격력 +25% (성기사가 여럿이어도 겹치지 않음)",
     sniper: "어디든 닿는 저격. 방어 무시, 가장 튼튼한 적부터",
     stormcaller: "5명까지 튀는 번개",
     druid: "맹독: 초당 최대 체력의 4% (보스는 0.6%)",
     dragonknight: "넓게 휩쓰는 화염창",
     archmage: "적이 가장 몰린 곳에 운석",
-    valkyrie: "아군 전체 공격 속도 +15%",
-    alchemist: "적을 잡을 때마다 골드 +1",
+    valkyrie: "아군 전체 공격 속도 +15% (여럿이어도 겹치지 않음)",
+    alchemist: "적을 잡을 때마다 골드 +1 (여럿이어도 겹치지 않음)",
     elderdragon: "거대한 화염 숨결",
-    chronomancer: "모든 적 35% 감속, 12초마다 2초간 시간 정지",
-    seraph: "아군 전체 공격력 +40%, 방어 무시",
-    worldtree: "한 번에 6명 공격, 웨이브마다 골드 +50",
+    chronomancer: "모든 적 35% 감속, 12초마다 2초간 시간 정지 (여럿이어도 겹치지 않음)",
+    seraph: "아군 전체 공격력 +40% (여럿이어도 겹치지 않음), 방어 무시",
+    worldtree: "한 번에 6명 공격, 웨이브마다 골드 +50 (골드는 여럿이어도 겹치지 않음)",
   };
   const ENEMY_TEXT = {
     slime: "평범하다",
@@ -1099,6 +1099,8 @@
   }
 
   onMount(async () => {
+    // No pull-to-refresh and no rubber band under the game
+    document.documentElement.style.overscrollBehavior = "none";
     checkReward();
     ctx = canvas.getContext("2d");
     sound = createSound(SND, EFFECT_FILES, () => loadedCount++);
@@ -1123,6 +1125,7 @@
   });
 
   onDestroy(() => {
+    document.documentElement.style.overscrollBehavior = "";
     // Leaving mid-run
     saveRun();
     if (screen === "playing") sendRecord();
@@ -1134,6 +1137,11 @@
   });
 
   const percent = (value) => `${+(value * 100).toFixed(1)}%`;
+  // What a unit gives the rest of the board. Only the strongest of a kind counts, so a second unit
+  // of the same sort adds its own attacks and nothing more.
+  const GIFTS = ["near", "power", "haste", "chill", "bounty", "income"];
+  const twins = (key) => (GIFTS.some((gift) => UNITS[key][gift]) ? game.units.filter((u) => u.key === key).length : 0);
+
   // What the board adds to a unit in words, and what its attack comes to with all of it
   function helped(unit) {
     const got = strength(game, unit);
@@ -1154,7 +1162,7 @@
 <svelte:window on:popstate={onBack} on:storage={onStorage} />
 <svelte:document on:visibilitychange={onVisibility} />
 
-<div class="absolute inset-0 flex flex-col bg-[#0b120e] text-white select-none overflow-hidden" role="application" aria-label="룬 가디언">
+<div class="absolute inset-0 flex flex-col bg-[#0b120e] text-white select-none overflow-hidden overflow-clip touch-none" role="application" aria-label="룬 가디언">
   <!-- HUD -->
   <div class="relative z-20 flex items-center gap-2 px-3 pt-3 pb-2">
     {#if screen === "playing"}
@@ -1311,6 +1319,11 @@
               <p class="text-[11px] font-bold break-keep" style="color: {BUFFS.near.color}">{helped(info)}</p>
             {/if}
             <p class="text-[11px] text-amber-100 break-keep">{UNIT_TEXT[info.key]}</p>
+            {#if hud && twins(info.key) > 1}
+              <p class="text-[11px] font-bold text-rose-300 break-keep">
+                ⚠ {UNITS[info.key].name} {twins(info.key)}명: 위 효과는 한 번만 적용돼요.
+              </p>
+            {/if}
           </div>
           <button
             type="button"
@@ -1369,7 +1382,7 @@
           닫기
         </button>
       </div>
-      <div class="flex-1 overflow-y-auto overscroll-contain px-4 pb-6 space-y-5">
+      <div class="flex-1 overflow-y-auto overscroll-contain touch-pan-y px-4 pb-6 space-y-5">
         <section>
           <h3 class="mt-3 text-sm font-black" style="color: {TIER_COLOR.mythic}">신화 조합식</h3>
           <p class="text-[11px] text-gray-400">아래 세 유닛이 판 위에 동시에 있으면 만들 수 있어요. 무엇이 나오는지는 만들어 봐야 알아요.</p>
@@ -1459,8 +1472,8 @@
   {/if}
 
   {#if screen === "playing" && isPaused && !showClear}
-    <div class="absolute inset-0 z-30 flex items-center justify-center p-5 bg-black/75">
-      <div class="w-full max-w-xs text-center">
+    <div class="absolute inset-0 z-30 flex p-5 overflow-y-auto overscroll-contain touch-pan-y bg-black/75">
+      <div class="w-full max-w-xs m-auto text-center">
         <h2 class="text-3xl font-black text-amber-200">일시정지</h2>
         <p class="mt-2 text-sm text-gray-300">{hud.wave}웨이브 진행 중</p>
         <button
@@ -1490,8 +1503,8 @@
   {/if}
 
   {#if screen === "playing" && showClear}
-    <div class="absolute inset-0 z-30 flex items-center justify-center p-5 bg-black/85">
-      <div class="w-full max-w-xs text-center">
+    <div class="absolute inset-0 z-30 flex p-5 overflow-y-auto overscroll-contain touch-pan-y bg-black/85">
+      <div class="w-full max-w-xs m-auto text-center">
         <p class="text-[11px] font-black tracking-[0.4em] text-amber-200">WAVE {RULES.clearWave}</p>
         <h2 class="mt-1 text-5xl font-black text-amber-200" style="animation: rune-glow 2.6s ease-in-out infinite">CLEAR!</h2>
         <p class="mt-3 text-gray-200 break-keep">마왕을 쓰러뜨리고 네 보스를 모두 물리쳤습니다.</p>
@@ -1529,8 +1542,8 @@
   {/if}
 
   {#if screen === "over"}
-    <div class="absolute inset-0 z-30 flex items-center justify-center p-5 bg-black/80">
-      <div class="w-full max-w-xs text-center">
+    <div class="absolute inset-0 z-30 flex p-5 overflow-y-auto overscroll-contain touch-pan-y bg-black/80">
+      <div class="w-full max-w-xs m-auto text-center">
         <h2 class="text-4xl font-black text-rose-400">GAME OVER</h2>
         <p class="mt-3 text-gray-300">
           <strong class="text-white">{hud.wave}웨이브</strong>에서
@@ -1578,7 +1591,11 @@
           {#if screen === "start"}
             <p class="mt-2 text-xs font-bold text-gray-100 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] break-keep">
               🏆 {RULES.clearWave}웨이브 마왕을 쓰러뜨리면 클리어
-              {#if reward === "claimed"}· 보상 받음{:else if reward === "available"}· 첫 클리어 보상: 용돈 카드뽑기 1회{/if}
+              {#if reward === "claimed"}
+                <br />🎁 클리어 보상은 이미 받았어요
+              {:else if reward === "available"}
+                <br />🎁 첫 클리어 보상: 용돈 카드뽑기 1회
+              {/if}
             </p>
           {/if}
         </div>
@@ -1661,8 +1678,8 @@
   {/if}
 
   {#if showRanking}
-    <div class="absolute inset-0 z-30 flex items-center justify-center p-5 bg-black/85">
-      <div class="w-full max-w-xs text-center">
+    <div class="absolute inset-0 z-30 flex p-5 overflow-y-auto overscroll-contain touch-pan-y bg-black/85">
+      <div class="w-full max-w-xs m-auto text-center">
         <h2 class="text-xl font-black text-amber-200">🏆 가족 랭킹</h2>
         <div class="mt-4"><Ranking {ranking} {records} {localBest} me={$currentUser} /></div>
         <button type="button" on:click={() => (showRanking = false)} class="mt-4 w-full py-3 rounded-2xl font-bold bg-white/10 active:scale-95 transition-all">
@@ -1673,8 +1690,8 @@
   {/if}
 
   {#if showRules}
-    <div class="absolute inset-0 z-40 flex items-center justify-center p-5 bg-black/90">
-      <div class="w-full max-w-xs">
+    <div class="absolute inset-0 z-40 flex p-5 overflow-y-auto overscroll-contain touch-pan-y bg-black/90">
+      <div class="w-full max-w-xs m-auto">
         <h2 class="text-xl font-black text-amber-200 text-center">게임 방법</h2>
         <ul class="mt-4 space-y-2 text-sm text-gray-200 bg-white/5 border border-white/10 rounded-2xl p-4 break-keep">
           <li>🔮 골드로 유닛을 <b>소환</b>해요. 어떤 등급이 나올지는 운이에요.</li>
@@ -1684,7 +1701,7 @@
           <li>👾 적은 길을 계속 돌아요. <b>{RULES.enemyLimit}마리</b>가 쌓이거나, 보스를 <b>{RULES.bossSeconds}초</b> 안에 못 잡으면 끝이에요.</li>
           <li>👆 유닛을 누르면 사거리와 능력이 보여요.</li>
           <li>
-            ✨ 유닛 칸 왼쪽 위의 동그란 표식은 <b>받고 있는 버프</b>예요: 금색 ↑ 성기사(둘레 8칸), 분홍 ✦ 대천사, 하늘색 » 발키리. 성기사 둘레의 금색 칸에 놓으면 버프를 받아요.
+            ✨ 유닛 칸 왼쪽 위의 동그란 표식은 <b>받고 있는 버프</b>예요: 금색 ↑ 성기사(둘레 8칸), 분홍 ✦ 대천사, 하늘색 » 발키리. 성기사 둘레의 금색 칸에 놓으면 버프를 받아요. <b>같은 버프는 겹치지 않고</b>(성기사가 둘이어도 +25%), 종류가 다르면 함께 적용돼요.
           </li>
           <li>🏆 <b>{RULES.clearWave}웨이브의 마왕</b>을 쓰러뜨리면 클리어! 첫 클리어에는 용돈 카드뽑기 1회를 드려요. 그 뒤로도 랭킹을 위해 계속할 수 있어요.</li>
         </ul>

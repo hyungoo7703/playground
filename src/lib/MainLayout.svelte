@@ -101,10 +101,10 @@
 
 <div
   class="relative flex flex-col bg-gray-100 dark:bg-gray-900 {isGameplayPage
-    ? 'h-[100dvh] overflow-hidden'
+    ? 'h-[100dvh] overflow-hidden overflow-clip'
     : 'min-h-screen'}"
 >
-  <main class={isGameplayPage ? "flex-1 overflow-hidden relative" : "p-4 sm:p-6 pb-24"}>
+  <main class={isGameplayPage ? "flex-1 overflow-hidden overflow-clip relative" : "p-4 sm:p-6 pb-24"}>
     {#if !$isLoggedIn}
       <Login />
     {:else}
