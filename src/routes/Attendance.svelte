@@ -106,7 +106,9 @@
 
     // 갓챠 보상 시스템
     const GACHA_REWARDS = [50, 100, 200, 300]; // 일일 (각 25%)
-    const PERFECT_GACHA_REWARDS = [500, 900, 1400]; // 올출석 보너스 (각 33%)
+    // 올출석 보너스 (각 33%). Balances are recounted from history, so months already earned keep their amounts
+    const PERFECT_GACHA_REWARDS_UNTIL_2026_11 = [500, 900, 1400];
+    const PERFECT_GACHA_REWARDS = [300, 500, 800]; // 2026년 12월 올출석분부터
 
     function hashStr(str) {
         let hash = 0;
@@ -136,13 +138,16 @@
     }
 
     function getPerfectBonus(year, month, userName) {
+        // month is 0-based: 11 is December
+        const rewards =
+            year > 2026 || (year === 2026 && month >= 11)
+                ? PERFECT_GACHA_REWARDS
+                : PERFECT_GACHA_REWARDS_UNTIL_2026_11;
         if (year < 2026 || (year === 2026 && month < 2)) {
             // 기존 해시 (2026년 3월 이전)
-            return PERFECT_GACHA_REWARDS[
-                hashStr(`perfect-${year}-${month}-${userName}`) % 3
-            ];
+            return rewards[hashStr(`perfect-${year}-${month}-${userName}`) % 3];
         }
-        return PERFECT_GACHA_REWARDS[
+        return rewards[
             hashStr(`${userName}-perfect-${year}-${month}-${userName}`) % 3
         ];
     }
@@ -609,7 +614,7 @@
                     🎰 매일 출석 시 <strong>50~300원</strong> 랜덤 적립 (50/100/200/300원)
                 </p>
                 <p>
-                    🌟 한 달 올출석 시 <strong>+500/900/1,400원</strong> 랜덤 보너스
+                    🌟 한 달 올출석 시 <strong>+300/500/800원</strong> 랜덤 보너스
                 </p>
                 <p>
                     🏆 100일 연속 출석 시 <strong>용돈카드 뽑기 기회</strong> 제공
